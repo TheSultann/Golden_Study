@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const User = require('../models/User');
-const authMiddleware = require('../middleware/auth.Middleware');
+const authMiddleware = require('../middleware/auth.middleware');
 const router = Router();
 
 // PUT /api/user/profile - Обновление профиля пользователя (имени)
