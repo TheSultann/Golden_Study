@@ -1,0 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --bg-main: #F8F9FB;
+    --bg-light: #FFFFFF;
+    --text-primary: #1A202C;
+    --text-secondary: #718096;
+    --text-tertiary: #A0AEC0;
+    --border-color: #E2E8F0;
+    --primary-blue: #3A8DDE;
+    --dark-blue: #0D1B2A;
+}
+
+body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* Make sure the app takes up the full height */
+#root, .appContainer {
+    min-height: 100vh;
+}

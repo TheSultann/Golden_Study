@@ -1,0 +1,684 @@
+/* ==========================================================================
+   Base Dashboard Layout
+   ========================================================================== */
+
+   .dashboard {
+    padding: 30px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  
+  .header h3 {
+    margin: 0;
+    font-size: 24px;
+  }
+  
+  .header p {
+    margin: 4px 0 0 0;
+    color: var(--text-secondary);
+  }
+  
+  .createButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  
+  @media (max-width: 768px) {
+    .dashboard {
+      padding: 15px;
+    }
+    .header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 15px;
+    }
+    .header div {
+      max-width: 100%;
+    }
+    .createButton {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+  
+  /* ==========================================================================
+     Main Tabs (Lessons / Statistics)
+     ========================================================================== */
+  
+  .mainTabContainer {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 30px;
+  }
+  
+  .mainTab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #6b7280;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease-in-out;
+  }
+  
+  .activeMainTab {
+    composes: mainTab;
+    color: #007bff;
+    border-bottom: 3px solid #007bff;
+  }
+  
+  @media (max-width: 768px) {
+    .mainTabContainer {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .mainTabContainer::-webkit-scrollbar {
+      display: none;
+    }
+  }
+  
+  /* ==========================================================================
+     Lesson List
+     ========================================================================== */
+  
+  .lessonList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .lessonRow {
+    display: grid;
+    grid-template-columns: 3fr 2fr 1fr;
+    align-items: center;
+    padding: 15px 20px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+  }
+  
+  .headerRow {
+    background: #f9fafb;
+    font-weight: 600;
+    color: #6b7280;
+  }
+  
+  .groupName {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6b7280;
+  }
+  
+  .gradeButton {
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    justify-self: start;
+    font-weight: 500;
+  }
+  
+  @media (max-width: 768px) {
+    .headerRow {
+      display: none;
+    }
+    .lessonRow {
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 15px;
+    }
+    .lessonRow > span {
+      display: block;
+      width: 100%;
+    }
+    .lessonRow > span:first-child {
+      font-weight: 600;
+    }
+    .lessonRow > .groupName::before {
+      content: "Group: ";
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .gradeButton {
+      justify-self: stretch;
+      text-align: center;
+      margin-top: 10px;
+    }
+  }
+  
+  /* ==========================================================================
+     Modal & Tabs Styles
+     ========================================================================== */
+  
+  .defaultModal {
+    max-width: 550px;
+  }
+  
+  .wideModal {
+    max-width: 850px;
+  }
+  
+  .tabContainer {
+    display: flex;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+  }
+  
+  .tab {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+  
+  .activeTab {
+    composes: tab;
+    color: #007bff;
+    border-bottom: 2px solid #007bff;
+  }
+  
+  .tabContent {
+    animation: fadeIn 0.3s ease-in-out;
+    max-height: 65vh;
+    overflow-y: auto;
+    padding-right: 10px;
+  }
+  
+  @media (max-width: 768px) {
+    .defaultModal,
+    .wideModal {
+      width: 90vw;
+      max-width: 90vw;
+    }
+    .tab {
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+  }
+  
+  /* ==========================================================================
+     Forms (Create Lesson, Add Assignment)
+     ========================================================================== */
+  
+  .createLessonForm,
+  .addAssignmentForm {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .formGroup label {
+    font-weight: 500;
+    font-size: 14px;
+  }
+  
+  .formGroup input,
+  .formGroup textarea,
+  .formGroup select {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    background-color: white;
+    width: 100%;
+  }
+  
+  .formGroup textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+  
+  .formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 10px;
+  }
+  
+  .cancelButton {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  .submitButton {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  
+  @media (max-width: 768px) {
+    .formActions {
+      flex-direction: column;
+      gap: 10px;
+    }
+    .formActions button {
+      width: 100%;
+    }
+  }
+  
+  /* ==========================================================================
+     Assignment List & Items
+     ========================================================================== */
+  
+  .assignmentList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .assignmentItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    background-color: #f9fafb;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .assignmentContent {
+    flex-grow: 1;
+  }
+  
+  .assignmentContent strong {
+    display: block;
+    margin-bottom: 4px;
+  }
+  
+  .assignmentContent p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+  
+  .actionButtons {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .actionButton {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  }
+  
+  .actionButton:hover {
+    background-color: #f3f4f6;
+  }
+  
+  .deleteButton {
+    background: none;
+    border: none;
+    color: #ef4444;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+  }
+  
+  .deleteButton:hover {
+    background-color: #fee2e2;
+  }
+  
+  .editInput {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 14px;
+    font-family: 'Inter', sans-serif;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 5px;
+  }
+  
+  .saveEditButton {
+    color: #22c55e;
+  }
+  
+  .saveEditButton:hover {
+    background-color: #dcfce7;
+  }
+  
+  .cancelEditButton {
+    color: #6b7280;
+  }
+  
+  .cancelEditButton:hover {
+    background-color: #f3f4f6;
+  }
+  
+  /* ==========================================================================
+     Evaluation List & Rows
+     ========================================================================== */
+  
+  .evaluationContainer {
+    max-height: 45vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 10px;
+  }
+  
+  .evaluationRow {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 2fr 1.2fr;
+    gap: 1rem;
+    align-items: start;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .evaluationRow:last-child {
+    border-bottom: none;
+  }
+  
+  .evaluationHeader {
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom-width: 2px;
+    padding-right: 10px;
+  }
+  
+  .evaluationHeader span:nth-child(2),
+  .evaluationHeader span:nth-child(4) {
+    text-align: center;
+  }
+  
+  .evaluationRow input[type="number"] {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0.5rem;
+    font-size: 14px;
+    width: 100%;
+    max-width: 80px;
+    box-sizing: border-box;
+    text-align: center;
+    margin: 0 auto;
+    display: block;
+  }
+  
+  .skillsCell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .skillsCell label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  
+  .saveButton {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    background-color: #28a745;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    width: 100%;
+    max-width: 110px;
+    box-sizing: border-box;
+    margin: 0 auto;
+    display: block;
+  }
+  
+  .saveButton:hover {
+    background-color: #218838;
+  }
+  
+  @media (max-width: 768px) {
+    .evaluationHeader {
+      display: none;
+    }
+    .evaluationRow {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    .evaluationCell {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+    .evaluationCell input[type="number"],
+    .evaluationCell .saveButton {
+      margin: 0;
+    }
+  }
+  
+  /* ==========================================================================
+     Statistics
+     ========================================================================== */
+  
+  .statsContainer {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .groupSelector {
+    margin-bottom: 20px;
+    max-width: 300px;
+  }
+  
+  .groupSelector label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  
+  .groupSelector select {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: white;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  .groupAverageCard {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  
+  .groupAverageTitle {
+    font-size: 14px;
+    color: #6b7280;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  
+  .groupAverageValue {
+    font-size: 32px;
+    font-weight: bold;
+    color: #111827;
+  }
+  
+  .statsTable {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .statsTable thead {
+    background-color: #f9fafb;
+  }
+  
+  .statsTable th,
+  .statsTable td {
+    padding: 16px 20px;
+    text-align: left;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .statsTable th {
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .statsTable tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  .statsTable tbody tr:hover {
+    background-color: #f9fafb;
+  }
+  
+  .statsTable td {
+    font-size: 14px;
+    color: #374151;
+  }
+  
+  .rankCell {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  
+  .noDataCell {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+    font-size: 14px;
+  }
+  
+  @media (max-width: 768px) {
+    .statsTable {
+      border: none;
+    }
+    .statsTable thead {
+      display: none;
+    }
+    .statsTable tr {
+      display: block;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 15px;
+      padding: 15px;
+    }
+    .statsTable td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+      text-align: right;
+      font-size: 14px;
+    }
+    .statsTable td:last-child {
+      border-bottom: none;
+    }
+    .statsTable td::before {
+      content: attr(data-label);
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: left;
+      padding-right: 10px;
+    }
+    .statsTable .noDataCell {
+      display: block;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      text-align: center;
+    }
+    .rankCell {
+      font-size: 1rem;
+    }
+  }
+  
+  /* ==========================================================================
+     Helpers & Animations
+     ========================================================================== */
+  
+  .divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 24px 0;
+  }
+  
+  .mobileLabel {
+    display: none;
+  }
+  
+  @media (max-width: 768px) {
+    .mobileLabel {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }

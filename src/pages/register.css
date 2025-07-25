@@ -1,0 +1,122 @@
+/* src/pages/RegisterPage.css */
+
+/* Общий контейнер страницы, центрирует содержимое */
+.register-page-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; /* Занимает всю высоту экрана */
+    background-color: #f0f4f8; /* Светлый фон */
+    padding: 20px;
+    box-sizing: border-box; /* Учитываем padding в общей высоте */
+}
+
+/* Обертка для формы, чтобы придать ей нужные размеры и отступы */
+.register-form-wrapper {
+    background-color: #fff; /* Белый фон для формы */
+    padding: 40px;
+    border-radius: 12px; /* Скругленные углы */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Мягкая тень */
+    width: 100%;
+    max-width: 400px; /* Ограничиваем максимальную ширину формы */
+    text-align: center; /* Центрируем текст внутри */
+}
+
+.register-header {
+    margin-bottom: 30px;
+}
+
+.register-logo {
+    width: 50px; /* Пример размера логотипа */
+    height: auto;
+    margin-bottom: 15px;
+}
+
+.register-header h2 {
+    font-size: 28px;
+    color: #1f2937; /* Темный текст */
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.register-header p {
+    font-size: 16px;
+    color: #6b7280; /* Серый текст */
+    margin-bottom: 0;
+}
+
+.register-form .form-group {
+    margin-bottom: 20px;
+    text-align: left; /* Выравниваем метки и поля по левому краю */
+}
+
+.register-form label {
+    display: block; /* Метка на отдельной строке */
+    font-size: 14px;
+    color: #374151; /* Темно-серый для меток */
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+/* Эти классы можно вынести в общий файл стилей, так как они идентичны */
+.register-form .input-field {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #d1d5eb; /* Светло-серый цвет рамки */
+    border-radius: 8px;
+    font-size: 16px;
+    box-sizing: border-box; /* Чтобы padding не увеличивал ширину */
+    outline: none; /* Убираем стандартный обвод */
+    transition: border-color 0.2s ease-in-out;
+}
+
+.register-form .input-field:focus {
+    border-color: #3b82f6; /* Синяя рамка при фокусе */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); /* Легкая тень при фокусе */
+}
+
+.register-form .input-field::placeholder {
+    color: #9ca3af; /* Цвет плейсхолдера */
+}
+/* --- */
+
+.register-form .form-actions {
+    display: flex;
+    justify-content: flex-end; /* Кнопка будет справа, т.к. она одна */
+    margin-top: 25px;
+    margin-bottom: 20px;
+}
+
+.register-button {
+    background-color: #3b82f6; /* Синий фон для кнопки */
+    color: #fff; /* Белый текст */
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    width: 100%; /* Можно сделать кнопку на всю ширину для страницы регистрации */
+}
+
+.register-button:hover {
+    background-color: #2563eb; /* Более темный синий при наведении */
+}
+
+/* Ссылка для перехода на страницу входа */
+.login-link {
+    font-size: 14px;
+    color: #6b7280; /* Серый текст */
+    margin-top: 20px;
+}
+
+.login-link a {
+    color: #3b82f6; /* Синий цвет ссылки */
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}

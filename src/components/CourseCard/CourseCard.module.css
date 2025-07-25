@@ -1,0 +1,98 @@
+/* Полностью замени содержимое CourseCard.module.css */
+.card {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer; /* <-- ДОБАВЛЕНО */
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.card.pending {
+    background-color: #f9fafb;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.assignment {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 4px 0 0 0;
+}
+
+.teacherAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-left: 15px;
+    /* Добавляем стили для текста внутри, если нет картинки */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    background-color: var(--primary-blue);
+    color: white;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+}
+
+.dueDate {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+}
+
+.scorePill {
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 12px;
+    background-color: #dcfce7; /* Зеленый фон для оценки */
+    color: #166534; /* Темно-зеленый текст */
+}
+
+.pendingPill {
+    background-color: #f3f4f6; /* Серый фон */
+    color: #4b5563; /* Серый текст */
+}
+
+.progressContainer {
+    width: 100%;
+    height: 6px;
+    background-color: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progressBar {
+    height: 100%;
+    background-color: var(--primary-blue);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}

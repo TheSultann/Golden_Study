@@ -1,0 +1,41 @@
+.appContainer {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    height: 100vh;
+}
+
+.mainContent {
+    overflow-y: auto;
+}
+
+/* --- MOBILE STYLES --- */
+@media (max-width: 768px) {
+    .appContainer {
+        /* On mobile, sidebar is a fixed bottom bar, so only one column is needed */
+        grid-template-columns: 1fr;
+        display: block; /* Use block to allow main content to flow naturally */
+        height: auto;
+    }
+
+    .mainContent {
+        /* Add padding to the bottom to avoid content being hidden by the fixed sidebar */
+        padding-bottom: 70px;
+    }
+}
+
+
+/* Добавьте этот код в конец файла */
+
+.pageLayout {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    height: 100vh;
+}
+
+@media (max-width: 768px) {
+    .pageLayout {
+        grid-template-columns: 1fr;
+        display: block;
+        height: auto;
+    }
+}

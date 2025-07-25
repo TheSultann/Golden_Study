@@ -1,0 +1,341 @@
+.pageContainer {
+    padding: 30px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.header h1 {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.createButton {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.content {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 30px;
+}
+
+.sectionTitle {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.groupList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.groupCard {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 15px;
+}
+
+.cardHeader h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.cardActions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.studentCount {
+    font-size: 13px;
+    color: #6b7280;
+    background-color: #f3f4f6;
+    padding: 4px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+}
+
+.deleteGroupButton {
+    background: transparent;
+    border: none;
+    color: #ef4444; /* red-500 */
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.deleteGroupButton:hover {
+    background-color: #fee2e2; /* red-100 */
+}
+
+.studentList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 14px;
+}
+
+.studentListItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.studentListItem:hover {
+    background-color: #f9fafb; /* gray-50 */
+}
+
+.deleteStudentButton {
+    background: transparent;
+    border: none;
+    color: #9ca3af; /* gray-400 */
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+.studentListItem:hover .deleteStudentButton {
+    opacity: 1;
+}
+
+.deleteStudentButton:hover {
+    color: #ef4444; /* red-500 */
+}
+
+.noStudents {
+    color: #6b7280;
+    font-style: italic;
+    padding: 6px 4px;
+}
+
+/* --- Стили модального окна --- */
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.formGroup label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 8px;
+}
+.formGroup input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 15px;
+}
+.formGroup input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+.formActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+}
+.formActions button {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: 1px solid;
+    cursor: pointer;
+    font-weight: 500;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+.cancelButton {
+    background-color: #fff;
+    color: #374151;
+    border-color: #d1d5db;
+}
+.cancelButton:hover {
+    background-color: #f9fafb;
+}
+.formActions button[type="submit"] {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+.formActions button[type="submit"]:hover {
+    background-color: #2563eb;
+}
+
+/* --- Стили нераспределенных студентов --- */
+.unassignedList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.studentItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+}
+
+.studentInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.studentInfo strong {
+    font-weight: 500;
+}
+
+.studentInfo span {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.assignControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.assignControls select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 8px 32px 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    transition: border-color 0.2s;
+}
+
+.assignControls select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.assignControls button {
+    background-color: #16a34a;
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+
+.assignControls button:hover {
+    background-color: #15803d;
+}
+
+
+/* ==========================================================================
+   Mobile Styles
+   ========================================================================== */
+
+@media (max-width: 992px) {
+    .content {
+        display: flex;
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 768px) {
+    .pageContainer {
+        padding: 15px;
+    }
+
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .header h1 {
+        font-size: 20px;
+    }
+
+    .createButton {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .groupList {
+        grid-template-columns: 1fr;
+    }
+    
+    .studentItem {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .assignControls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .assignControls select,
+    .assignControls button {
+        width: 100%;
+        text-align: center;
+    }
+}

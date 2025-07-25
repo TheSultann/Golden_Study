@@ -1,0 +1,126 @@
+.settingsWrapper {
+    padding: 1rem;
+}
+
+.settingsContainer {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    max-width: 700px;
+    margin: 2rem auto;
+    overflow: hidden;
+}
+
+.header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e5e7eb;
+    background-color: #f9fafb;
+}
+
+.header h2 {
+    margin: 0 0 0.25rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+}
+
+.header p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.settingsForm {
+    display: flex;
+    flex-direction: column;
+    padding: 2rem;
+    gap: 1.5rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.formGroup label {
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.input {
+    padding: 0.75rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 1rem;
+    color: #111827;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-color: #fff;
+}
+
+.input::placeholder {
+    color: #9ca3af;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.3);
+}
+
+.footer {
+    display: flex;
+    justify-content: flex-end; /* По умолчанию кнопка справа */
+    align-items: center;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    flex-wrap: wrap; /* Для мобильных */
+}
+
+/* ИСПРАВЛЕНИЕ: Главное правило для десктопа */
+@media (min-width: 640px) {
+    .footer {
+       justify-content: space-between; /* Распределяем место */
+    }
+}
+
+.saveButton {
+    padding: 0.65rem 1.5rem;
+    background-color: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+    flex-shrink: 0; /* Чтобы кнопка не сжималась */
+}
+
+.saveButton:hover:not(:disabled) {
+    background-color: #1d4ed8;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.saveButton:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.message {
+    text-align: left;
+    font-size: 0.9rem;
+    font-weight: 500;
+    flex-grow: 1; /* Чтобы сообщение заняло всё доступное место */
+    min-height: 1.2rem; /* Чтобы контейнер не схлопывался, когда пустой */
+}
+
+.successMessage {
+    color: #16a34a;
+}
+
+.errorMessage {
+    color: #dc2626;
+}

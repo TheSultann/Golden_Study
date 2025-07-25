@@ -1,0 +1,134 @@
+/* Полностью замени содержимое RightPanel.module.css */
+.rightPanel {
+    background-color: var(--bg-main);
+    border-left: 1px solid var(--border-color);
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    overflow-y: auto;
+}
+
+/* --- Profile Card --- */
+.profileCard {
+    background-color: var(--bg-light);
+    border-radius: 20px;
+    text-align: center;
+    position: relative;
+    padding: 0 15px 20px 15px; /* Уменьшаем боковые отступы */
+}
+.profileBanner img {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 20px 20px 0 0;
+}
+.profileAvatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 4px solid var(--bg-light);
+    margin-top: -40px;
+    position: relative;
+}
+.profileName { margin: 10px 0 0; font-size: 18px; }
+.verified { color: var(--primary-blue); }
+.profileHandle { margin: 4px 0 15px; color: var(--text-secondary); font-size: 14px; }
+.profileStats {
+    display: flex;
+    justify-content: space-around;
+}
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    color: var(--text-secondary);
+}
+.stat svg { font-size: 20px; }
+.stat span { font-weight: 600; color: var(--text-primary); font-size: 16px; }
+.stat p { font-size: 12px; margin: 0; }
+
+/* --- Общие стили секций --- */
+.activitySection, .tasksSection, .skillsSection {
+    background-color: var(--bg-light);
+    border-radius: 20px;
+    padding: 20px;
+}
+.sectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.sectionHeader h4 { margin: 0; font-size: 16px; font-weight: 600; }
+.sectionHeader a { color: var(--primary-blue); text-decoration: none; font-size: 14px; }
+.dropdown {
+    background-color: #fff;
+    border: 1px solid var(--border-color);
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ БЛОКА SKILLS --- */
+.skillsList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.skillItem {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    align-items: center;
+    gap: 15px;
+}
+.skillName {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+.skillBarContainer {
+    width: 100%;
+    height: 8px;
+    background-color: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.skillBar {
+    height: 100%;
+    background-color: var(--primary-blue);
+    border-radius: 4px;
+}
+
+/* --- Стили для Upcoming Tasks --- */
+.taskList { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 15px; }
+.taskItem { display: flex; align-items: center; gap: 15px; }
+.taskIcon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+.taskDetails { flex-grow: 1; }
+.taskDetails h5 { margin: 0 0 4px; font-size: 14px; font-weight: 500; }
+.taskDetails p { margin: 0; font-size: 12px; color: var(--text-secondary); }
+.taskItem > svg { color: var(--text-tertiary); cursor: pointer; }
+/* Добавь это в конец файла RightPanel.module.css */
+.section {
+    background-color: var(--bg-light);
+    border-radius: 20px;
+    padding: 20px;
+}
+.statItem {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.statItem:last-child {
+    border-bottom: none;
+}
+.statItem span {
+    color: var(--text-secondary);
+}
+.statItem strong {
+    color: var(--text-primary);
+}
