@@ -1,9 +1,11 @@
+// src/pages/RegisterPage.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState } from 'react';
 import { useHistory, Link } from 'react-router-dom';
 import './register.css';
+import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 function RegisterPage() {
-    // Возвращаем поле для имени
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -19,26 +21,16 @@ function RegisterPage() {
         }
         
         try {
-            const response = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                // Отправляем на сервер и имя
-                body: JSON.stringify({ name, email, password })
-            });
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Используем наш API. Путь теперь '/api/auth/register'
+            await API.post('/api/auth/register', { name, email, password });
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
             
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Ошибка регистрации');
-            }
-
             alert('Регистрация успешна! Теперь вы можете войти.');
             history.push('/login');
 
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка регистрации');
         }
     };
 
@@ -51,7 +43,6 @@ function RegisterPage() {
                 </div>
 
                 <form onSubmit={handleRegister} className="register-form">
-                    {/* ВОЗВРАЩАЕМ ПОЛЕ ДЛЯ ИМЕНИ */}
                     <div className="form-group">
                         <label htmlFor="name">Ваше имя</label>
                         <input

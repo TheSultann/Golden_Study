@@ -7,10 +7,11 @@ import Modal from '../../Modal/Modal';
 import EvaluationRow from './EvaluationRow';
 import AssignmentItem from './AssignmentItem';
 import GroupStatistics from '../Statistics/GroupStatistics';
+import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 const TeacherDashboard = () => {
     const teacherName = localStorage.getItem('userName') || 'Teacher';
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('userToken'); // Оставим для проверки
 
     const [lessons, setLessons] = useState([]);
     const [groups, setGroups] = useState([]);
@@ -30,18 +31,16 @@ const TeacherDashboard = () => {
     const fetchData = async () => {
         try {
             const [lessonsRes, groupsRes] = await Promise.all([
-                fetch('/api/lessons', { headers: { 'Authorization': `Bearer ${token}` } }),
-                fetch('/api/groups', { headers: { 'Authorization': `Bearer ${token}` } })
+                API.get('/api/lessons'),
+                API.get('/api/groups')
             ]);
-            const lessonsData = await lessonsRes.json();
-            const groupsData = await groupsRes.json();
-            if (lessonsRes.ok) setLessons(lessonsData);
-            if (groupsRes.ok) setGroups(groupsData);
+            setLessons(lessonsRes.data);
+            setGroups(groupsRes.data);
         } catch (error) { console.error("Ошибка загрузки данных:", error); }
     };
 
     useEffect(() => {
-        if(token) fetchData();
+        if (token) fetchData();
     }, [token]);
 
     const handleOpenCreateModal = () => {
@@ -62,29 +61,67 @@ const TeacherDashboard = () => {
             return;
         }
         try {
-            const response = await fetch('/api/lessons', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ title: newLessonTitle, dueDate: newLessonDueDate, groupId: selectedGroupId })
+            await API.post('/api/lessons', {
+                title: newLessonTitle,
+                dueDate: newLessonDueDate,
+                groupId: selectedGroupId
             });
-            if (response.ok) {
-                alert('Урок создан!');
-                setIsCreateModalOpen(false);
-                fetchData();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Ошибка создания урока');
-            }
+            alert('Урок создан!');
+            setIsCreateModalOpen(false);
+            fetchData();
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка создания урока');
         }
     };
 
     const handleOpenDetailModal = (lesson) => { setSelectedLesson(lesson); setIsDetailModalOpen(true); setActiveTab('assignments'); };
     const handleCloseDetailModal = () => { setIsDetailModalOpen(false); setSelectedLesson(null); setEvaluationData([]); setNewAssignmentTitle(''); setNewAssignmentDescription(''); fetchData(); };
-    const handleAddAssignment = async (e) => { e.preventDefault(); if (!selectedLesson) return; try { const res = await fetch(`/api/lessons/${selectedLesson._id}/assignments`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ title: newAssignmentTitle, description: newAssignmentDescription }) }); const updatedLesson = await res.json(); if (res.ok) { setSelectedLesson(updatedLesson); setNewAssignmentTitle(''); setNewAssignmentDescription(''); alert('Задание добавлено!'); } else { throw new Error(updatedLesson.message); } } catch (error) { alert(error.message); } };
-    const handleDeleteAssignment = async (assignmentId) => { if (!selectedLesson || !window.confirm('Вы уверены?')) return; try { const res = await fetch(`/api/lessons/${selectedLesson._id}/assignments/${assignmentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }); if (res.ok) { const updatedLesson = await res.json(); setSelectedLesson(updatedLesson); alert('Задание удалено.'); } else { throw new Error('Ошибка удаления'); } } catch (error) { alert(error.message); } };
-    useEffect(() => { if (activeTab === 'evaluations' && selectedLesson) { const fetchEvaluations = async () => { setIsLoadingEvaluations(true); try { const res = await fetch(`/api/evaluations/${selectedLesson._id}`, { headers: { 'Authorization': `Bearer ${token}` } }); const data = await res.json(); if (res.ok) setEvaluationData(data); } catch (error) { console.error("Ошибка загрузки оценок:", error); } finally { setIsLoadingEvaluations(false); } }; fetchEvaluations(); } }, [activeTab, selectedLesson, token]);
+
+    const handleAddAssignment = async (e) => {
+        e.preventDefault();
+        if (!selectedLesson) return;
+        try {
+            const res = await API.post(`/api/lessons/${selectedLesson._id}/assignments`, {
+                title: newAssignmentTitle,
+                description: newAssignmentDescription
+            });
+            setSelectedLesson(res.data);
+            setNewAssignmentTitle('');
+            setNewAssignmentDescription('');
+            alert('Задание добавлено!');
+        } catch (error) {
+            alert(error.response?.data?.message || 'Ошибка добавления задания');
+        }
+    };
+
+    const handleDeleteAssignment = async (assignmentId) => {
+        if (!selectedLesson || !window.confirm('Вы уверены?')) return;
+        try {
+            const res = await API.delete(`/api/lessons/${selectedLesson._id}/assignments/${assignmentId}`);
+            setSelectedLesson(res.data);
+            alert('Задание удалено.');
+        } catch (error) {
+            alert(error.response?.data?.message || 'Ошибка удаления');
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'evaluations' && selectedLesson) {
+            const fetchEvaluations = async () => {
+                setIsLoadingEvaluations(true);
+                try {
+                    const res = await API.get(`/api/evaluations/${selectedLesson._id}`);
+                    setEvaluationData(res.data);
+                } catch (error) {
+                    console.error("Ошибка загрузки оценок:", error);
+                } finally {
+                    setIsLoadingEvaluations(false);
+                }
+            };
+            fetchEvaluations();
+        }
+    }, [activeTab, selectedLesson]); // убрал token, т.к. API его сам подставит
+
     const handleUpdateEvaluationInState = (studentId, savedEvaluation) => { setEvaluationData(prev => prev.map(data => data.student._id === studentId ? { ...data, evaluation: savedEvaluation, isNew: false } : data)); };
 
     return (
@@ -140,7 +177,7 @@ const TeacherDashboard = () => {
                             <div className={styles.assignmentList}>
                                 {selectedLesson?.assignments?.length > 0 ? (
                                     selectedLesson.assignments.map((assign) => (
-                                        <AssignmentItem key={assign._id} assignment={assign} lessonId={selectedLesson._id} token={token} onUpdate={setSelectedLesson} onDelete={() => handleDeleteAssignment(assign._id)} />
+                                        <AssignmentItem key={assign._id} assignment={assign} lessonId={selectedLesson._id} onUpdate={setSelectedLesson} onDelete={() => handleDeleteAssignment(assign._id)} />
                                     ))
                                 ) : (<p>Заданий пока нет.</p>)}
                             </div>
@@ -178,7 +215,6 @@ const TeacherDashboard = () => {
                                                 key={data.student._id} 
                                                 studentData={data} 
                                                 lessonId={selectedLesson._id} 
-                                                token={token} 
                                                 onSave={handleUpdateEvaluationInState} 
                                             />
                                         )))}

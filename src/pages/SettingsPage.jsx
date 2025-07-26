@@ -1,6 +1,8 @@
+// src/pages/SettingsPage.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState, useEffect } from 'react';
 import styles from './SettingsPage.module.css';
-import axios from 'axios';
+import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 const SettingsPage = () => {
     const [name, setName] = useState('');
@@ -17,7 +19,6 @@ const SettingsPage = () => {
 
     const handleNameChange = (e) => {
         setName(e.target.value);
-        // Убираем ошибку, как только пользователь начинает редактировать поле
         if (error) {
             setError('');
         }
@@ -36,20 +37,13 @@ const SettingsPage = () => {
         }
 
         try {
-            const token = localStorage.getItem('userToken');
-            const response = await axios.put(
-                '/api/user/profile',
-                { name },
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                }
-            );
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Используем наш API. Он сам добавит токен.
+            const response = await API.put('/api/user/profile', { name });
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
             localStorage.setItem('userName', response.data.user.name);
             setMessage(response.data.message);
-            // Сбрасываем сообщение об успехе через 3 секунды
             setTimeout(() => setMessage(''), 3000);
 
         } catch (err) {
@@ -59,7 +53,6 @@ const SettingsPage = () => {
         }
     };
     
-    // ИСПРАВЛЕНИЕ: Правильно определяем, какой класс применить к сообщению
     const messageClassName = error 
         ? styles.errorMessage 
         : (message ? styles.successMessage : '');
@@ -79,7 +72,7 @@ const SettingsPage = () => {
                             type="text"
                             id="name"
                             value={name}
-                            onChange={handleNameChange} // ИСПРАВЛЕНИЕ: Используем новый обработчик
+                            onChange={handleNameChange}
                             className={styles.input}
                             placeholder='Введите ваше имя'
                         />

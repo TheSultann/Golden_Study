@@ -1,5 +1,8 @@
+// src/components/Dashboard/Statistics/GroupStatistics.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState, useEffect } from 'react';
 import styles from '../TeacherDashboard/TeacherDashboard.module.css';
+import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 const GroupStatistics = ({ groups }) => {
     const [selectedGroup, setSelectedGroup] = useState('');
@@ -16,17 +19,15 @@ const GroupStatistics = ({ groups }) => {
     useEffect(() => {
         const fetchStats = async () => {
             if (!selectedGroup) return;
-            const token = localStorage.getItem('userToken'); 
-            if (!token) return;
+
             setLoading(true);
             try {
-                const res = await fetch(`/api/stats/group/${selectedGroup}`,  {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                const data = await res.json();
+                // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+                const res = await API.get(`/api/stats/group/${selectedGroup}`);
+                const data = res.data;
+                // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
-                if (res.ok && Array.isArray(data)) {
+                if (Array.isArray(data)) {
                     setStudentStats(data);
                     
                     if (data.length > 0) {
@@ -49,7 +50,12 @@ const GroupStatistics = ({ groups }) => {
                 setLoading(false);
             }
         };
-        fetchStats();
+        
+        // Добавим проверку на токен перед вызовом
+        const token = localStorage.getItem('userToken'); 
+        if (token) {
+            fetchStats();
+        }
     }, [selectedGroup]);
 
     const getMedal = (rank) => {

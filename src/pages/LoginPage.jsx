@@ -1,6 +1,9 @@
+// src/pages/LoginPage.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState } from 'react';
 import { useHistory, Link } from 'react-router-dom';
 import './LoginPage.css';
+import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 function LoginPage() {
     const [email, setEmail] = useState('');
@@ -11,30 +14,22 @@ function LoginPage() {
         event.preventDefault();
         
         try {
-            const response = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email, password })
-            });
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // Используем наш API. Путь теперь '/api/auth/login'
+            const response = await API.post('/api/auth/login', { email, password });
+            const data = response.data;
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Ошибка входа');
-            }
-
-            // СОХРАНЯЕМ И ИМЯ ПОЛЬЗОВАТЕЛЯ
             localStorage.setItem('userToken', data.token);
             localStorage.setItem('userRole', data.role);
-            localStorage.setItem('userName', data.name); // <-- Добавили
+            localStorage.setItem('userName', data.name); 
 
             history.push('/');
             window.location.reload();
 
         } catch (error) {
-            alert(error.message);
+            // Ошибка от axios будет более информативной
+            alert(error.response?.data?.message || 'Ошибка входа');
         }
     };
 

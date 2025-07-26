@@ -1,29 +1,31 @@
+// src/components/Dashboard/TeacherDashboard/AssignmentItem.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState } from 'react';
 import styles from './TeacherDashboard.module.css';
 import { FiEdit, FiTrash, FiSave, FiX } from 'react-icons/fi';
+import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
-const AssignmentItem = ({ assignment, lessonId, token, onUpdate, onDelete }) => {
+// Убираем 'token' из пропсов, он больше не нужен
+const AssignmentItem = ({ assignment, lessonId, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(assignment.title);
     const [description, setDescription] = useState(assignment.description);
 
     const handleEdit = async () => {
         try {
-            const res = await fetch(`/api/lessons/${lessonId}/assignments/${assignment._id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ title, description })
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            const res = await API.put(`/api/lessons/${lessonId}/assignments/${assignment._id}`, {
+                title,
+                description
             });
-            const updatedLesson = await res.json();
-            if (res.ok) {
-                onUpdate(updatedLesson); 
-                setIsEditing(false);
-                alert('Задание обновлено.');
-            } else {
-                throw new Error(updatedLesson.message);
-            }
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            
+            const updatedLesson = res.data;
+            onUpdate(updatedLesson); 
+            setIsEditing(false);
+            alert('Задание обновлено.');
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка обновления');
         }
     };
 
@@ -51,7 +53,6 @@ const AssignmentItem = ({ assignment, lessonId, token, onUpdate, onDelete }) => 
                     ></textarea>
                 </div>
                 <div className={styles.actionButtons}>
-                    {/* --- ГЛАВНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ --- */}
                     <button onClick={handleEdit} className={`${styles.actionButton} ${styles.saveEditButton}`}><FiSave /></button>
                     <button onClick={handleCancel} className={`${styles.actionButton} ${styles.cancelEditButton}`}><FiX /></button>
                 </div>

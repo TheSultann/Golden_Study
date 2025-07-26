@@ -1,7 +1,10 @@
+// src/pages/GroupsPage.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState, useEffect } from 'react';
 import styles from './GroupsPage.module.css';
 import Modal from '../components/Modal/Modal';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 const GroupsPage = () => {
     const [groups, setGroups] = useState([]);
@@ -14,17 +17,12 @@ const GroupsPage = () => {
 
     const fetchData = async () => {
         try {
-            const groupsRes = await fetch('/api/groups', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const groupsData = await groupsRes.json();
-            if (groupsRes.ok) setGroups(groupsData);
-
-            const studentsRes = await fetch('/api/groups/unassigned', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const studentsData = await studentsRes.json();
-            if (studentsRes.ok) setUnassignedStudents(studentsData);
+            const [groupsRes, studentsRes] = await Promise.all([
+                API.get('/api/groups'),
+                API.get('/api/groups/unassigned')
+            ]);
+            setGroups(groupsRes.data);
+            setUnassignedStudents(studentsRes.data);
         } catch (error) {
             console.error("Ошибка загрузки данных:", error);
         }
@@ -39,21 +37,12 @@ const GroupsPage = () => {
     const handleCreateGroup = async (e) => {
         e.preventDefault();
         try {
-            const res = await fetch('/api/groups', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ name: newGroupName })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                setIsCreateModalOpen(false);
-                setNewGroupName('');
-                fetchData();
-            } else {
-                throw new Error(data.message || 'Неизвестная ошибка создания группы');
-            }
+            await API.post('/api/groups', { name: newGroupName });
+            setIsCreateModalOpen(false);
+            setNewGroupName('');
+            fetchData();
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка создания группы');
         }
     };
 
@@ -64,21 +53,12 @@ const GroupsPage = () => {
             return;
         }
         try {
-            const res = await fetch(`/api/groups/${groupId}/assign`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ studentId })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                alert('Ученик назначен!');
-                setAssignmentSelections(prev => ({...prev, [studentId]: ''})); // Сброс выбора
-                fetchData();
-            } else {
-                throw new Error(data.message || 'Ошибка назначения');
-            }
+            await API.put(`/api/groups/${groupId}/assign`, { studentId });
+            alert('Ученик назначен!');
+            setAssignmentSelections(prev => ({...prev, [studentId]: ''})); // Сброс выбора
+            fetchData();
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка назначения');
         }
     };
 
@@ -87,18 +67,10 @@ const GroupsPage = () => {
             return;
         }
         try {
-            const res = await fetch(`/api/groups/${groupId}/students/${studentId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                fetchData();
-            } else {
-                throw new Error(data.message || 'Ошибка удаления ученика');
-            }
+            await API.delete(`/api/groups/${groupId}/students/${studentId}`);
+            fetchData();
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка удаления ученика');
         }
     };
 
@@ -107,18 +79,10 @@ const GroupsPage = () => {
             return;
         }
         try {
-            const res = await fetch(`/api/groups/${groupId}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-            if (res.ok) {
-                fetchData();
-            } else {
-                throw new Error(data.message || 'Ошибка удаления группы');
-            }
+            await API.delete(`/api/groups/${groupId}`);
+            fetchData();
         } catch (error) {
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка удаления группы');
         }
     };
 
@@ -200,7 +164,6 @@ const GroupsPage = () => {
                 </div>
             </div>
 
-            {/* --- ВОТ ВОССТАНОВЛЕННАЯ ФОРМА ВНУТРИ МОДАЛЬНОГО ОКНА --- */}
             <Modal isOpen={isCreateModalOpen} onRequestClose={() => setIsCreateModalOpen(false)} title="Создать новую группу">
                 <form onSubmit={handleCreateGroup} className={styles.modalForm}>
                     <div className={styles.formGroup}>

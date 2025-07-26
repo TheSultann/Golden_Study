@@ -1,7 +1,11 @@
+// src/components/Dashboard/TeacherDashboard/EvaluationRow.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState } from 'react';
 import styles from './TeacherDashboard.module.css';
+import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
-const EvaluationRow = ({ studentData, lessonId, token, onSave }) => {
+// Убираем 'token' из пропсов, он больше не нужен
+const EvaluationRow = ({ studentData, lessonId, onSave }) => {
     const [evaluation, setEvaluation] = useState(studentData.evaluation);
 
     const handleGradeChange = (e) => {
@@ -19,26 +23,22 @@ const EvaluationRow = ({ studentData, lessonId, token, onSave }) => {
 
     const handleSaveClick = async () => {
         try {
-            const res = await fetch('/api/evaluations', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({
-                    lessonId,
-                    studentId: studentData.student._id,
-                    grade: Number(evaluation.grade) || 0,
-                    skills: evaluation.skills,
-                })
+            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            const res = await API.post('/api/evaluations', {
+                lessonId,
+                studentId: studentData.student._id,
+                grade: Number(evaluation.grade) || 0,
+                skills: evaluation.skills,
             });
-            const savedEvaluation = await res.json();
-            if (res.ok) {
-                alert(`Оценка для ${studentData.student.name} сохранена.`);
-                onSave(studentData.student._id, savedEvaluation);
-            } else {
-                throw new Error('Ошибка сохранения');
-            }
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
+            const savedEvaluation = res.data;
+            alert(`Оценка для ${studentData.student.name} сохранена.`);
+            onSave(studentData.student._id, savedEvaluation);
+            
         } catch (error) {
             console.error("Ошибка:", error);
-            alert(error.message);
+            alert(error.response?.data?.message || 'Ошибка сохранения');
         }
     };
     

@@ -1,13 +1,16 @@
+// src/components/Dashboard/StudentDashboard/StudentDashboard.jsx (ИЗМЕНЕННЫЙ)
+
 import React, { useState, useEffect } from 'react';
 import styles from './StudentDashboard.module.css';
 import { FiClipboard, FiStar, FiMessageSquare, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import CourseCard from '../../CourseCard/CourseCard.jsx';
 import Modal from '../../Modal/Modal';
 import StudentStatistics from '../Statistics/StudentStatistics';
+import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
 
 const StudentDashboard = () => {
     const userName = localStorage.getItem('userName') || 'Student';
-    const token = localStorage.getItem('userToken');
+    const token = localStorage.getItem('userToken'); // Оставим для проверки, есть ли пользователь
 
     const [lessons, setLessons] = useState([]);
     const [isLoadingLessons, setIsLoadingLessons] = useState(true);
@@ -20,49 +23,43 @@ const StudentDashboard = () => {
     const [statsError, setStatsError] = useState('');
 
     useEffect(() => {
+        // --- ИЗМЕНЕНИЕ 1 ---
         const fetchLessons = async () => {
             if (!token) { setIsLoadingLessons(false); return; }
             try {
-                const response = await fetch('/api/lessons', { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await response.json();
-                if (response.ok) setLessons(data);
+                const response = await API.get('/api/lessons');
+                setLessons(response.data);
             } catch (error) { console.error("Ошибка загрузки уроков:", error); } 
             finally { setIsLoadingLessons(false); }
         };
-        fetchLessons();
-    }, [token]);
-    
-    useEffect(() => {
+        // --- ИЗМЕНЕНИЕ 2 ---
         const fetchStats = async () => {
             if (!token) { setStatsError('Нет авторизации'); setStatsLoading(false); return; }
             try {
-                const res = await fetch('/api/stats/student', { headers: { 'Authorization': `Bearer ${token}` } });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.msg || 'Ошибка загрузки статистики');
-                setStats(data);
-            } catch (err) { setStatsError(err.message); } 
+                const res = await API.get('/api/stats/student');
+                setStats(res.data);
+            } catch (err) { setStatsError(err.response?.data?.message || err.message); } 
             finally { setStatsLoading(false); }
         };
+        
+        fetchLessons();
         fetchStats();
     }, [token]);
-
+    
+    // --- ИЗМЕНЕНИЕ 3 ---
     const handleOpenDetailModal = async (lesson) => {
         setSelectedLesson(lesson);
         setIsDetailModalOpen(true);
         setIsLoadingEvaluation(true);
         setEvaluation(null);
         try {
-            const response = await fetch(`/api/evaluations/student/${lesson._id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setEvaluation(data);
-            } else if (response.status !== 404) {
-                console.error('Ошибка загрузки оценки');
-            }
+            const response = await API.get(`/api/evaluations/student/${lesson._id}`);
+            setEvaluation(response.data);
         } catch (error) {
-            console.error('Сетевая ошибка при загрузке оценки:', error);
+            // axios не выдаст ошибку на 404, а зайдет в .catch
+            if (error.response?.status !== 404) {
+                 console.error('Ошибка загрузки оценки:', error);
+            }
         } finally {
             setIsLoadingEvaluation(false);
         }
@@ -79,7 +76,6 @@ const StudentDashboard = () => {
     return (
         <>
             <main className={styles.dashboard}>
-                {/* --- НОВАЯ ШАПКА --- */}
                 <header className={styles.header}>
                     <h1 className={styles.title}>
                         Hello, <span>{userName}!</span> 👋
