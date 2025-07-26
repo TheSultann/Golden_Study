@@ -1,15 +1,21 @@
-// Backend/server.js
+// Backend/server.js (ИЗМЕНЕННЫЙ)
 
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');        // <-- ДОБАВЛЕНО
-require('dotenv').config();          // <-- ДОБАВЛЕНО
+const path = require('path');
+require('dotenv').config();
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
+
+// --- ДОБАВЛЕН НОВЫЙ РОУТ ДЛЯ UPTIMEROBOT ---
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ status: 'UP' });
+});
+// --- КОНЕЦ БЛОКА ---
 
 // Роуты API
 app.use('/api/auth', require('./routes/auth'));
@@ -19,30 +25,24 @@ app.use('/api/evaluations', require('./routes/evaluations'));
 app.use('/api/stats', require('./routes/stats'));
 app.use('/api/user', require('./routes/user'));
 
-// --- ДОБАВЛЕН БЛОК ДЛЯ PRODUCTION ---
+// Обслуживание фронтенда в production
 if (process.env.NODE_ENV === 'production') {
-    // Устанавливаем статическую папку для билда фронтенда
     app.use(express.static(path.join(__dirname, '..', 'dist')));
-
     app.get('*', (req, res) => {
         res.sendFile(path.resolve(__dirname, '..', 'dist', 'index.html'));
     });
 }
-// --- КОНЕЦ БЛОКА ---
 
-
-const PORT = process.env.PORT || 5000; // <-- ИЗМЕНЕНО
-const MONGO_URI = process.env.MONGO_URI; // <-- ИЗМЕНЕНО
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
 
 async function start() {
     try {
         if (!MONGO_URI) {
             throw new Error('MONGO_URI must be defined in .env file');
         }
-        await mongoose.connect(MONGO_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-        });
+        // Убраны устаревшие опции
+        await mongoose.connect(MONGO_URI);
         
         app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
     } catch (e) {
