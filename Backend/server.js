@@ -1,21 +1,20 @@
-// Backend/server.js (ИЗМЕНЕННЫЙ)
+// Backend/server.js
 
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
 require('dotenv').config();
+const redisClient = require('./redis-client'); // --- ДОБАВЛЕНО ---
 
 const app = express();
 
 app.use(express.json());
 app.use(cors());
 
-// --- ДОБАВЛЕН НОВЫЙ РОУТ ДЛЯ UPTIMEROBOT ---
 app.get('/api/health', (req, res) => {
     res.status(200).json({ status: 'UP' });
 });
-// --- КОНЕЦ БЛОКА ---
 
 // Роуты API
 app.use('/api/auth', require('./routes/auth'));
@@ -41,8 +40,13 @@ async function start() {
         if (!MONGO_URI) {
             throw new Error('MONGO_URI must be defined in .env file');
         }
-        // Убраны устаревшие опции
+        
+        // --- ИЗМЕНЕНО: Корректная последовательность подключений ---
         await mongoose.connect(MONGO_URI);
+        console.log('Connected to MongoDB');
+        
+        await redisClient.connect();
+        console.log('Connected to Redis');
         
         app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
     } catch (e) {

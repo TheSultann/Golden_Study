@@ -9,6 +9,7 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
+        index: true // <-- ДОБАВЛЕНО
     },
     password: {
         type: String,
@@ -17,15 +18,14 @@ const UserSchema = new mongoose.Schema({
     role: {
         type: String,
         required: true,
-        default: 'student'
+        default: 'student',
+        index: true // <-- ДОБАВЛЕНО
     },
-    // --- ДОБАВЛЯЕМ ЭТО ПОЛЕ ---
-    // Ссылка на группу, в которой состоит ученик.
-    // Не обязательна, так как при регистрации ученик не в группе.
     group: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Group',
-        default: null
+        default: null,
+        index: true // <-- ДОБАВЛЕНО
     }
 });
 

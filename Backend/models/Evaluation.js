@@ -21,17 +21,20 @@ const EvaluationSchema = new mongoose.Schema({
     lesson: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lesson',
-        required: true
+        required: true,
+        index: true // <-- ДОБАВЛЕНО
     },
     student: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        index: true // <-- ДОБАВЛЕНО
     },
     teacher: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        index: true // <-- ДОБАВЛЕНО
     },
     grade: {
         type: Number,
@@ -44,7 +47,7 @@ const EvaluationSchema = new mongoose.Schema({
     timestamps: true 
 });
 
-// Индекс для быстрого поиска оценки конкретного ученика по уроку
+// Этот индекс уже был и он очень хорош. Оставляем его.
 EvaluationSchema.index({ lesson: 1, student: 1 }, { unique: true });
 
 module.exports = mongoose.model('Evaluation', EvaluationSchema);

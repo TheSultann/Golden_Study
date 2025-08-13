@@ -1,16 +1,14 @@
-// src/components/Dashboard/StudentDashboard/StudentDashboard.jsx (ИЗМЕНЕННЫЙ)
-
 import React, { useState, useEffect } from 'react';
 import styles from './StudentDashboard.module.css';
 import { FiClipboard, FiStar, FiMessageSquare, FiCheckCircle, FiXCircle } from 'react-icons/fi';
 import CourseCard from '../../CourseCard/CourseCard.jsx';
 import Modal from '../../Modal/Modal';
 import StudentStatistics from '../Statistics/StudentStatistics';
-import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../../../api';
 
 const StudentDashboard = () => {
     const userName = localStorage.getItem('userName') || 'Student';
-    const token = localStorage.getItem('userToken'); // Оставим для проверки, есть ли пользователь
+    const token = localStorage.getItem('userToken');
 
     const [lessons, setLessons] = useState([]);
     const [isLoadingLessons, setIsLoadingLessons] = useState(true);
@@ -23,7 +21,6 @@ const StudentDashboard = () => {
     const [statsError, setStatsError] = useState('');
 
     useEffect(() => {
-        // --- ИЗМЕНЕНИЕ 1 ---
         const fetchLessons = async () => {
             if (!token) { setIsLoadingLessons(false); return; }
             try {
@@ -32,7 +29,6 @@ const StudentDashboard = () => {
             } catch (error) { console.error("Ошибка загрузки уроков:", error); } 
             finally { setIsLoadingLessons(false); }
         };
-        // --- ИЗМЕНЕНИЕ 2 ---
         const fetchStats = async () => {
             if (!token) { setStatsError('Нет авторизации'); setStatsLoading(false); return; }
             try {
@@ -46,20 +42,33 @@ const StudentDashboard = () => {
         fetchStats();
     }, [token]);
     
-    // --- ИЗМЕНЕНИЕ 3 ---
+    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Функция теперь делает два запроса ---
     const handleOpenDetailModal = async (lesson) => {
-        setSelectedLesson(lesson);
         setIsDetailModalOpen(true);
-        setIsLoadingEvaluation(true);
+        setIsLoadingEvaluation(true); // Используем этот state для общей загрузки в модальном окне
+        setSelectedLesson(null);      // Сбрасываем старые данные
         setEvaluation(null);
+
         try {
-            const response = await API.get(`/api/evaluations/student/${lesson._id}`);
-            setEvaluation(response.data);
-        } catch (error) {
-            // axios не выдаст ошибку на 404, а зайдет в .catch
-            if (error.response?.status !== 404) {
-                 console.error('Ошибка загрузки оценки:', error);
+            // Выполняем оба запроса параллельно для эффективности
+            const [lessonResponse, evaluationResponse] = await Promise.all([
+                API.get(`/api/lessons/${lesson._id}`), // 1. Запрос на полную информацию об уроке
+                API.get(`/api/evaluations/student/${lesson._id}`).catch(err => {
+                    // Если оценка не найдена (404), это не ошибка, просто возвращаем null
+                    if (err.response?.status === 404) return null;
+                    throw err; // Другие ошибки пробрасываем дальше
+                })
+            ]);
+
+            // Сохраняем результаты в state
+            setSelectedLesson(lessonResponse.data);
+            if (evaluationResponse) {
+                setEvaluation(evaluationResponse.data);
             }
+            
+        } catch (error) {
+            console.error('Ошибка загрузки деталей урока:', error);
+            // Можно добавить обработку ошибки, например, закрыть модальное окно
         } finally {
             setIsLoadingEvaluation(false);
         }
@@ -103,13 +112,16 @@ const StudentDashboard = () => {
             </main>
 
             <Modal isOpen={isDetailModalOpen} onRequestClose={handleCloseDetailModal} title={`Урок: ${selectedLesson?.title || ''}`}>
-                {selectedLesson && (
+                {/* --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на загрузку, чтобы избежать ошибок --- */}
+                {isLoadingEvaluation ? (<p>Загрузка данных урока...</p>) : selectedLesson && (
                     <div className={styles.studentModalContainer}>
                         <div className={styles.assignmentsSection}>
                             <h4><FiClipboard /> Задания к уроку:</h4>
+                            {/* Эта логика теперь будет работать правильно, т.к. selectedLesson содержит все задания */}
                             {selectedLesson.assignments && selectedLesson.assignments.length > 0 ? (
                                 <div className={styles.assignmentList}>
                                     {selectedLesson.assignments.map(assign => {
+                                        // evaluation?.skills - массив ID выполненных заданий
                                         const isCompleted = evaluation?.skills?.includes(assign._id);
                                         return (
                                             <div key={assign._id} className={styles.assignmentItem}>
@@ -117,6 +129,7 @@ const StudentDashboard = () => {
                                                     <strong>{assign.title}</strong>
                                                     <p>{assign.description}</p>
                                                 </div>
+                                                {/* Иконка показывается только если есть оценка */}
                                                 {evaluation && (
                                                     isCompleted ? (
                                                         <FiCheckCircle className={styles.completedIcon} title="Выполнено" />
@@ -137,9 +150,7 @@ const StudentDashboard = () => {
 
                         <div>
                             <h4><FiStar /> Ваша оценка:</h4>
-                            {isLoadingEvaluation ? (
-                                <p>Загрузка оценки...</p>
-                            ) : evaluation ? (
+                            {evaluation ? (
                                 <div className={styles.evaluationBox}>
                                     <div className={styles.grade}>
                                         <strong>Оценка:</strong> {evaluation.grade}%
