@@ -1,8 +1,8 @@
-// src/pages/SettingsPage.jsx (ИЗМЕНЕННЫЙ)
+// src/pages/SettingsPage.jsx
 
 import React, { useState, useEffect } from 'react';
 import styles from './SettingsPage.module.css';
-import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../api';
 
 const SettingsPage = () => {
     const [name, setName] = useState('');
@@ -31,22 +31,21 @@ const SettingsPage = () => {
         setIsLoading(true);
 
         if (!name.trim()) {
-            setError('Имя не может быть пустым');
+            setError('Name cannot be empty');
             setIsLoading(false);
             return;
         }
 
         try {
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Используем наш API. Он сам добавит токен.
             const response = await API.put('/api/user/profile', { name });
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
             localStorage.setItem('userName', response.data.user.name);
+            window.dispatchEvent(new Event('userProfileUpdated'));
+
             setMessage(response.data.message);
             setTimeout(() => setMessage(''), 3000);
 
-        } catch (err) {
+        } catch (err) { // <--- Убрана стрелка =>
             setError(err.response?.data?.message || 'Ошибка при обновлении профиля');
         } finally {
             setIsLoading(false);
@@ -61,20 +60,20 @@ const SettingsPage = () => {
         <div className={styles.settingsWrapper}>
             <div className={styles.settingsContainer}>
                 <div className={styles.header}>
-                    <h2>Настройки профиля</h2>
-                    <p>Здесь вы можете обновить информацию о себе.</p>
+                    <h2>Profile Settings</h2>
+                    <p>Here you can update your information..</p>
                 </div>
                 
                 <form onSubmit={handleSubmit} className={styles.settingsForm}>
                     <div className={styles.formGroup}>
-                        <label htmlFor="name">Ваше имя</label>
+                        <label htmlFor="name">Your Name</label>
                         <input
                             type="text"
                             id="name"
                             value={name}
                             onChange={handleNameChange}
                             className={styles.input}
-                            placeholder='Введите ваше имя'
+                            placeholder='Enter your name'
                         />
                     </div>
                     
@@ -84,7 +83,7 @@ const SettingsPage = () => {
                         </div>
                         
                         <button type="submit" className={styles.saveButton} disabled={isLoading}>
-                            {isLoading ? 'Сохранение...' : 'Сохранить изменения'}
+                            {isLoading ? 'Saving...' : 'Save Changes'}
                         </button>
                     </div>
                 </form>

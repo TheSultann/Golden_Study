@@ -37,8 +37,8 @@ function LoginPage() {
         <div className="login-page-container">
             <div className="login-form-wrapper">
                 <div className="login-header">
-                    <h2>Вход</h2>
-                    <p>Войдите, чтобы получить доступ к вашим урокам</p>
+                    <h2>Sign In</h2>
+                    <p>Sign in to access your lessons</p>
                 </div>
 
                 <form onSubmit={handleLogin} className="login-form">
@@ -49,20 +49,20 @@ function LoginPage() {
                             id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Введите ваш email"
+                            placeholder="Enter your email"
                             required
                             className="input-field"
                         />
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password">Пароль</label>
+                        <label htmlFor="password">Password</label>
                         <input
                             type="password"
                             id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Введите ваш пароль"
+                            placeholder="Enter your password"
                             required
                             className="input-field"
                         />
@@ -70,13 +70,15 @@ function LoginPage() {
 
                     <div className="form-actions">
                         <button type="submit" className="login-button">
-                            Войти
+                           Sign In
                         </button>
                     </div>
                 </form>
 
                 <div className="signup-link">
-                    Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+                Don't have an account? <Link to="/register">Sign Up</Link>
+                <p className="copyright">Project by Sultan | v1.0.0</p>
+
                 </div>
             </div>
         </div>

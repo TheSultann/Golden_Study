@@ -38,19 +38,19 @@ function RegisterPage() {
         <div className="register-page-container">
             <div className="register-form-wrapper">
                 <div className="register-header">
-                    <h2>Регистрация</h2>
-                    <p>Создайте аккаунт, чтобы начать обучение</p>
+                    <h2>Sign Up</h2>
+                    <p>Create an account to start learning</p>
                 </div>
 
                 <form onSubmit={handleRegister} className="register-form">
                     <div className="form-group">
-                        <label htmlFor="name">Ваше имя</label>
+                        <label htmlFor="name">Your Name</label>
                         <input
                             type="text"
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Введите ваше имя"
+                            placeholder="Enter your name"
                             required
                             className="input-field"
                         />
@@ -63,33 +63,33 @@ function RegisterPage() {
                             id="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="Введите ваш email"
+                            placeholder="Enter your email"
                             required
                             className="input-field"
                         />
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="password">Пароль</label>
+                        <label htmlFor="password">Password</label>
                         <input
                             type="password"
                             id="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Создайте пароль"
+                            placeholder="Create a password"
                             required
                             className="input-field"
                         />
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="confirm-password">Подтвердите пароль</label>
+                        <label htmlFor="confirm-password">Confirm Password</label>
                         <input
                             type="password"
                             id="confirm-password"
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="Повторите ваш пароль"
+                            placeholder="Repeat your password"
                             required
                             className="input-field"
                         />
@@ -97,13 +97,13 @@ function RegisterPage() {
 
                     <div className="form-actions">
                         <button type="submit" className="register-button">
-                            Зарегистрироваться
+                        Sign Up
                         </button>
                     </div>
                 </form>
 
                 <div className="login-link">
-                    Уже есть аккаунт? <Link to="/login">Войти</Link>
+                Already have an account? <Link to="/login">Sign In</Link>
                 </div>
             </div>
         </div>

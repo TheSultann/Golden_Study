@@ -90,22 +90,22 @@ const GroupsPage = () => {
         <>
             <div className={styles.pageContainer}>
                 <header className={styles.header}>
-                    <h1>Управление группами</h1>
+                    <h1>Group Management</h1>
                     <button className={styles.createButton} onClick={() => setIsCreateModalOpen(true)}>
-                        <FiPlus /> Создать группу
+                        <FiPlus /> Create Group
                     </button>
                 </header>
 
                 <div className={styles.content}>
                     <section className={styles.groupsSection}>
-                        <h2 className={styles.sectionTitle}>Мои группы</h2>
+                        <h2 className={styles.sectionTitle}>My Groups</h2>
                         <div className={styles.groupList}>
                             {groups.length > 0 ? groups.map(group => (
                                 <div key={group._id} className={styles.groupCard}>
                                     <div className={styles.cardHeader}>
                                         <h3>{group.name}</h3>
                                         <div className={styles.cardActions}>
-                                            <span className={styles.studentCount}>{group.students.length} учеников</span>
+                                            <span className={styles.studentCount}>{group.students.length} students</span>
                                             <button
                                                 className={styles.deleteGroupButton}
                                                 onClick={() => handleDeleteGroup(group._id)}
@@ -137,7 +137,7 @@ const GroupsPage = () => {
                     </section>
 
                     <section className={styles.studentsSection}>
-                        <h2 className={styles.sectionTitle}>Ожидают распределения</h2>
+                        <h2 className={styles.sectionTitle}>Awaiting Assignment</h2>
                         <div className={styles.unassignedList}>
                             {unassignedStudents.length > 0 ? unassignedStudents.map(student => (
                                 <div key={student._id} className={styles.studentItem}>
@@ -158,7 +158,7 @@ const GroupsPage = () => {
                                         <button onClick={() => handleAssignStudent(student._id)}>Назначить</button>
                                     </div>
                                 </div>
-                            )) : <p>Нет учеников, ожидающих распределения.</p>}
+                            )) : <p>No students awaiting assignment.</p>}
                         </div>
                     </section>
                 </div>

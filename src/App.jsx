@@ -1,6 +1,6 @@
-// src/App.jsx (ИЗМЕНЕННЫЙ)
+// src/App.jsx
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 
 import LoginPage from './pages/LoginPage.jsx';
@@ -15,8 +15,29 @@ import Sidebar from './components/Sidebar/Sidebar.jsx';
 import styles from './App.module.css';
 
 function App() {
+    // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+    // Состояние-триггер для принудительной перерисовки приложения при обновлении данных пользователя.
+    const [userVersion, setUserVersion] = useState(0);
+
+    useEffect(() => {
+        // Обработчик кастомного события, который обновит состояние и вызовет ре-рендер.
+        const handleUserUpdate = () => {
+            setUserVersion(v => v + 1); 
+        };
+
+        // Подписываемся на событие 'userProfileUpdated', которое отправляет SettingsPage.
+        window.addEventListener('userProfileUpdated', handleUserUpdate);
+
+        // Очищаем подписку при размонтировании компонента, чтобы избежать утечек памяти.
+        return () => {
+            window.removeEventListener('userProfileUpdated', handleUserUpdate);
+        };
+    }, []); // Пустой массив зависимостей гарантирует, что эффект выполнится только один раз.
+
+    // Данные из localStorage будут перечитываться при каждом ре-рендере, вызванном изменением userVersion.
     const token = localStorage.getItem('userToken');
     const role = localStorage.getItem('userRole');
+    // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
     // Обертка для страниц (группы, настройки), которые используют ОБЩИЙ макет
     const PrivateRouteWithLayout = ({ component: Component, ...rest }) => (

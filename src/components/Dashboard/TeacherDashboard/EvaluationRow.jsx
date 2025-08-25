@@ -67,7 +67,7 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
                 ))}
             </div>
             <div>
-                <button onClick={handleSaveClick} className={styles.saveButton}>Сохранить</button>
+                <button onClick={handleSaveClick} className={styles.saveButton}>Save</button>
             </div>
         </div>
     );

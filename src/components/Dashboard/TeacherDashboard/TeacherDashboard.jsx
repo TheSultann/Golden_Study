@@ -158,8 +158,8 @@ const TeacherDashboard = () => {
                     <button className={styles.createButton} onClick={handleOpenCreateModal}><FiPlus /> Create Lesson</button>
                 </header>
                 <div className={styles.mainTabContainer}>
-                    <button onClick={() => setMainTab('lessons')} className={mainTab === 'lessons' ? styles.activeMainTab : styles.mainTab}>Уроки</button>
-                    <button onClick={() => setMainTab('statistics')} className={mainTab === 'statistics' ? styles.activeMainTab : styles.mainTab}>📊 Статистика группы</button>
+                    <button onClick={() => setMainTab('lessons')} className={mainTab === 'lessons' ? styles.activeMainTab : styles.mainTab}>Lessons</button>
+                    <button onClick={() => setMainTab('statistics')} className={mainTab === 'statistics' ? styles.activeMainTab : styles.mainTab}>📊 Group Statistics</button>
                 </div>
                 {mainTab === 'lessons' && (
                     <div className={styles.lessonList}>
@@ -168,7 +168,7 @@ const TeacherDashboard = () => {
                             <div className={styles.lessonRow} key={lesson._id}>
                                 <span>{lesson.title}</span>
                                 <span className={styles.groupName}>{lesson.group?.name || 'N/A'}</span>
-                                <button onClick={() => handleOpenDetailModal(lesson)} className={styles.gradeButton}>Управлять</button>
+                                <button onClick={() => handleOpenDetailModal(lesson)} className={styles.gradeButton}>Manage</button>
                             </div>
                         ))}
                     </div>
@@ -188,42 +188,42 @@ const TeacherDashboard = () => {
             <Modal 
                 isOpen={isDetailModalOpen} 
                 onRequestClose={handleCloseDetailModal} 
-                title={`Урок: ${selectedLesson?.title || 'Загрузка...'}`}
+                title={`Lesson: ${selectedLesson?.title || 'Загрузка...'}`}
                 modalClassName={activeTab === 'evaluations' ? styles.wideModal : styles.defaultModal}
             >
                 {/* --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на загрузку --- */}
                 {isDetailLoading ? (<p>Загрузка данных урока...</p>) : selectedLesson && (
                     <>
                         <div className={styles.tabContainer}>
-                            <button onClick={() => setActiveTab('assignments')} className={activeTab === 'assignments' ? styles.activeTab : styles.tab}>Задания</button>
-                            <button onClick={() => setActiveTab('evaluations')} className={activeTab === 'evaluations' ? styles.activeTab : styles.tab}>Оценки</button>
+                            <button onClick={() => setActiveTab('assignments')} className={activeTab === 'assignments' ? styles.activeTab : styles.tab}>Assignments</button>
+                            <button onClick={() => setActiveTab('evaluations')} className={activeTab === 'evaluations' ? styles.activeTab : styles.tab}>Grades</button>
                         </div>
                         <div className={styles.tabContent}>
                             {activeTab === 'assignments' && (
                                 <div>
-                                    <h4>Существующие задания</h4>
+                                    <h4>Existing Assignments</h4>
                                     <div className={styles.assignmentList}>
                                         {selectedLesson?.assignments?.length > 0 ? (
                                             selectedLesson.assignments.map((assign) => (
                                                 <AssignmentItem key={assign._id} assignment={assign} lessonId={selectedLesson._id} onUpdate={setSelectedLesson} onDelete={() => handleDeleteAssignment(assign._id)} />
                                             ))
-                                        ) : (<p>Заданий пока нет.</p>)}
+                                        ) : (<p>No assignments yet.</p>)}
                                     </div>
                                     <hr className={styles.divider}/>
-                                    <h4>Добавить новое задание</h4>
+                                    <h4>Add New Assignment</h4>
                                     <form onSubmit={handleAddAssignment} className={styles.addAssignmentForm}>
-                                        <div className={styles.formGroup}><label>Название</label><input type="text" value={newAssignmentTitle} onChange={(e) => setNewAssignmentTitle(e.target.value)} required /></div>
-                                        <div className={styles.formGroup}><label>Описание</label><textarea value={newAssignmentDescription} onChange={(e) => setNewAssignmentDescription(e.target.value)}></textarea></div>
-                                        <div className={styles.formActions}><button type="submit" className={styles.submitButton}>Добавить</button></div>
+                                        <div className={styles.formGroup}><label>Title</label><input type="text" value={newAssignmentTitle} onChange={(e) => setNewAssignmentTitle(e.target.value)} required /></div>
+                                        <div className={styles.formGroup}><label>Description</label><textarea value={newAssignmentDescription} onChange={(e) => setNewAssignmentDescription(e.target.value)}></textarea></div>
+                                        <div className={styles.formActions}><button type="submit" className={styles.submitButton}>Add</button></div>
                                     </form>
                                 </div>
                             )}
 
                             {activeTab === 'evaluations' && (
                                 <div>
-                                    {!selectedLesson?.assignments?.length ? (<p>Сначала добавьте задания...</p>) : (
+                                    {!selectedLesson?.assignments?.length ? (<p>Add assignments first...</p>) : (
                                         <>
-                                            <div className={`${styles.evaluationRow} ${styles.evaluationHeader}`}><span>Ученик</span><span>Оценка (%)</span><span>Выполненные задания</span><span>Действие</span></div>
+                                            <div className={`${styles.evaluationRow} ${styles.evaluationHeader}`}><span>Student</span><span>Grade  (%)</span><span>Completed Assignments</span><span>Action</span></div>
                                             <div className={styles.evaluationContainer}>
                                                 {isLoadingEvaluations ? <p>Загрузка...</p> : (evaluationData.map(data => (<EvaluationRow key={data.student._id} studentData={data} lessonId={selectedLesson._id} onSave={handleUpdateEvaluationInState} />)))}
                                             </div>

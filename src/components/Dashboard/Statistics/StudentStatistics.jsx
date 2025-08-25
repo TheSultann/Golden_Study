@@ -29,22 +29,22 @@ const StudentStatistics = ({ stats, loading, error }) => {
         <div className={styles.statsWidget}>
             <div className={styles.statsTabContainer}>
                 <button onClick={() => setActiveTab('progress')} className={activeTab === 'progress' ? styles.activeStatsTab : styles.statsTab}>
-                    📈 Мой прогресс
+                    📈 My Progress
                 </button>
                 <button onClick={() => setActiveTab('rating')} className={activeTab === 'rating' ? styles.activeStatsTab : styles.statsTab}>
-                    🏆 Рейтинг
+                    🏆 Rating
                 </button>
             </div>
 
             {activeTab === 'progress' && (
                 <div>
-                    <h3 className={styles.statsTitle}>Оценки по урокам</h3>
+                    <h3 className={styles.statsTitle}>Lesson Grades</h3>
                     {/* --- ПОЛНОСТЬЮ ПЕРЕДЕЛАННАЯ ТАБЛИЦА --- */}
                     <table className={styles.progressTable}>
                         <thead>
                             <tr>
-                                <th>Урок и дата</th>
-                                <th>Результат</th>
+                                <th>LESSON & DATE</th>
+                                <th>RESULT</th>
                             </tr>
                         </thead>
                         <tbody>

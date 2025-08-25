@@ -23,7 +23,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
         await user.save();
         
         // Возвращаем обновленное имя, чтобы фронтенд мог обновить localStorage
-        res.json({ message: 'Профиль успешно обновлен', user: { name: user.name } });
+        res.json({ message: 'Profile updated successfully   ', user: { name: user.name } });
 
     } catch (e) {
         console.error(e);

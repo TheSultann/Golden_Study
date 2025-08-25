@@ -26,19 +26,17 @@ router.get('/', [auth, cache(3600)], async (req, res) => {
 });
 
 
-// --- НОВЫЙ РОУТ: Получение деталей одного урока ---
-// Этот роут нужен фронтенду, чтобы получить полный список заданий для модального окна ученика.
+// Роут для получения деталей одного урока (без изменений)
 router.get('/:id', auth, async (req, res) => {
     try {
         const lesson = await Lesson.findById(req.params.id)
-            .select('title assignments group teacher') // Выбираем только необходимые поля
-            .lean(); // .lean() для ускорения, т.к. мы только читаем
+            .select('title assignments group teacher')
+            .lean();
 
         if (!lesson) {
             return res.status(404).json({ message: 'Урок не найден' });
         }
 
-        // Проверка доступа: учитель должен быть автором, а ученик - в той же группе
         if (req.user.role === 'teacher') {
             if (lesson.teacher.toString() !== req.user.userId) {
                 return res.status(403).json({ message: 'Доступ запрещен' });
@@ -59,17 +57,54 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 
-// Роуты на изменение данных (без изменений)
+// --- ИЗМЕНЕНИЯ ВНЕСЕНЫ В ЭТОТ РОУТ ---
 router.post('/', [auth, clearCache], async (req, res) => { 
     try { 
         const { title, dueDate, groupId } = req.body; 
         if (!groupId) return res.status(400).json({ message: "Не указана группа для урока" });
+        
+        // 1. Создаем и сохраняем новый урок
         const lesson = new Lesson({ title, dueDate, group: groupId, teacher: req.user.userId }); 
         await lesson.save(); 
+
+        // --- НАЧАЛО НОВОЙ ЛОГИКИ: АВТОМАТИЧЕСКАЯ ОЧИСТКА СТАРЫХ УРОКОВ ---
+        try {
+            const LESSONS_TO_KEEP = 6; // Оставляем 6 самых свежих уроков
+
+            // 2. Находим ID всех уроков в данной группе, отсортированных от самого старого к самому новому.
+            // .select('_id') и .lean() делают запрос максимально быстрым и легковесным.
+            const allLessonsInGroup = await Lesson.find({ group: groupId })
+                .sort({ createdAt: 'asc' })
+                .select('_id')
+                .lean();
+
+            // 3. Если уроков стало больше, чем нужно хранить...
+            if (allLessonsInGroup.length > LESSONS_TO_KEEP) {
+                // 4. Определяем, сколько самых старых уроков нужно удалить.
+                const lessonsToDeleteCount = allLessonsInGroup.length - LESSONS_TO_KEEP;
+                
+                // 5. Берем ID самых старых уроков из начала отсортированного массива.
+                const idsToDelete = allLessonsInGroup.slice(0, lessonsToDeleteCount).map(l => l._id);
+
+                // 6. Удаляем эти уроки одним эффективным запросом.
+                // Оценки (Evaluations) не затрагиваются, так как они в другой коллекции.
+                await Lesson.deleteMany({ _id: { $in: idsToDelete } });
+            }
+        } catch (cleanupError) {
+            // Логируем ошибку очистки, но не прерываем основной ответ пользователю.
+            // Создание урока прошло успешно, это главное.
+            console.error('Ошибка при автоматической очистке старых уроков:', cleanupError);
+        }
+        // --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+
         res.status(201).json(lesson); 
-    } catch (e) { res.status(500).json({ message: 'Что-то пошло не так' }); } 
+
+    } catch (e) { 
+        res.status(500).json({ message: 'Что-то пошло не так' }); 
+    } 
 });
 
+// --- ОСТАЛЬНЫЕ РОУТЫ БЕЗ ИЗМЕНЕНИЙ ---
 router.post('/:id/assignments', [auth, clearCache], async (req, res) => {
     try {
         const lesson = await Lesson.findById(req.params.id);

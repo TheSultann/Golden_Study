@@ -10,7 +10,7 @@ const CourseCard = ({ lesson, onClick }) => {
     const description = group?.name || 'General lesson'; // Используем ?. на случай, если группа не подгрузилась
 
     const formattedDate = dueDate 
-        ? new Date(dueDate).toLocaleDateString('ru-RU', { month: 'long', day: 'numeric' }) // Можно использовать ru-RU
+        ? new Date(dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' }) // Можно использовать ru-RU
         : 'No date';
 
     return (

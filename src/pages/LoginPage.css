@@ -129,3 +129,11 @@
 .signup-link a:hover {
     text-decoration: underline;
 }
+
+
+.copyright {
+    text-align: center;
+    margin-top: 24px; /* Добавит отступ сверху */
+    font-size: 12px;  /* Сделает текст маленьким */
+    color: #a0aec0;   /* Серый, ненавязчивый цвет */
+  }

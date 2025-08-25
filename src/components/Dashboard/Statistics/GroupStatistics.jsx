@@ -68,7 +68,7 @@ const GroupStatistics = ({ groups }) => {
     return (
         <div className={styles.statsContainer}>
             <div className={styles.groupSelector}>
-                <label htmlFor="group-select">Выберите группу:</label>
+                <label htmlFor="group-select">Select group:</label>
                 <select 
                     id="group-select" 
                     value={selectedGroup} 
@@ -82,32 +82,32 @@ const GroupStatistics = ({ groups }) => {
             {loading ? <p>Загрузка...</p> : (
                 <>
                     <div className={styles.groupAverageCard}>
-                        <div className={styles.groupAverageTitle}>Средняя успеваемость по группе</div>
+                        <div className={styles.groupAverageTitle}>AVERAGE GROUP PERFORMANCE</div>
                         <div className={styles.groupAverageValue}>{groupAverage}%</div>
                     </div>
                     <table className={styles.statsTable}>
                         <thead>
                             <tr>
-                                <th>Место</th>
-                                <th>Ученик</th>
-                                <th>Средняя оценка (%)</th>
-                                <th>Всего уроков</th>
-                                <th>Последняя оценка</th>
+                                <th>RANK</th>
+                                <th>STUDENT</th>
+                                <th>AVERAGE GRADE (%)</th>
+                                <th>TOTAL LESSONS</th>
+                                <th>LAST GRADE</th>
                             </tr>
                         </thead>
                         <tbody>
                             {studentStats.length > 0 ? studentStats.map((stat, index) => (
                                 <tr key={stat.studentId}>
-                                    <td data-label="Место" className={styles.rankCell}>{getMedal(index + 1)} {index + 1}</td>
-                                    <td data-label="Ученик">{stat.studentName}</td>
-                                    <td data-label="Средняя оценка (%)">{stat.averageGrade}%</td>
-                                    <td data-label="Всего уроков">{stat.lessonCount}</td>
-                                    <td data-label="Последняя оценка">{stat.lastGrade !== null ? `${stat.lastGrade}%` : 'N/A'}</td>
+                                    <td data-label="Rank" className={styles.rankCell}>{getMedal(index + 1)} {index + 1}</td>
+                                    <td data-label="Student">{stat.studentName}</td>
+                                    <td data-label="Average Grade  (%)">{stat.averageGrade}%</td>
+                                    <td data-label="Total Lessons">{stat.lessonCount}</td>
+                                    <td data-label="Last Grade">{stat.lastGrade !== null ? `${stat.lastGrade}%` : 'N/A'}</td>
                                 </tr>
                             )) : (
                                 <tr>
                                     <td colSpan="5" className={styles.noDataCell}>
-                                        Нет данных для отображения. У учеников в этой группе еще нет оценок.
+                                    No data to display. Students in this group do not have grades yet.
                                     </td>
                                 </tr>
                             )}
