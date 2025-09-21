@@ -47,7 +47,7 @@ const StudentStatistics = ({ stats, loading, error }) => {
                         <tbody>
                             {myEvaluations && myEvaluations.length > 0 ? myEvaluations.map(ev => (
                                 <tr key={ev.lessonId}>
-                                    <td data-label="Урок и дата">
+                                    <td data-label="Lesson and date">
                                         <div className={styles.lessonInfo}>
                                             <span>{ev.lessonTitle}</span>
                                             <span className={styles.lessonDate}>
@@ -55,7 +55,7 @@ const StudentStatistics = ({ stats, loading, error }) => {
                                             </span>
                                         </div>
                                     </td>
-                                    <td data-label="Результат">
+                                    <td data-label="Result">
                                         <div className={styles.gradeCell}>
                                             <span className={`${styles.gradeIndicator} ${getGradeColorClass(ev.grade)}`}></span>
                                             <span className={styles.gradeValue}>{ev.grade}%</span>
@@ -77,32 +77,32 @@ const StudentStatistics = ({ stats, loading, error }) => {
                     <div className={styles.ratingCardsContainer}>
                         <div className={styles.ratingCard}>
                             <div className={styles.ratingValue}>{getMedal(rating.myRank?.rank)} {rating.myRank?.rank || '?'} / {rating.totalStudents}</div>
-                            <div className={styles.ratingLabel}>место в группе</div>
+                            <div className={styles.ratingLabel}>Position in Group</div>
                         </div>
                         <div className={styles.ratingCard}>
                             <div className={styles.ratingValue}>{rating.groupAverage.toFixed(1)}%</div>
-                            <div className={styles.ratingLabel}>средняя оценка по группе</div>
+                            <div className={styles.ratingLabel}>Average grade in the group</div>
                         </div>
                     </div>
 
-                    <h3 className={styles.statsTitle}>Топ-5 учеников</h3>
+                    <h3 className={styles.statsTitle}>Top 5 students</h3>
                     <table className={styles.progressTable}>
                         <thead>
                             <tr>
-                                <th>Место</th>
-                                <th>Имя</th>
-                                <th>Средняя оценка</th>
+                                <th>Rank</th>
+                                <th>Name</th>
+                                <th>Average grade</th>
                             </tr>
                         </thead>
                         <tbody>
                             {rating.top5.map(user => (
                                 <tr key={user.studentId} className={user.isCurrentUser ? styles.currentUserRow : ''}>
-                                    <td data-label="Место" className={styles.rankCell}>{getMedal(user.rank)} {user.rank}</td>
+                                    <td data-label="Rank" className={styles.rankCell}>{getMedal(user.rank)} {user.rank}</td>
                                     {/* --- ИЗМЕНЕНИЕ: Удален span, который ломал верстку --- */}
-                                    <td data-label="Имя">
+                                    <td data-label="Name">
                                         {user.studentName}
                                     </td>
-                                    <td data-label="Средняя оценка">{user.averageGrade.toFixed(1)}%</td>
+                                    <td data-label="Average grade">{user.averageGrade.toFixed(1)}%</td>
                                 </tr>
                             ))}
                         </tbody>
