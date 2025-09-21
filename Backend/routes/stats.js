@@ -82,8 +82,8 @@ router.get('/student', auth, asyncHandler(async (req, res) => {
     const rankedGroupStats = groupStats.map((stat, index) => ({ ...stat, rank: index + 1 }));
     const myRank = rankedGroupStats.find(s => s.studentId.toString() === req.user.userId);
     
-    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавляем флаг isCurrentUser в массив top5 ---
-    const top5 = rankedGroupStats.slice(0, 5).map(stat => ({
+    // --- ИЗМЕНЕНИЕ: Отправляем полный рейтинг, а не топ-5 ---
+    const fullRanking = rankedGroupStats.map(stat => ({
         ...stat,
         isCurrentUser: stat.studentId.toString() === req.user.userId
     }));
@@ -97,7 +97,7 @@ router.get('/student', auth, asyncHandler(async (req, res) => {
             myRank,
             groupAverage: groupAverage,
             totalStudents: rankedGroupStats.length,
-            top5 // Отправляем измененный массив
+            fullRanking // Отправляем полный массив вместо top5
         }
     });
 }));
