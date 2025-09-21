@@ -77,7 +77,7 @@ function LoginPage() {
 
                 <div className="signup-link">
                 Don't have an account? <Link to="/register">Sign Up</Link>
-                <p className="copyright">Project by Sultan | v1.0.0</p>
+                <p className="copyright">Project by Sultan | v2.0.0</p>
 
                 </div>
             </div>

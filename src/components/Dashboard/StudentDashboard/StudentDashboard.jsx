@@ -94,7 +94,7 @@ const StudentDashboard = () => {
 
                 <div className={styles.promoBanner}>
                     <div className={styles.promoContent}>
-                        {averageGrade !== undefined ? (<h2>Your average score is: {averageGrade}%</h2>) : (<h2>Complete your first lesson to see your score!</h2>)}
+                        {averageGrade !== undefined ? (<h2>Your average score is: {averageGrade.toFixed(1)}%</h2>) : (<h2>Complete your first lesson to see your score!</h2>)}
                         <div className={styles.goalProgressContainer}><div className={styles.goalProgressBar} style={{width: `${averageGrade || 0}%`}}></div></div>
                     </div>
                     <div className={styles.promoIcon}>🎯</div>

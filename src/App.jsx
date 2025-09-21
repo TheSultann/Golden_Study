@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import React, { useState, useEffect } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 
@@ -11,35 +9,29 @@ import TeacherDashboardLayout from './components/Dashboard/TeacherDashboard/Teac
 import GroupsPage from './pages/GroupsPage.jsx'; 
 import SettingsPage from './pages/SettingsPage.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
+import FinancePage from './pages/FinancePage.jsx';
+import AccountingPage from './pages/AccountingPage.jsx';
+import TeachersOverviewPage from './pages/TeachersOverviewPage.jsx';
 
 import styles from './App.module.css';
 
 function App() {
-    // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-    // Состояние-триггер для принудительной перерисовки приложения при обновлении данных пользователя.
     const [userVersion, setUserVersion] = useState(0);
 
     useEffect(() => {
-        // Обработчик кастомного события, который обновит состояние и вызовет ре-рендер.
         const handleUserUpdate = () => {
             setUserVersion(v => v + 1); 
         };
-
-        // Подписываемся на событие 'userProfileUpdated', которое отправляет SettingsPage.
         window.addEventListener('userProfileUpdated', handleUserUpdate);
-
-        // Очищаем подписку при размонтировании компонента, чтобы избежать утечек памяти.
         return () => {
             window.removeEventListener('userProfileUpdated', handleUserUpdate);
         };
-    }, []); // Пустой массив зависимостей гарантирует, что эффект выполнится только один раз.
+    }, []);
 
-    // Данные из localStorage будут перечитываться при каждом ре-рендере, вызванном изменением userVersion.
     const token = localStorage.getItem('userToken');
     const role = localStorage.getItem('userRole');
-    // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
-    // Обертка для страниц (группы, настройки), которые используют ОБЩИЙ макет
+    // Эта обертка нужна для страниц, у которых НЕТ своего макета
     const PrivateRouteWithLayout = ({ component: Component, ...rest }) => (
         <Route {...rest} render={props => (
             <div className={styles.pageLayout}>
@@ -51,7 +43,20 @@ function App() {
         )} />
     );
 
-    // Если пользователь НЕ авторизован
+    const AdminRouteWithLayout = ({ component: Component, ...rest }) => {
+        if (role !== 'admin') {
+            return <Redirect to="/" />;
+        }
+        return <PrivateRouteWithLayout component={Component} {...rest} />;
+    };
+
+    const TeacherOrAdminRouteWithLayout = ({ component: Component, ...rest }) => {
+        if (role !== 'teacher' && role !== 'admin') {
+            return <Redirect to="/" />;
+        }
+        return <PrivateRouteWithLayout component={Component} {...rest} />;
+    };
+
     if (!token) {
         return (
              <Switch>
@@ -63,17 +68,26 @@ function App() {
         );
     }
     
-    // Если пользователь АВТОРИЗОВАН
     return (
         <Switch>
-            {/* ГЛАВНАЯ СТРАНИЦА (/): использует свой собственный компонент-макет */}
             <Route path="/" exact>
-                {role === 'teacher' ? <TeacherDashboardLayout /> : <StudentDashboardLayout />}
+                {role === 'admin' && <Redirect to="/overview" />} 
+                {role === 'teacher' && <TeacherDashboardLayout />}
+                {role === 'student' && <StudentDashboardLayout />}
             </Route>
 
-            {/* ОСТАЛЬНЫЕ СТРАНИЦЫ: используют общий макет через PrivateRouteWithLayout */}
-            <PrivateRouteWithLayout path="/groups" component={GroupsPage} />
+            {/* --- НОВЫЙ БЛОК: Отдельный защищенный роут для личной панели админа --- */}
+            {/* Мы рендерим TeacherDashboardLayout напрямую, БЕЗ обертки, так как это уже готовый макет */}
+            <Route path="/my-dashboard">
+                {role === 'admin' ? <TeacherDashboardLayout /> : <Redirect to="/" />}
+            </Route>
+
+            <AdminRouteWithLayout path="/overview" component={TeachersOverviewPage} />
+            <TeacherOrAdminRouteWithLayout path="/groups" component={GroupsPage} />
+            
             <PrivateRouteWithLayout path="/settings" component={SettingsPage} />
+            <AdminRouteWithLayout path="/finance" component={FinancePage} />
+            <AdminRouteWithLayout path="/accounting" component={AccountingPage} />
             
             <Redirect to="/" />
         </Switch>

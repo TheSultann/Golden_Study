@@ -96,7 +96,7 @@
   }
   
   /* ==========================================================================
-     Lesson List
+     Lesson List (MODIFIED FOR GROUPING & HOVER)
      ========================================================================== */
   
   .lessonList {
@@ -105,14 +105,30 @@
     gap: 10px;
   }
   
+  .groupHeader {
+    margin-top: 25px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #111827;
+  }
+  
+  .groupHeader:first-of-type {
+    margin-top: 5px;
+  }
+  
   .lessonRow {
+    position: relative; /* --- 1. ДОБАВЛЕНО для позиционирования кнопки --- */
     display: grid;
-    grid-template-columns: 3fr 2fr 1fr;
+    grid-template-columns: 3fr 1.5fr 1fr;
     align-items: center;
     padding: 15px 20px;
     background: #fff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
+    transition: background-color 0.2s ease; /* Плавный переход */
   }
   
   .headerRow {
@@ -121,7 +137,11 @@
     color: #6b7280;
   }
   
-  .groupName {
+  .lessonTitle {
+    font-weight: 500;
+  }
+  
+  .lessonDate {
     font-size: 13px;
     font-weight: 500;
     color: #6b7280;
@@ -134,8 +154,54 @@
     padding: 8px 12px;
     border-radius: 8px;
     cursor: pointer;
-    justify-self: start;
     font-weight: 500;
+  }
+  
+  .noLessons {
+    text-align: center;
+    padding: 40px;
+    color: #6b7280;
+  }
+  
+  .actionsContainer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-self: start;
+  }
+  
+  /* --- 2. ИЗМЕНЕНЫ СТИЛИ КНОПКИ УДАЛЕНИЯ --- */
+  .lessonDeleteButton {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    opacity: 0; /* --- По умолчанию кнопка невидима --- */
+    transform: scale(0.8);
+  }
+  
+  /* --- 3. НОВЫЕ СТИЛИ ДЛЯ ПОКАЗА КНОПКИ --- */
+  /* Показываем кнопку при наведении на всю строку (для ПК) */
+  .lessonRow:hover .lessonDeleteButton {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  /* Показываем кнопку, если строка активна (для мобильных) */
+  .lessonRow.active .lessonDeleteButton {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  .lessonDeleteButton:hover {
+    background-color: #fee2e2;
+    color: #ef4444;
   }
   
   @media (max-width: 768px) {
@@ -151,18 +217,28 @@
       display: block;
       width: 100%;
     }
-    .lessonRow > span:first-child {
+    .lessonRow > .lessonTitle {
       font-weight: 600;
     }
-    .lessonRow > .groupName::before {
-      content: "Group: ";
+    .lessonRow > .lessonDate::before {
+      content: "Создан: ";
       font-weight: 500;
       color: var(--text-secondary);
     }
-    .gradeButton {
+    .actionsContainer {
       justify-self: stretch;
-      text-align: center;
       margin-top: 10px;
+    }
+    .gradeButton {
+      flex-grow: 1;
+      text-align: center;
+    }
+    /* --- 4. НА МОБИЛЬНЫХ КНОПКА ВСЕГДА ВИДНА, ЕСЛИ СТРОКА АКТИВНА --- */
+    .lessonDeleteButton {
+      opacity: 0; /* По умолчанию скрыта */
+    }
+    .lessonRow.active .lessonDeleteButton {
+      opacity: 1; /* Показываем только на активной строке */
     }
   }
   

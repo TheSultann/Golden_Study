@@ -1,3 +1,5 @@
+// Backend/models/Group.js
+
 const mongoose = require('mongoose');
 
 const GroupSchema = new mongoose.Schema({
@@ -9,17 +11,24 @@ const GroupSchema = new mongoose.Schema({
     description: {
         type: String,
     },
-    // Связь с учителем, который создал группу
     teacher: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-    // Массив студентов, которые состоят в этой группе
     students: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    }]
-}, { timestamps: true }); // Добавляет дату создания и обновления
+    }],
+    // ДОБАВЛЕНО: Поле для "мягкого" удаления
+    status: {
+        type: String,
+        enum: ['active', 'pending_deletion'],
+        default: 'active'
+    }
+}, { timestamps: true });
+
+// ДОБАВЛЕНО: Индекс для ускорения выборок
+GroupSchema.index({ teacher: 1, status: 1 });
 
 module.exports = mongoose.model('Group', GroupSchema);

@@ -3,7 +3,6 @@ import styles from '../StudentDashboard/StudentDashboard.module.css';
 
 const StudentStatistics = ({ stats, loading, error }) => {
     const [activeTab, setActiveTab] = useState('progress');
-    const myUserId = localStorage.getItem('userId');
 
     const getMedal = (rank) => {
         if (rank === 1) return '🥇';
@@ -12,7 +11,6 @@ const StudentStatistics = ({ stats, loading, error }) => {
         return '';
     };
 
-    // --- НОВАЯ ФУНКЦИЯ ДЛЯ ЦВЕТОВОГО ИНДИКАТОРА ---
     const getGradeColorClass = (grade) => {
         if (grade >= 80) return styles.gradeHigh;
         if (grade >= 50) return styles.gradeMedium;
@@ -39,7 +37,6 @@ const StudentStatistics = ({ stats, loading, error }) => {
             {activeTab === 'progress' && (
                 <div>
                     <h3 className={styles.statsTitle}>Lesson Grades</h3>
-                    {/* --- ПОЛНОСТЬЮ ПЕРЕДЕЛАННАЯ ТАБЛИЦА --- */}
                     <table className={styles.progressTable}>
                         <thead>
                             <tr>
@@ -83,7 +80,7 @@ const StudentStatistics = ({ stats, loading, error }) => {
                             <div className={styles.ratingLabel}>место в группе</div>
                         </div>
                         <div className={styles.ratingCard}>
-                            <div className={styles.ratingValue}>{rating.groupAverage}%</div>
+                            <div className={styles.ratingValue}>{rating.groupAverage.toFixed(1)}%</div>
                             <div className={styles.ratingLabel}>средняя оценка по группе</div>
                         </div>
                     </div>
@@ -99,10 +96,13 @@ const StudentStatistics = ({ stats, loading, error }) => {
                         </thead>
                         <tbody>
                             {rating.top5.map(user => (
-                                <tr key={user.studentId} className={user.studentId === myUserId ? styles.currentUserRow : ''}>
+                                <tr key={user.studentId} className={user.isCurrentUser ? styles.currentUserRow : ''}>
                                     <td data-label="Место" className={styles.rankCell}>{getMedal(user.rank)} {user.rank}</td>
-                                    <td data-label="Имя">{user.studentName} {user.studentId === myUserId ? '(это ты)' : ''}</td>
-                                    <td data-label="Средняя оценка">{user.averageGrade}%</td>
+                                    {/* --- ИЗМЕНЕНИЕ: Удален span, который ломал верстку --- */}
+                                    <td data-label="Имя">
+                                        {user.studentName}
+                                    </td>
+                                    <td data-label="Средняя оценка">{user.averageGrade.toFixed(1)}%</td>
                                 </tr>
                             ))}
                         </tbody>

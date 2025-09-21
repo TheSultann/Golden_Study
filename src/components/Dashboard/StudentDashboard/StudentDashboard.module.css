@@ -280,9 +280,21 @@
     color: #6b7280;
     font-size: 14px;
 }
+
+/* --- СТИЛИ ДЛЯ ВЫДЕЛЕНИЯ ПОЛЬЗОВАТЕЛЯ --- */
 .currentUserRow {
-    background-color: #eff6ff;
+    background-color: #eff6ff; /* Tailwind blue-50 */
+    border-left: 4px solid #3B82F6; /* Tailwind blue-500 */
+    font-weight: 600;
 }
+.currentUserRow td {
+    padding-left: 16px; /* Компенсация для border */
+}
+.currentUserRow td:first-child {
+    color: #1d4ed8; /* Tailwind blue-700 */
+}
+/* --- ИЗМЕНЕНИЕ: Удален неиспользуемый стиль .youIndicator --- */
+
 .rankCell {
     font-weight: 600;
 }
@@ -290,7 +302,7 @@
     color: #ef4444;
 }
 
-/* === НОВЫЕ СТИЛИ ДЛЯ ТАБЛИЦЫ ОЦЕНОК === */
+/* === СТИЛИ ДЛЯ ТАБЛИЦЫ ОЦЕНОК === */
 .lessonInfo {
     display: flex;
     flex-direction: column;
@@ -357,5 +369,14 @@
     }
     .lessonInfo {
         align-items: flex-end;
+    }
+    /* Адаптация для выделенной строки */
+    .currentUserRow {
+        border-left: none;
+        border-top: 4px solid #3B82F6;
+        padding-top: 11px;
+    }
+    .currentUserRow td {
+        padding-left: 0;
     }
 }

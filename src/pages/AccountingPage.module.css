@@ -1,0 +1,93 @@
+.wrapper { padding: 2rem; background-color: #f8f9fa; min-height: 100vh; }
+.header { margin-bottom: 2rem; }
+.header h1 { font-size: 2.25rem; font-weight: 700; color: #212529; }
+.header p { font-size: 1.1rem; color: #6c757d; }
+.tabs { display: flex; gap: 0.5rem; border-bottom: 2px solid #dee2e6; margin-bottom: 2rem; }
+.tabs button { padding: 1rem 1.5rem; border: none; background: none; font-size: 1.1rem; font-weight: 600; color: #6c757d; cursor: pointer; border-bottom: 3px solid transparent; transform: translateY(2px); transition: all 0.2s ease; }
+.tabs .activeTab { color: #4a90e2; border-bottom-color: #4a90e2; }
+.content { background: #fff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+.filters { margin-bottom: 1.5rem; }
+.formGroup { display: flex; flex-direction: column; margin-bottom: 1rem; }
+.formGroup label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem; color: #495057; }
+.input { padding: 0.65rem 1rem; border: 1px solid #ced4da; border-radius: 8px; font-size: 1rem; }
+.tableContainer { width: 100%; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { padding: 1rem; border-bottom: 1px solid #e9ecef; text-align: left; vertical-align: middle; }
+.table th { font-size: 0.8rem; text-transform: uppercase; color: #6c757d; }
+.status { padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: 600; font-size: 0.85rem; text-transform: capitalize; }
+.paid { background-color: #e6fffa; color: #2c7a7b; }
+.pending { background-color: #fffaf0; color: #dd6b20; }
+.actions { display: flex; gap: 0.5rem; align-items: center; }
+.actions button { padding: 0.5rem; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; }
+.editButton { background-color: #f0f4f8; color: #4a5568; }
+.payButton { background-color: #38a169; color: #fff; }
+.saveButton { background-color: #4a90e2; color: #fff; padding: 0.5rem 1rem; }
+.cancelButton { background: none; color: #6c757d; }
+.payButton:disabled, .editButton:disabled { opacity: 0.5; cursor: not-allowed; }
+.expensesGrid { display: grid; grid-template-columns: 350px 1fr; gap: 2rem; }
+.card { background-color: #f8f9fa; padding: 1.5rem; border-radius: 8px; border: 1px solid #e9ecef; }
+.card h3 { margin-top: 0; margin-bottom: 1.5rem; }
+.button { background-color: #4a90e2; color: white; padding: 0.75rem; border: none; border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; }
+.button:disabled { background-color: #a0aec0; }
+.expenseList { background-color: #fff; }
+.deleteButton { background: none; border: none; color: #c53030; cursor: pointer; }
+.error { background-color: #fff5f5; color: #c53030; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ СВОДНОГО ОТЧЕТА И ГРАФИКОВ --- */
+.summaryGrid { display: grid; gap: 2rem; }
+.kpiGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+.kpiCard { background-color: #fff; border-radius: 8px; padding: 1.5rem; display: flex; align-items: center; gap: 1rem; border-left: 5px solid; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.kpiIcon { font-size: 2rem; color: #6c757d; }
+.kpiContent { display: flex; flex-direction: column; }
+.kpiValue { font-size: 1.5rem; font-weight: 700; color: #212529; }
+.kpiLabel { font-size: 0.9rem; color: #6c757d; text-transform: uppercase; }
+
+.chartsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.chartCard {
+    background-color: #fff;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    border: 1px solid #e9ecef;
+}
+
+.chartCard h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+.chartContainer {
+    height: 350px;
+    position: relative;
+}
+
+.breakdownList { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+.breakdownList li { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; }
+.categoryLabel { font-weight: 600; text-transform: capitalize; font-size: 0.9rem; }
+.amountLabel { font-size: 0.9rem; font-weight: 500; text-align: right; color: #495057; }
+
+/* --- УЛУЧШЕННАЯ МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+@media (max-width: 992px) {
+    .chartsGrid {
+        grid-template-columns: 1fr; /* Ставим в один столбец на планшетах */
+    }
+}
+
+@media (max-width: 768px) {
+    .wrapper, .content { padding: 1rem; }
+    .header h1 { font-size: 1.75rem; }
+    .tabs { overflow-x: auto; }
+    .tabs button { padding: 0.8rem 1rem; font-size: 1rem; white-space: nowrap; }
+    .expensesGrid { grid-template-columns: 1fr; }
+    .table thead { display: none; }
+    .table tr { display: block; margin-bottom: 1rem; border: 1px solid #e9ecef; border-radius: 8px; padding: 1rem; }
+    .table td { display: flex; justify-content: space-between; align-items: center; text-align: right; border-bottom: 1px dotted #ccc; padding: 0.75rem 0; }
+    .table td:last-child { border-bottom: none; }
+    .table td::before { content: attr(data-label); float: left; font-weight: 600; color: #495057; text-align: left; }
+}

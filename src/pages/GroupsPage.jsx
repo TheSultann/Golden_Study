@@ -1,10 +1,10 @@
-// src/pages/GroupsPage.jsx (ИЗМЕНЕННЫЙ)
+// src/pages/GroupsPage.jsx
 
 import React, { useState, useEffect } from 'react';
 import styles from './GroupsPage.module.css';
 import Modal from '../components/Modal/Modal';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
-import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../api';
 
 const GroupsPage = () => {
     const [groups, setGroups] = useState([]);
@@ -12,8 +12,6 @@ const GroupsPage = () => {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
     const [assignmentSelections, setAssignmentSelections] = useState({});
-
-    const token = localStorage.getItem('userToken');
 
     const fetchData = async () => {
         try {
@@ -29,10 +27,8 @@ const GroupsPage = () => {
     };
 
     useEffect(() => {
-        if (token) {
-            fetchData();
-        }
-    }, [token]);
+        fetchData();
+    }, []);
 
     const handleCreateGroup = async (e) => {
         e.preventDefault();
@@ -55,7 +51,7 @@ const GroupsPage = () => {
         try {
             await API.put(`/api/groups/${groupId}/assign`, { studentId });
             alert('Ученик назначен!');
-            setAssignmentSelections(prev => ({...prev, [studentId]: ''})); // Сброс выбора
+            setAssignmentSelections(prev => ({...prev, [studentId]: ''}));
             fetchData();
         } catch (error) {
             alert(error.response?.data?.message || 'Ошибка назначения');
@@ -74,13 +70,22 @@ const GroupsPage = () => {
         }
     };
 
+    // --- ИЗМЕНЕННАЯ ФУНКЦИЯ УДАЛЕНИЯ ---
     const handleDeleteGroup = async (groupId) => {
         if (!window.confirm("Вы уверены, что хотите удалить эту группу? Все связанные уроки и оценки будут также удалены! Это действие необратимо.")) {
             return;
         }
         try {
+            // Отправляем запрос на удаление
             await API.delete(`/api/groups/${groupId}`);
+            
+            // УДАЛЕНО: Оптимистичное обновление только одной части состояния
+            // setGroups(currentGroups => currentGroups.filter(group => group._id !== groupId));
+            
+            // ДОБАВЛЕНО: Полное обновление данных с сервера для обеспечения консистентности
+            // Эта функция обновит и список групп, и список нераспределенных студентов.
             fetchData();
+
         } catch (error) {
             alert(error.response?.data?.message || 'Ошибка удаления группы');
         }

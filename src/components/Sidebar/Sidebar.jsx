@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, useHistory } from 'react-router-dom';
 import styles from './Sidebar.module.css';
-import { FiGrid, FiUsers, FiSettings, FiLogOut } from 'react-icons/fi';
+// --- ИЗМЕНЕНО: Добавлена иконка FiBookOpen для панели учителя ---
+import { FiGrid, FiUsers, FiSettings, FiLogOut, FiDollarSign, FiBriefcase, FiBookOpen } from 'react-icons/fi';
 import { BsFillEmojiSunglassesFill } from 'react-icons/bs';
 
 const Sidebar = () => {
@@ -9,9 +10,7 @@ const Sidebar = () => {
     const role = localStorage.getItem('userRole');
 
     const handleLogout = () => {
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('userRole');
-        localStorage.removeItem('userName');
+        localStorage.clear();
         history.push('/login');
         window.location.reload();
     };
@@ -24,19 +23,40 @@ const Sidebar = () => {
             
             <ul className={styles.menu}>
                 <li>
-                    <NavLink to="/" exact className={styles.menuItem} activeClassName={styles.active}>
+                    <NavLink 
+                        to={role === 'admin' ? "/overview" : "/"} 
+                        exact 
+                        className={styles.menuItem} 
+                        activeClassName={styles.active}
+                        title={role === 'admin' ? "Overview" : "Dashboard"}
+                    >
                         <FiGrid size={24} />
                     </NavLink>
-                </li>
-                
-                {role === 'teacher' && (
-                    <li>
-                        <NavLink to="/groups" className={styles.menuItem} activeClassName={styles.active}>
-                            <FiUsers size={24} />
-                        </NavLink>
-                    </li>
+                </li>      
+
+                {/* Этот блок содержит ссылки ТОЛЬКО для администратора */}
+                {role === 'admin' && (
+                    <>
+                        {/* --- НОВЫЙ БЛОК: Ссылка на личную панель учителя для админа --- */}
+                        <li>
+                            <NavLink to="/my-dashboard" className={styles.menuItem} activeClassName={styles.active} title="My Teacher Panel">
+                                <FiBookOpen size={24} />
+                            </NavLink>
+                        </li>
+                        {/* --- КОНЕЦ НОВОГО БЛОКА --- */}
+                        <li>
+                            <NavLink to="/finance" className={styles.menuItem} activeClassName={styles.active} title="Finance">
+                                <FiDollarSign size={24} />
+                            </NavLink>
+                        </li>
+                        <li>
+                            <NavLink to="/accounting" className={styles.menuItem} activeClassName={styles.active} title="Accounting">
+                                <FiBriefcase size={24} />
+                            </NavLink>
+                        </li>
+                    </>
                 )}
-                {/* ИЗМЕНЕНИЕ: ДОБАВЛЕНА ССЫЛКА НА НАСТРОЙКИ ДЛЯ МОБИЛЬНОЙ ВЕРСИИ */}
+
                 <li style={{display: 'none'}} className={styles.settingsIconMobile}>
                     <NavLink to="/settings" className={styles.menuItem} activeClassName={styles.active} title="Settings">
                         <FiSettings size={24} />
@@ -47,10 +67,17 @@ const Sidebar = () => {
                         <FiLogOut size={24} />
                     </div>
                 </li>
+
+                {(role === 'teacher' || role === 'admin') && (
+                    <li>
+                        <NavLink to="/groups" className={styles.menuItem} activeClassName={styles.active} title="Groups">
+                            <FiUsers size={24} />
+                        </NavLink>
+                    </li>
+                )}  
             </ul>
 
             <ul className={styles.bottomMenu}>
-                {/* ИЗМЕНЕНИЕ: ИКОНКА НАСТРОЕК СТАЛА ССЫЛКОЙ */}
                 <li>
                     <NavLink to="/settings" className={styles.menuItem} activeClassName={styles.active} title="Settings">
                         <FiSettings size={24} />
@@ -63,7 +90,6 @@ const Sidebar = () => {
                 </li>
             </ul>
         </nav>
-        
     );
 };
 

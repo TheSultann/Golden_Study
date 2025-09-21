@@ -9,23 +9,26 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required: true,
         unique: true,
-        index: true // <-- ДОБАВЛЕНО
+        index: true
     },
     password: {
         type: String,
         required: true,
+        select: false
     },
     role: {
         type: String,
-        required: true,
+        // --- ИЗМЕНЕНИЕ: Добавлена роль 'admin' ---
+        enum: ['student', 'teacher', 'admin'],
         default: 'student',
-        index: true // <-- ДОБАВЛЕНО
+        required: true,
+        index: true
     },
     group: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Group',
         default: null,
-        index: true // <-- ДОБАВЛЕНО
+        index: true
     }
 });
 
