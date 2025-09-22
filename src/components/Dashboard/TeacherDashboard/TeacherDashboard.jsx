@@ -178,19 +178,19 @@ const TeacherDashboard = () => {
         <>
             <div className={styles.dashboard}>
                 <header className={styles.header}>
-                    <div><h3>Здравствуйте, {teacherName}!</h3><p>Вот ваши уроки и успеваемость учеников.</p></div>
-                    <button className={styles.createButton} onClick={handleOpenCreateModal}><FiPlus /> Создать урок</button>
+                    <div><h3>Hello, {teacherName}!</h3><p>Here are your lessons and students’ performance.</p></div>
+                    <button className={styles.createButton} onClick={handleOpenCreateModal}><FiPlus />Create lesson</button>
                 </header>
                 <div className={styles.mainTabContainer}>
-                    <button onClick={() => setMainTab('lessons')} className={mainTab === 'lessons' ? styles.activeMainTab : styles.mainTab}>Уроки</button>
-                    <button onClick={() => setMainTab('statistics')} className={mainTab === 'statistics' ? styles.activeMainTab : styles.mainTab}>📊 Статистика группы</button>
+                    <button onClick={() => setMainTab('lessons')} className={mainTab === 'lessons' ? styles.activeMainTab : styles.mainTab}>Lessons</button>
+                    <button onClick={() => setMainTab('statistics')} className={mainTab === 'statistics' ? styles.activeMainTab : styles.mainTab}>📊 Group statistics</button>
                 </div>
                 {mainTab === 'lessons' && (
                     <div className={styles.lessonList}>
                         <div className={`${styles.lessonRow} ${styles.headerRow}`}>
-                            <span>Урок</span>
-                            <span>Создано в</span>
-                            <span>Действия</span>
+                            <span>Lesson</span>
+                            <span>Created in</span>
+                            <span>Actions</span>
                         </div>
                         
                         {Object.keys(groupedLessons).length > 0 ? (
@@ -221,7 +221,7 @@ const TeacherDashboard = () => {
                                 </React.Fragment>
                             ))
                         ) : (
-                            <p className={styles.noLessons}>Уроков пока нет. Создайте первый!</p>
+                            <p className={styles.noLessons}>No lessons yet. Create the first one!</p>
                         )}
                     </div>
                 )}
@@ -229,12 +229,12 @@ const TeacherDashboard = () => {
             </div>
 
             {/* Модальные окна остаются без изменений */}
-            <Modal isOpen={isCreateModalOpen} onRequestClose={() => setIsCreateModalOpen(false)} title="Создать новый урок" modalClassName={styles.defaultModal}>
+            <Modal isOpen={isCreateModalOpen} onRequestClose={() => setIsCreateModalOpen(false)} title="Create new lesson" modalClassName={styles.defaultModal}>
                  <form onSubmit={handleCreateLesson} className={styles.createLessonForm}>
-                    <div className={styles.formGroup}><label htmlFor="groupSelect">Группа</label><select id="groupSelect" value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)} required><option value="" disabled>Выберите группу</option>{groups.map(group => (<option key={group._id} value={group._id}>{group.name}</option>))}</select></div>
-                    <div className={styles.formGroup}><label htmlFor="lessonTitle">Название урока</label><input type="text" id="lessonTitle" value={newLessonTitle} onChange={(e) => setNewLessonTitle(e.target.value)} required /></div>
-                    <div className={styles.formGroup}><label htmlFor="dueDate">Срок сдачи</label><input type="date" id="dueDate" value={newLessonDueDate} onChange={(e) => setNewLessonDueDate(e.target.value)} /></div>
-                    <div className={styles.formActions}><button type="button" className={styles.cancelButton} onClick={() => setIsCreateModalOpen(false)}>Отмена</button><button type="submit" className={styles.submitButton}>Создать</button></div>
+                    <div className={styles.formGroup}><label htmlFor="groupSelect">Group</label><select id="groupSelect" value={selectedGroupId} onChange={(e) => setSelectedGroupId(e.target.value)} required><option value="" disabled>Select group</option>{groups.map(group => (<option key={group._id} value={group._id}>{group.name}</option>))}</select></div>
+                    <div className={styles.formGroup}><label htmlFor="lessonTitle">Lesson title</label><input type="text" id="lessonTitle" value={newLessonTitle} onChange={(e) => setNewLessonTitle(e.target.value)} required /></div>
+                    <div className={styles.formGroup}><label htmlFor="dueDate">Due date</label><input type="date" id="dueDate" value={newLessonDueDate} onChange={(e) => setNewLessonDueDate(e.target.value)} /></div>
+                    <div className={styles.formActions}><button type="button" className={styles.cancelButton} onClick={() => setIsCreateModalOpen(false)}>Cancel</button><button type="submit" className={styles.submitButton}>Create</button></div>
                 </form>
             </Modal>
             

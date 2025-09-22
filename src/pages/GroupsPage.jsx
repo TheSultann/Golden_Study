@@ -137,7 +137,7 @@ const GroupsPage = () => {
                                         )}
                                     </ul>
                                 </div>
-                            )) : <p>У вас еще нет созданных групп.</p>}
+                            )) : <p>You don’t have any groups yet.</p>}
                         </div>
                     </section>
 
@@ -169,22 +169,22 @@ const GroupsPage = () => {
                 </div>
             </div>
 
-            <Modal isOpen={isCreateModalOpen} onRequestClose={() => setIsCreateModalOpen(false)} title="Создать новую группу">
+            <Modal isOpen={isCreateModalOpen} onRequestClose={() => setIsCreateModalOpen(false)} title="Create new group">
                 <form onSubmit={handleCreateGroup} className={styles.modalForm}>
                     <div className={styles.formGroup}>
-                        <label htmlFor="groupName">Название группы</label>
+                        <label htmlFor="groupName">Group name</label>
                         <input
                             type="text"
                             id="groupName"
                             value={newGroupName}
                             onChange={(e) => setNewGroupName(e.target.value)}
                             required
-                            placeholder="Например, '10-А класс'"
+                            placeholder="For example, “Class 10-A”"
                         />
                     </div>
                     <div className={styles.formActions}>
-                        <button type="button" className={styles.cancelButton} onClick={() => setIsCreateModalOpen(false)}>Отмена</button>
-                        <button type="submit">Создать</button>
+                        <button type="button" className={styles.cancelButton} onClick={() => setIsCreateModalOpen(false)}>Cancel</button>
+                        <button type="submit">Create</button>
                     </div>
                 </form>
             </Modal>
