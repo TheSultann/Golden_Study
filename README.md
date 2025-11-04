@@ -173,7 +173,7 @@
 
 **Sultanbek Otanazarov**
 
-- GitHub: [@S7L5An](https://github.com/S7L5An)
+- GitHub: [[@S7L5An](https://github.com/S7L5An)](https://github.com/TheSultann)
 - Telegram: [@S7L5An](https://t.me/S7L5An)
 - Email: otanazarovsultanbek@gmail.com
 
@@ -183,7 +183,6 @@
 
 Если у вас возникли вопросы или предложения:
 
-- 🐛 [Создайте Issue](https://github.com/S7L5An/learning-platform/issues)
 - 💬 Напишите в Telegram: [@S7L5An](https://t.me/S7L5An)
 - 📧 Email: otanazarovsultanbek@gmail.com
 
@@ -191,7 +190,7 @@
 
 <div align="center">
 
-**Сделано с ❤️ для современного образования**
+
 
 ⭐ Поставьте звезду, если проект вам понравился!
 
