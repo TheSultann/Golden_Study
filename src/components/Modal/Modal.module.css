@@ -1,3 +1,5 @@
+/* src/components/Modal/Modal.module.css */
+
 .overlay {
     position: fixed;
     top: 0;
@@ -10,18 +12,24 @@
     align-items: center;
     z-index: 1000;
     animation: fadeIn 0.3s ease;
+    /* Добавим padding для безопасной области на мобильных устройствах */
+    padding: 1rem; 
 }
 
 .modal {
     background: var(--bg-light);
-    width: 90%;
-    /* max-width УДАЛЕН ОТСЮДА */
+    width: 100%; /* Изменено для лучшей адаптивности */
+    max-width: 800px; /* Возвращаем max-width сюда */
     border-radius: 16px;
-    padding: 30px;
+    padding: 24px; /* Немного уменьшим паддинг для компактности */
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     outline: none;
     animation: slideIn 0.3s ease;
-    transition: max-width 0.2s ease-in-out; /* Добавим плавный переход */
+    transition: max-width 0.2s ease-in-out;
+    /* Добавим flex-контейнер для управления высотой */
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh; /* Ограничиваем максимальную высоту */
 }
 
 .header {
@@ -29,6 +37,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-shrink: 0; /* Заголовок не должен сжиматься */
 }
 
 .title {
@@ -49,9 +58,16 @@
     color: var(--text-primary);
 }
 
+/* --- ИЗМЕНЕННЫЙ БЛОК --- */
 .content {
-    /* Стили для контента внутри модального окна */
+    overflow-y: auto; /* Включаем вертикальную прокрутку, если контент не помещается */
+    flex-grow: 1; /* Контент занимает все доступное пространство */
+    /* Добавим небольшой отступ справа, чтобы скроллбар не прилипал к контенту */
+    padding-right: 10px;
+    margin-right: -10px;
 }
+/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */
+
 
 @keyframes fadeIn {
     from { opacity: 0; }

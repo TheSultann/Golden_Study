@@ -1,0 +1,256 @@
+.profileModal {
+    max-width: 800px;
+    background: #f9fafb; /* Light gray background for the modal */
+}
+
+.profileContainer {
+    min-height: 450px;
+    position: relative;
+    padding: 10px;
+}
+
+.loader {
+    border: 4px solid #e5e7eb;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error {
+    text-align: center;
+    padding: 40px;
+    color: #ef4444;
+}
+
+.profileHeader {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #3b82f6;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.headerInfo h2 {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.headerInfo p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.averageGrade {
+    margin-left: auto;
+    text-align: center;
+    background-color: #f3f4f6;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: 1px solid #e5e7eb;
+}
+
+.averageGrade span {
+    font-size: 12px;
+    color: #6b7280;
+    display: block;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.averageGrade strong {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.contentGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: auto 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.widgetCard {
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+}
+
+.widgetCard h4 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.attendanceCard { grid-column: 1 / 2; grid-row: 1 / 2; }
+.financeCard { grid-column: 2 / 3; grid-row: 1 / 2; }
+.progressCard { grid-column: 1 / 3; grid-row: 2 / 3; }
+
+.attendanceContent {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+    flex-grow: 1;
+}
+
+.doughnutChart {
+    width: 120px;
+    height: 120px;
+    position: relative;
+}
+
+.doughnutCenterText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.doughnutCenterText strong {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.attendanceLegend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.legendItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #4b5563;
+}
+
+.legendDot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.dotPresent { background-color: #10B981; }
+.dotAbsent { background-color: #F43F5E; }
+
+.financeContent {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    flex-grow: 1;
+}
+
+.financeIcon {
+    font-size: 40px;
+    margin-bottom: 10px;
+}
+
+.financeContent p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.statusPaid { color: #059669; background-color: #D1FAE5; }
+.statusPending { color: #D97706; background-color: #FEF3C7; }
+.statusOverdue { color: #DC2626; background-color: #FEE2E2; }
+.statusDefault { color: #4B5563; background-color: #F3F4F6; }
+
+.lineChart {
+    height: 220px;
+    flex-grow: 1;
+}
+
+.noChartData {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #6b7280;
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+    .contentGrid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+    }
+    .attendanceCard, .financeCard, .progressCard {
+        grid-column: auto;
+        grid-row: auto;
+    }
+    .profileHeader {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+    }
+    .averageGrade {
+        margin-left: 0;
+        margin-top: 15px;
+        width: 100%;
+    }
+}
+
+/* ... (весь ваш существующий код) ... */
+
+.financeContent p {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* --- ДОБАВЛЕННЫЙ БЛОК --- */
+.financeDetails {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.8;
+}
+/* --- КОНЕЦ ДОБАВЛЕННОГО БЛОКА --- */
+
+.statusPaid { color: #059669; background-color: #D1FAE5; }
+.statusPending { color: #D97706; background-color: #FEF3C7; }
+.statusOverdue { color: #DC2626; background-color: #FEE2E2; }
+.statusDefault { color: #4B5563; background-color: #F3F4F6; }
+
+/* ... (остальной код) ... */

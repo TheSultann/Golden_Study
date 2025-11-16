@@ -1,14 +1,16 @@
-// src/components/Dashboard/Statistics/GroupStatistics.jsx (ИСПРАВЛЕННЫЙ)
-
 import React, { useState, useEffect } from 'react';
 import styles from '../TeacherDashboard/TeacherDashboard.module.css';
 import API from '../../../api';
+// --- 1. ДОБАВЛЯЕМ ИМПОРТ ХУКА КОНТЕКСТА ---
+import { useStudentProfile } from '../../../context/StudentProfileContext';
 
 const GroupStatistics = ({ groups }) => {
     const [selectedGroup, setSelectedGroup] = useState('');
     const [studentStats, setStudentStats] = useState([]);
     const [groupAverage, setGroupAverage] = useState(0);
     const [loading, setLoading] = useState(false);
+    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА ---
+    const { showProfile } = useStudentProfile();
     
     useEffect(() => {
         if (groups.length > 0 && !selectedGroup) {
@@ -27,7 +29,6 @@ const GroupStatistics = ({ groups }) => {
 
                 if (newStudentStats && typeof newGroupAverage !== 'undefined') {
                     setStudentStats(newStudentStats);
-                    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Убираем Math.round, сохраняем точное значение ---
                     setGroupAverage(newGroupAverage); 
                 } else {
                     console.error("Ошибка загрузки статистики или неверный формат данных");
@@ -75,7 +76,6 @@ const GroupStatistics = ({ groups }) => {
                 <>
                     <div className={styles.groupAverageCard}>
                         <div className={styles.groupAverageTitle}>AVERAGE GROUP PERFORMANCE</div>
-                        {/* --- ИЗМЕНЕНИЕ ЗДЕСЬ: Форматируем вывод до 2 знаков после запятой --- */}
                         <div className={styles.groupAverageValue}>{groupAverage.toFixed(1)}%</div>
                     </div>
                     <table className={styles.statsTable}>
@@ -92,7 +92,15 @@ const GroupStatistics = ({ groups }) => {
                             {studentStats.length > 0 ? studentStats.map((stat) => (
                                 <tr key={stat.studentId}>
                                     <td data-label="Rank" className={styles.rankCell}>{getMedal(stat.rank)} {stat.rank}</td>
-                                    <td data-label="Student">{stat.studentName}</td>
+                                    {/* --- 3. ДЕЛАЕМ ИМЯ КЛИКАБЕЛЬНЫМ --- */}
+                                    <td data-label="Student">
+                                        <span 
+                                            className={styles.clickableStudentName}
+                                            onClick={() => showProfile(stat.studentId)}
+                                        >
+                                            {stat.studentName}
+                                        </span>
+                                    </td>
                                     <td data-label="Average Grade (%)">{stat.averageGrade.toFixed(1)}%</td>
                                     <td data-label="Total Lessons">{stat.lessonCount}</td>
                                     <td data-label="Last Grade">{stat.lastGrade !== null ? `${stat.lastGrade}%` : 'N/A'}</td>

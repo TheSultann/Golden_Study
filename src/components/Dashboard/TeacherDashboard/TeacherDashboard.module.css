@@ -758,3 +758,74 @@
       transform: translateY(0);
     }
   }
+
+  /* ... (весь ваш существующий код) ... */
+
+/* ==========================================================================
+   Attendance Tab Styles
+   ========================================================================== */
+
+.attendanceContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.attendanceContainer h4 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.attendanceList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  max-height: 35vh;
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.attendanceStudentRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.attendanceStudentRow:hover {
+  background-color: #f3f4f6;
+}
+
+.attendanceStudentRow input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #007bff;
+}
+
+.attendanceStudentRow input[type="checkbox"]:checked + span {
+  font-weight: 600;
+  color: #166534; /* green-800 */
+}
+
+.attendanceStudentRow:has(input:checked) {
+    background-color: #dcfce7; /* green-100 */
+    border-color: #86efac; /* green-300 */
+}
+
+.clickableStudentName {
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: rgba(59, 130, 246, 0.4);
+  transition: color 0.2s ease;
+}
+
+.clickableStudentName:hover {
+  color: #3b82f6;
+}

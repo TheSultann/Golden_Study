@@ -5,11 +5,14 @@ import styles from './FinancePage.module.css';
 import API from '../api';
 import Modal from '../components/Modal/Modal';
 import { FiPlusCircle, FiTrendingUp, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+// --- 1. ИМПОРТИРУЕМ ХУК ДЛЯ ДОСТУПА К КОНТЕКСТУ ---
+import { useStudentProfile } from '../context/StudentProfileContext';
+
 
 // Хелпер для получения текущего месяца в формате YYYY-MM
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
-// Компонент для карточки со статистикой (без изменений)
+// Компонент для карточки со статистикой
 const StatCard = ({ icon, label, value, color }) => (
     <div className={styles.statCard}>
         <div className={styles.statIcon} style={{ backgroundColor: color }}>{icon}</div>
@@ -20,7 +23,7 @@ const StatCard = ({ icon, label, value, color }) => (
     </div>
 );
 
-// Компонент для статуса (без изменений)
+// Компонент для статуса
 const StatusIndicator = ({ status }) => {
     const config = {
         paid: { text: 'Paid', className: styles.statusPaid },
@@ -31,19 +34,22 @@ const StatusIndicator = ({ status }) => {
 };
 
 const FinancePage = () => {
-    // Состояния для фильтров (без изменений)
+    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА ---
+    const { showProfile } = useStudentProfile();
+
+    // Состояния для фильтров
     const [periodStart, setPeriodStart] = useState(getCurrentMonth());
     const [periodEnd, setPeriodEnd] = useState(getCurrentMonth());
     const [selectedGroup, setSelectedGroup] = useState('all');
 
-    // Состояния для данных и UI (без изменений)
+    // Состояния для данных и UI
     const [payments, setPayments] = useState([]);
     const [groupsForFilter, setGroupsForFilter] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
 
-    // Состояния для модального окна (обновлены)
+    // Состояния для модального окна
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalBillingPeriod, setModalBillingPeriod] = useState(getCurrentMonth());
     const [groupAmounts, setGroupAmounts] = useState({});
@@ -51,7 +57,6 @@ const FinancePage = () => {
     const [modalError, setModalError] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    // Загрузка данных для таблицы (без изменений)
     const fetchPayments = useCallback(async () => {
         if (!periodStart || !periodEnd) return;
         setIsLoading(true);
@@ -71,7 +76,6 @@ const FinancePage = () => {
         fetchPayments();
     }, [fetchPayments]);
 
-    // Загрузка списка групп для фильтра и модального окна (без изменений)
     useEffect(() => {
         const fetchGroups = async () => {
             try {
@@ -82,12 +86,11 @@ const FinancePage = () => {
         fetchGroups();
     }, []);
 
-    // --- НОВОЕ: Загрузка последних сумм при открытии модального окна ---
     useEffect(() => {
         const fetchLastAmounts = async () => {
             try {
                 const response = await API.get('/api/finance/last-amounts');
-                setGroupAmounts(response.data); // Автозаполнение сумм
+                setGroupAmounts(response.data);
             } catch (error) {
                 console.error("Не удалось загрузить последние суммы:", error);
             }
@@ -98,7 +101,6 @@ const FinancePage = () => {
         }
     }, [isModalOpen]);
 
-    // Вычисление статистики (без изменений)
     const stats = useMemo(() => {
         return payments.reduce((acc, payment) => {
             acc.totalDue += payment.amountDue;
@@ -111,7 +113,6 @@ const FinancePage = () => {
         }, { totalDue: 0, totalPaid: 0, unpaidCount: 0 });
     }, [payments]);
 
-    // Обработчик "Mark as Paid" (без изменений)
     const handleMarkAsPaid = async (paymentId) => {
         setUpdatingPaymentId(paymentId);
         try {
@@ -124,7 +125,6 @@ const FinancePage = () => {
         }
     };
 
-    // Обработчик генерации счетов (обновлен)
     const handleGenerateInvoices = async (e) => {
         e.preventDefault();
         setIsGenerating(true);
@@ -160,7 +160,6 @@ const FinancePage = () => {
         }
     };
     
-    // Хелпер для обновления сумм в модалке (без изменений)
     const handleAmountChange = (groupId, value) => {
         setGroupAmounts(prev => ({
             ...prev,
@@ -225,7 +224,17 @@ const FinancePage = () => {
                             ) : payments.length > 0 ? (
                                 payments.map(p => (
                                     <tr key={p._id}>
-                                        <td>{p.student?.name || 'N/A'}</td>
+                                        {/* --- 3. ДЕЛАЕМ ИМЯ СТУДЕНТА КЛИКАБЕЛЬНЫМ --- */}
+                                        <td>
+                                            {p.student ? (
+                                                <span 
+                                                    className={styles.clickableStudentName} 
+                                                    onClick={() => showProfile(p.student._id)}
+                                                >
+                                                    {p.student.name}
+                                                </span>
+                                            ) : 'N/A'}
+                                        </td>
                                         <td>{p.group?.name || 'N/A'}</td>
                                         <td>{p.billingPeriod}</td>
                                         <td>{formatCurrency(p.amountDue)}</td>
@@ -250,13 +259,12 @@ const FinancePage = () => {
                 </div>
             </div>
 
-            {/* --- МОДАЛЬНОЕ ОКНО С НОВЫМ СТИЛЕМ И АВТОЗАПОЛНЕНИЕМ --- */}
             <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} title="Generate Monthly Invoices">
                 <form onSubmit={handleGenerateInvoices} className={styles.modalForm}>
-                    <p>Укажите месяц и сумму для каждой группы. Суммы автоматически подставлены из последних счетов.</p>
+                    <p>Specify the month and amount for each group. Amounts are automatically filled in from the latest invoices.</p>
                     
                     <div className={styles.formGroup}>
-                        <label htmlFor="modalBillingPeriod">Месяц выставления</label>
+                        <label htmlFor="modalBillingPeriod">Billing month</label>
                         <input type="month" id="modalBillingPeriod" value={modalBillingPeriod} onChange={e => setModalBillingPeriod(e.target.value)} className={styles.input} required />
                     </div>
 

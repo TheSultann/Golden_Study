@@ -1,12 +1,13 @@
-// src/components/Dashboard/TeacherDashboard/EvaluationRow.jsx (ИЗМЕНЕННЫЙ)
-
 import React, { useState } from 'react';
 import styles from './TeacherDashboard.module.css';
-import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../../../api';
+// --- 1. ИМПОРТИРУЕМ ХУК ДЛЯ ДОСТУПА К КОНТЕКСТУ ---
+import { useStudentProfile } from '../../../context/StudentProfileContext';
 
-// Убираем 'token' из пропсов, он больше не нужен
 const EvaluationRow = ({ studentData, lessonId, onSave }) => {
     const [evaluation, setEvaluation] = useState(studentData.evaluation);
+    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ДЛЯ ВЫЗОВА МОДАЛЬНОГО ОКНА ---
+    const { showProfile } = useStudentProfile();
 
     const handleGradeChange = (e) => {
         setEvaluation(prev => ({ ...prev, grade: e.target.value }));
@@ -23,14 +24,12 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
 
     const handleSaveClick = async () => {
         try {
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
             const res = await API.post('/api/evaluations', {
                 lessonId,
                 studentId: studentData.student._id,
                 grade: Number(evaluation.grade) || 0,
                 skills: evaluation.skills,
             });
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
             const savedEvaluation = res.data;
             alert(`Оценка для ${studentData.student.name} сохранена.`);
@@ -44,7 +43,16 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
     
     return (
         <div className={styles.evaluationRow}>
-            <span className={styles.studentNameCell}>{studentData.student.name}</span>
+            {/* --- 3. ДЕЛАЕМ ИМЯ СТУДЕНТА КЛИКАБЕЛЬНЫМ --- */}
+            <span 
+                className={`${styles.studentNameCell} ${styles.clickableStudentName}`}
+                onClick={() => showProfile(studentData.student._id)}
+                title={`Посмотреть профиль ${studentData.student.name}`}
+            >
+                {studentData.student.name}
+            </span>
+            {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
+            
             <div>
                 <input
                     type="number"

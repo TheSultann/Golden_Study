@@ -1,26 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 
-import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
-import LandingPage from './pages/LandingPage.jsx';
-import StudentDashboardLayout from './components/Dashboard/DashboardLayout.jsx';
-import TeacherDashboardLayout from './components/Dashboard/TeacherDashboard/TeacherDashboardLayout.jsx';
-import GroupsPage from './pages/GroupsPage.jsx'; 
-import SettingsPage from './pages/SettingsPage.jsx';
 import Sidebar from './components/Sidebar/Sidebar.jsx';
-import FinancePage from './pages/FinancePage.jsx';
-import AccountingPage from './pages/AccountingPage.jsx';
-import TeachersOverviewPage from './pages/TeachersOverviewPage.jsx';
-
+import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.jsx';
 import styles from './App.module.css';
+
+// --- 1. ИМПОРТЫ ДЛЯ ГЛОБАЛЬНОГО МОДАЛЬНОГО ОКНА ---
+import { StudentProfileProvider, useStudentProfile } from './context/StudentProfileContext';
+import StudentProfileCard from './components/StudentProfileCard/StudentProfileCard';
+
+// --- Lazy Loaded Components ---
+const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'));
+const LandingPage = lazy(() => import('./pages/LandingPage.jsx'));
+const StudentDashboardLayout = lazy(() => import('./components/Dashboard/DashboardLayout.jsx'));
+const TeacherDashboardLayout = lazy(() => import('./components/Dashboard/TeacherDashboard/TeacherDashboardLayout.jsx'));
+const GroupsPage = lazy(() => import('./pages/GroupsPage.jsx'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx'));
+const FinancePage = lazy(() => import('./pages/FinancePage.jsx'));
+const AccountingPage = lazy(() => import('./pages/AccountingPage.jsx'));
+const TeachersOverviewPage = lazy(() => import('./pages/TeachersOverviewPage.jsx'));
+
+// --- Fallback Component ---
+const LoadingFallback = () => (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f0f2f5' }}>
+        <p>Загрузка...</p>
+    </div>
+);
+
+// --- 2. КОМПОНЕНТ ДЛЯ УПРАВЛЕНИЯ ГЛОБАЛЬНЫМ МОДАЛЬНЫМ ОКНОМ ---
+const GlobalStudentProfileModal = () => {
+    const { visibleStudentId, hideProfile } = useStudentProfile();
+    
+    // Окно отображается только если в контексте есть ID студента
+    if (!visibleStudentId) return null;
+    
+    return (
+        <StudentProfileCard 
+            studentId={visibleStudentId} 
+            onClose={hideProfile} 
+        />
+    );
+};
 
 function App() {
     const [userVersion, setUserVersion] = useState(0);
 
     useEffect(() => {
         const handleUserUpdate = () => {
-            setUserVersion(v => v + 1); 
+            setUserVersion(v => v + 1);
         };
         window.addEventListener('userProfileUpdated', handleUserUpdate);
         return () => {
@@ -31,7 +59,6 @@ function App() {
     const token = localStorage.getItem('userToken');
     const role = localStorage.getItem('userRole');
 
-    // Эта обертка нужна для страниц, у которых НЕТ своего макета
     const PrivateRouteWithLayout = ({ component: Component, ...rest }) => (
         <Route {...rest} render={props => (
             <div className={styles.pageLayout}>
@@ -59,38 +86,47 @@ function App() {
 
     if (!token) {
         return (
-             <Switch>
-                <Route path="/login" component={LoginPage} />
-                <Route path="/register" component={RegisterPage} />
-                <Route path="/" exact component={LandingPage} />
-                <Redirect to="/" />
-            </Switch>
+            <Suspense fallback={<LoadingFallback />}>
+                <Switch>
+                    <Route path="/login" component={LoginPage} />
+                    <Route path="/register" component={RegisterPage} />
+                    <Route path="/" exact component={LandingPage} />
+                    <Redirect to="/" />
+                </Switch>
+            </Suspense>
         );
     }
-    
+
+    // --- 3. ОБОРАЧИВАЕМ ПРИЛОЖЕНИЕ В ПРОВАЙДЕР ---
     return (
-        <Switch>
-            <Route path="/" exact>
-                {role === 'admin' && <Redirect to="/overview" />} 
-                {role === 'teacher' && <TeacherDashboardLayout />}
-                {role === 'student' && <StudentDashboardLayout />}
-            </Route>
+        <StudentProfileProvider>
+            <ErrorBoundary>
+                <Suspense fallback={<LoadingFallback />}>
+                    <Switch>
+                        <Route path="/" exact>
+                            {role === 'admin' && <Redirect to="/overview" />}
+                            {role === 'teacher' && <TeacherDashboardLayout />}
+                            {role === 'student' && <StudentDashboardLayout />}
+                        </Route>
 
-            {/* --- НОВЫЙ БЛОК: Отдельный защищенный роут для личной панели админа --- */}
-            {/* Мы рендерим TeacherDashboardLayout напрямую, БЕЗ обертки, так как это уже готовый макет */}
-            <Route path="/my-dashboard">
-                {role === 'admin' ? <TeacherDashboardLayout /> : <Redirect to="/" />}
-            </Route>
+                        <Route path="/my-dashboard">
+                            {role === 'admin' ? <TeacherDashboardLayout /> : <Redirect to="/" />}
+                        </Route>
 
-            <AdminRouteWithLayout path="/overview" component={TeachersOverviewPage} />
-            <TeacherOrAdminRouteWithLayout path="/groups" component={GroupsPage} />
-            
-            <PrivateRouteWithLayout path="/settings" component={SettingsPage} />
-            <AdminRouteWithLayout path="/finance" component={FinancePage} />
-            <AdminRouteWithLayout path="/accounting" component={AccountingPage} />
-            
-            <Redirect to="/" />
-        </Switch>
+                        <AdminRouteWithLayout path="/overview" component={TeachersOverviewPage} />
+                        <TeacherOrAdminRouteWithLayout path="/groups" component={GroupsPage} />
+                        
+                        <PrivateRouteWithLayout path="/settings" component={SettingsPage} />
+                        <AdminRouteWithLayout path="/finance" component={FinancePage} />
+                        <AdminRouteWithLayout path="/accounting" component={AccountingPage} />
+                        
+                        <Redirect to="/" />
+                    </Switch>
+                </Suspense>
+                {/* Рендерим глобальное модальное окно здесь, оно будет управляться через контекст */}
+                <GlobalStudentProfileModal />
+            </ErrorBoundary>
+        </StudentProfileProvider>
     );
 }
 

@@ -339,3 +339,15 @@
         text-align: center;
     }
 }
+
+
+/* --- НОВЫЕ СТИЛИ ДЛЯ ИМЕНИ СТУДЕНТА --- */
+.studentName {
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.2s ease-in-out;
+}
+
+.studentName:hover {
+    color: #3b82f6; /* blue-500 */
+}

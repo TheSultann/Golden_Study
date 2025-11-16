@@ -1,5 +1,3 @@
-// Backend/server.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,7 +5,7 @@ const path = require('path');
 require('dotenv').config();
 const performanceMiddleware = require('./middleware/performance.middleware');
 const { startInvoiceScheduler } = require('./jobs/invoiceScheduler');
-const errorHandler = require('./middleware/error.middleware'); // --- 1. ИМПОРТИРУЕМ ОБРАБОТЧИК ---
+const errorHandler = require('./middleware/error.middleware');
 
 const app = express();
 
@@ -29,6 +27,8 @@ app.use('/api/user', require('./routes/user'));
 app.use('/api/finance', require('./routes/finance'));
 app.use('/api/accounting', require('./routes/accounting'));
 app.use('/api/overview', require('./routes/overview'));
+app.use('/api/student', require('./routes/student'));
+app.use('/api/attendance', require('./routes/attendance')); // <-- ДОБАВЛЕНА ЭТА СТРОКА
 
 // Обслуживание фронтенда в production
 if (process.env.NODE_ENV === 'production') {
@@ -38,10 +38,7 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-// --- 2. ПОДКЛЮЧАЕМ ОБРАБОТЧИК ОШИБОК В САМОМ КОНЦЕ ---
-// Он должен идти ПОСЛЕ всех роутов.
 app.use(errorHandler);
-// --- КОНЕЦ НОВОГО БЛОКА ---
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
@@ -51,13 +48,13 @@ async function start() {
         if (!MONGO_URI) {
             throw new Error('MONGO_URI must be defined in .env file');
         }
-        
+
         await mongoose.connect(MONGO_URI);
         console.log('Connected to MongoDB');
-        
+
         startInvoiceScheduler();
         console.log('Invoice scheduler has been started.');
-       
+
         app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
     } catch (e) {
         console.log('Server Error', e.message);
