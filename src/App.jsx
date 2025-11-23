@@ -1,11 +1,11 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 
 import Sidebar from './components/Sidebar/Sidebar.jsx';
 import ErrorBoundary from './components/ErrorBoundary/ErrorBoundary.jsx';
 import styles from './App.module.css';
 
-// --- 1. ИМПОРТЫ ДЛЯ ГЛОБАЛЬНОГО МОДАЛЬНОГО ОКНА ---
+// --- 1. IMPORTS FOR GLOBAL MODAL WINDOW ---
 import { StudentProfileProvider, useStudentProfile } from './context/StudentProfileContext';
 import StudentProfileCard from './components/StudentProfileCard/StudentProfileCard';
 
@@ -24,15 +24,15 @@ const TeachersOverviewPage = lazy(() => import('./pages/TeachersOverviewPage.jsx
 // --- Fallback Component ---
 const LoadingFallback = () => (
     <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#f0f2f5' }}>
-        <p>Загрузка...</p>
+        <p>Loading...</p>
     </div>
 );
 
-// --- 2. КОМПОНЕНТ ДЛЯ УПРАВЛЕНИЯ ГЛОБАЛЬНЫМ МОДАЛЬНЫМ ОКНОМ ---
+// --- 2. COMPONENT FOR GLOBAL MODAL WINDOW MANAGEMENT ---
 const GlobalStudentProfileModal = () => {
     const { visibleStudentId, hideProfile } = useStudentProfile();
     
-    // Окно отображается только если в контексте есть ID студента
+    // Window is displayed only if there is a student ID in context
     if (!visibleStudentId) return null;
     
     return (
@@ -56,8 +56,11 @@ function App() {
         };
     }, []);
 
-    const token = localStorage.getItem('userToken');
-    const role = localStorage.getItem('userRole');
+    // Memoize auth check to avoid unnecessary re-reads on every render
+    const { token, role } = useMemo(() => ({
+        token: localStorage.getItem('userToken'),
+        role: localStorage.getItem('userRole')
+    }), [userVersion]);
 
     const PrivateRouteWithLayout = ({ component: Component, ...rest }) => (
         <Route {...rest} render={props => (
@@ -97,7 +100,7 @@ function App() {
         );
     }
 
-    // --- 3. ОБОРАЧИВАЕМ ПРИЛОЖЕНИЕ В ПРОВАЙДЕР ---
+    // --- 3. WRAP APPLICATION IN PROVIDER ---
     return (
         <StudentProfileProvider>
             <ErrorBoundary>
@@ -123,7 +126,7 @@ function App() {
                         <Redirect to="/" />
                     </Switch>
                 </Suspense>
-                {/* Рендерим глобальное модальное окно здесь, оно будет управляться через контекст */}
+                {/* Render global modal window here, it will be managed through context */}
                 <GlobalStudentProfileModal />
             </ErrorBoundary>
         </StudentProfileProvider>

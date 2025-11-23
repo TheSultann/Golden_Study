@@ -12,7 +12,7 @@ import { FiCheckCircle, FiClock, FiAlertCircle, FiFileText } from 'react-icons/f
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, ArcElement);
 
 const LoadingSpinner = () => <div className={styles.loader}></div>;
-const ErrorDisplay = ({ message }) => <div className={styles.error}>Ошибка: {message}</div>;
+const ErrorDisplay = ({ message }) => <div className={styles.error}>Error: {message}</div>;
 
 const StudentProfileCard = ({ studentId, onClose }) => {
     const [profile, setProfile] = useState(null);
@@ -28,7 +28,7 @@ const StudentProfileCard = ({ studentId, onClose }) => {
                 const res = await API.get(`/api/student/${studentId}/profile`);
                 setProfile(res.data);
             } catch (err) {
-                setError(err.response?.data?.message || 'Не удалось загрузить профиль');
+                setError(err.response?.data?.message || 'Failed to load profile');
             } finally {
                 setLoading(false);
             }
@@ -51,7 +51,7 @@ const StudentProfileCard = ({ studentId, onClose }) => {
     const progressChartData = useMemo(() => ({
         labels: profile?.detailedData?.progressChart.map(p => p.lesson.substring(0, 15)) || [],
         datasets: [{
-            label: 'Оценка',
+            label: 'Grade',
             data: profile?.detailedData?.progressChart.map(p => p.grade) || [],
             fill: true,
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -62,7 +62,7 @@ const StudentProfileCard = ({ studentId, onClose }) => {
     }), [profile]);
 
     const attendanceChartData = useMemo(() => ({
-        labels: ['Посещено', 'Пропущено'],
+        labels: ['Present', 'Absent'],
         datasets: [{
             data: [
                 profile?.keyMetrics?.attendance.present || 0,
@@ -75,29 +75,29 @@ const StudentProfileCard = ({ studentId, onClose }) => {
         }],
     }), [profile]);
 
-    // --- ИСПРАВЛЕННЫЙ БЛОК ГРАФИКА И ФИНАНСОВ ---
+    // --- FIXED CHART AND FINANCE BLOCK ---
     const doughnutOptions = useMemo(() => ({
         responsive: true,
         maintainAspectRatio: false,
-        cutout: '70%', // Делаем "бублик" тоньше
+        cutout: '70%', // Make the "donut" thinner
         plugins: {
             legend: { display: false },
-            tooltip: { enabled: false } // Отключаем стандартный тултип
+            tooltip: { enabled: false } // Disable default tooltip
         }
     }), []);
 
     const financialInfo = useMemo(() => {
         const finStatus = profile?.keyMetrics?.financialStatus;
-        if (!finStatus) return { icon: <FiFileText />, text: 'Счет не выставлен', details: null, className: styles.statusDefault };
+        if (!finStatus) return { icon: <FiFileText />, text: 'Invoice not issued', details: null, className: styles.statusDefault };
 
         switch (finStatus.status) {
             case 'paid': return { icon: <FiCheckCircle />, text: finStatus.message, details: null, className: styles.statusPaid };
             case 'pending': return { icon: <FiClock />, text: finStatus.message, details: finStatus.details, className: styles.statusPending };
             case 'overdue': return { icon: <FiAlertCircle />, text: finStatus.message, details: finStatus.details, className: styles.statusOverdue };
-            default: return { icon: <FiFileText />, text: 'Счет не выставлен', details: null, className: styles.statusDefault };
+            default: return { icon: <FiFileText />, text: 'Invoice not issued', details: null, className: styles.statusDefault };
         }
     }, [profile]);
-    // --- КОНЕЦ ИСПРАВЛЕННОГО БЛОКА ---
+    // --- END OF FIXED BLOCK ---
 
     return (
         <Modal isOpen={!!studentId} onRequestClose={onClose} title="" modalClassName={styles.profileModal}>
@@ -156,7 +156,7 @@ const StudentProfileCard = ({ studentId, onClose }) => {
                                     {profile.detailedData.progressChart.length > 1 ? (
                                         <Line data={progressChartData} options={chartOptions} />
                                     ) : (
-                                        <div className={styles.noChartData}>Недостаточно данных для построения графика.</div>
+                                        <div className={styles.noChartData}>Insufficient data to build chart.</div>
                                     )}
                                 </div>
                             </div>

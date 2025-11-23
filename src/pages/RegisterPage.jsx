@@ -1,36 +1,44 @@
-// src/pages/RegisterPage.jsx (ИЗМЕНЕННЫЙ)
+// src/pages/RegisterPage.jsx (MODIFIED)
 
 import React, { useState } from 'react';
 import { useHistory, Link } from 'react-router-dom';
 import './register.css';
-import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../api'; // <-- Import our file
 
 function RegisterPage() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const history = useHistory();
 
     const handleRegister = async (event) => {
         event.preventDefault();
 
+        if (isLoading) return; // Prevent multiple submissions
+
         if (password !== confirmPassword) {
-            alert("Пароли не совпадают!");
+            alert("Passwords do not match!");
+            return;
+        }
+
+        if (password.length < 6) {
+            alert("Password must be at least 6 characters long!");
             return;
         }
         
+        setIsLoading(true);
         try {
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Используем наш API. Путь теперь '/api/auth/register'
             await API.post('/api/auth/register', { name, email, password });
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
             
-            alert('Регистрация успешна! Теперь вы можете войти.');
+            alert('Registration successful! You can now log in.');
             history.push('/login');
 
         } catch (error) {
-            alert(error.response?.data?.message || 'Ошибка регистрации');
+            alert(error.response?.data?.message || 'Registration error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -96,8 +104,8 @@ function RegisterPage() {
                     </div>
 
                     <div className="form-actions">
-                        <button type="submit" className="register-button">
-                        Sign Up
+                        <button type="submit" className="register-button" disabled={isLoading}>
+                        {isLoading ? 'Creating account...' : 'Sign Up'}
                         </button>
                     </div>
                 </form>

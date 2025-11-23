@@ -6,7 +6,7 @@ const API = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL
 });
 
-// Этот перехватчик добавляет токен в каждый запрос (без изменений)
+// This interceptor adds token to every request (unchanged)
 API.interceptors.request.use((req) => {
     const token = localStorage.getItem('userToken');
     if (token) {
@@ -15,31 +15,31 @@ API.interceptors.request.use((req) => {
     return req;
 });
 
-// --- НОВЫЙ БЛОК: ГЛОБАЛЬНЫЙ ОБРАБОТЧИК ОШИБОК ---
-// Этот перехватчик будет проверять КАЖДЫЙ ответ от сервера.
+// --- NEW BLOCK: GLOBAL ERROR HANDLER ---
+// This interceptor will check EVERY response from the server.
 API.interceptors.response.use(
-    // Если ответ успешный (код 2xx), просто возвращаем его дальше.
+    // If response is successful (2xx code), just return it.
     (response) => response,
-    // Если сервер вернул ошибку...
+    // If server returned an error...
     (error) => {
-        // Проверяем, является ли эта ошибка "401 Unauthorized".
-        // Это стандартный код для истекшего или неверного токена.
+        // Check if this error is "401 Unauthorized".
+        // This is the standard code for expired or invalid token.
         if (error.response && error.response.status === 401) {
-            // 1. Очищаем все данные пользователя из localStorage.
+            // 1. Clear all user data from localStorage.
             localStorage.removeItem('userToken');
             localStorage.removeItem('userName');
             localStorage.removeItem('userRole');
             
-            // 2. Принудительно перенаправляем пользователя на страницу входа.
-            // Это самый надежный способ, который сбрасывает состояние приложения.
+            // 2. Force redirect user to login page.
+            // This is the most reliable way that resets application state.
             window.location.href = '/login';
         }
         
-        // Для всех остальных ошибок (404, 500 и т.д.) мы просто пробрасываем их дальше,
-        // чтобы компонент, который делал запрос, мог их обработать.
+        // For all other errors (404, 500, etc.) we just rethrow them,
+        // so the component that made the request can handle them.
         return Promise.reject(error);
     }
 );
-// --- КОНЕЦ НОВОГО БЛОКА ---
+// --- END OF NEW BLOCK ---
 
 export default API;

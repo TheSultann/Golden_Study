@@ -1,11 +1,11 @@
-// src/components/Dashboard/TeacherDashboard/AssignmentItem.jsx (ИЗМЕНЕННЫЙ)
+// src/components/Dashboard/TeacherDashboard/AssignmentItem.jsx (MODIFIED)
 
 import React, { useState } from 'react';
 import styles from './TeacherDashboard.module.css';
 import { FiEdit, FiTrash, FiSave, FiX } from 'react-icons/fi';
-import API from '../../../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../../../api'; // <-- Import our file
 
-// Убираем 'token' из пропсов, он больше не нужен
+// Remove 'token' from props, it's no longer needed
 const AssignmentItem = ({ assignment, lessonId, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [title, setTitle] = useState(assignment.title);
@@ -13,19 +13,19 @@ const AssignmentItem = ({ assignment, lessonId, onUpdate, onDelete }) => {
 
     const handleEdit = async () => {
         try {
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
+            // --- CHANGE HERE ---
             const res = await API.put(`/api/lessons/${lessonId}/assignments/${assignment._id}`, {
                 title,
                 description
             });
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            // --- END OF CHANGE ---
             
             const updatedLesson = res.data;
             onUpdate(updatedLesson); 
             setIsEditing(false);
-            alert('Задание обновлено.');
+            alert('Assignment updated.');
         } catch (error) {
-            alert(error.response?.data?.message || 'Ошибка обновления');
+            alert(error.response?.data?.message || 'Update error');
         }
     };
 

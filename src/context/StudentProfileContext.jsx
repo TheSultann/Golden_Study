@@ -1,17 +1,17 @@
 import React, { createContext, useState, useContext, useMemo } from 'react';
 
-// 1. Создаем контекст
+// 1. Create context
 const StudentProfileContext = createContext(null);
 
-// 2. Создаем компонент-провайдер, который будет "оберткой" для приложения
+// 2. Create provider component that will be a "wrapper" for the application
 export const StudentProfileProvider = ({ children }) => {
     const [studentId, setStudentId] = useState(null);
 
-    // Функции для управления состоянием, которые будут доступны всем дочерним компонентам
+    // Functions for state management that will be available to all child components
     const showProfile = (id) => setStudentId(id);
     const hideProfile = () => setStudentId(null);
 
-    // Оборачиваем значение в useMemo для оптимизации, чтобы избежать лишних ре-рендеров
+    // Wrap value in useMemo for optimization to avoid unnecessary re-renders
     const value = useMemo(() => ({
         visibleStudentId: studentId,
         showProfile,
@@ -25,11 +25,11 @@ export const StudentProfileProvider = ({ children }) => {
     );
 };
 
-// 3. Создаем кастомный хук для удобного доступа к контексту
+// 3. Create custom hook for convenient context access
 export const useStudentProfile = () => {
     const context = useContext(StudentProfileContext);
     if (!context) {
-        throw new Error('useStudentProfile должен использоваться внутри StudentProfileProvider');
+        throw new Error('useStudentProfile must be used within StudentProfileProvider');
     }
     return context;
 };

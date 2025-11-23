@@ -11,16 +11,16 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    // В реальном проекте здесь можно отправлять логи в систему мониторинга
-    console.error("Ошибка, перехваченная ErrorBoundary:", error, errorInfo);
+    // In a real project, you can send logs to a monitoring system here
+    console.error("Error caught by ErrorBoundary:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ padding: '20px', textAlign: 'center', color: '#c72c41' }}>
-          <h2>Что-то пошло не так.</h2>
-          <p>Произошла ошибка при загрузке компонента. Пожалуйста, попробуйте обновить страницу.</p>
+          <h2>Something went wrong.</h2>
+          <p>An error occurred while loading the component. Please try refreshing the page.</p>
         </div>
       );
     }

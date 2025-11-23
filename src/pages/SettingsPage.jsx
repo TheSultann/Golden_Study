@@ -45,8 +45,8 @@ const SettingsPage = () => {
             setMessage(response.data.message);
             setTimeout(() => setMessage(''), 3000);
 
-        } catch (err) { // <--- Убрана стрелка =>
-            setError(err.response?.data?.message || 'Ошибка при обновлении профиля');
+        } catch (err) { // <--- Removed arrow =>
+            setError(err.response?.data?.message || 'Error updating profile');
         } finally {
             setIsLoading(false);
         }

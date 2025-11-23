@@ -19,7 +19,7 @@ const TeachersOverviewPage = () => {
     const [error, setError] = useState('');
     const [selectedTeacher, setSelectedTeacher] = useState(null);
 
-    // --- ДОБАВЛЕНО: Получаем имя администратора из localStorage ---
+    // --- ADDED: Get admin name from localStorage ---
     const adminName = localStorage.getItem('userName');
 
     useEffect(() => {
@@ -85,12 +85,12 @@ const TeachersOverviewPage = () => {
 
     return (
         <div className={styles.wrapper}>
-            {/* --- ИЗМЕНЕНО: Заголовок теперь персонализирован --- */}
+            {/* --- CHANGED: Header is now personalized --- */}
             <header className={styles.header}>
                 <h1>Hello, {adminName}!</h1>
                 <p>Here is the performance and statistics of the teaching staff.</p>
             </header>
-            {/* --- КОНЕЦ ИЗМЕНЕНИЯ --- */}
+            {/* --- END OF CHANGE --- */}
 
             <div className={styles.statsGrid}>
                 <StatCard icon={<FiUserCheck />} label="Total Teachers" value={generalStats.totalTeachers} />

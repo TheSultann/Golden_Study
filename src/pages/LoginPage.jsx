@@ -1,35 +1,37 @@
-// src/pages/LoginPage.jsx (ИЗМЕНЕННЫЙ)
+// src/pages/LoginPage.jsx (MODIFIED)
 
 import React, { useState } from 'react';
 import { useHistory, Link } from 'react-router-dom';
 import './LoginPage.css';
-import API from '../api'; // <-- ИМПОРТИРУЕМ НАШ ФАЙЛ
+import API from '../api'; // <-- Import our file
 
 function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const history = useHistory();
 
     const handleLogin = async (event) => {
         event.preventDefault();
         
+        if (isLoading) return; // Prevent multiple submissions
+        
+        setIsLoading(true);
         try {
-            // --- ИЗМЕНЕНИЕ ЗДЕСЬ ---
-            // Используем наш API. Путь теперь '/api/auth/login'
             const response = await API.post('/api/auth/login', { email, password });
             const data = response.data;
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
             localStorage.setItem('userToken', data.token);
             localStorage.setItem('userRole', data.role);
             localStorage.setItem('userName', data.name); 
 
-            history.push('/');
-            window.location.reload();
+            // Use window.location.href instead of history.push + reload for clean state reset
+            window.location.href = '/';
 
         } catch (error) {
-            // Ошибка от axios будет более информативной
-            alert(error.response?.data?.message || 'Ошибка входа');
+            alert(error.response?.data?.message || 'Login error');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -69,8 +71,8 @@ function LoginPage() {
                     </div>
 
                     <div className="form-actions">
-                        <button type="submit" className="login-button">
-                           Sign In
+                        <button type="submit" className="login-button" disabled={isLoading}>
+                           {isLoading ? 'Signing in...' : 'Sign In'}
                         </button>
                     </div>
                 </form>

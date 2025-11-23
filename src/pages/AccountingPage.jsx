@@ -2,13 +2,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from './AccountingPage.module.css';
 import API from '../api';
 import { FiTrash2, FiEdit3, FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
-// --- 1. ИМПОРТИРУЕМ Bar ИЗ БИБЛИОТЕКИ ---
+// --- 1. Import Bar from library ---
 import { Doughnut, Bar } from 'react-chartjs-2';
-// --- 2. РЕГИСТРИРУЕМ НОВЫЙ ЭЛЕМЕНТ ДЛЯ СТОЛБЦОВ ---
+// --- 2. Register new element for columns ---
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 
-// --- 3. РЕГИСТРИРУЕМ ВСЕ КОМПОНЕНТЫ, ВКЛЮЧАЯ BarElement ---
+// --- 3. Register all components, including BarElement ---
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, Filler, ChartDataLabels);
 
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
@@ -52,7 +52,7 @@ const ExpensePieChart = ({ data }) => {
     return <Doughnut data={chartData} options={options} />;
 };
 
-// --- 4. ИЗМЕНЯЕМ КОМПОНЕНТ ГРАФИКА ТРЕНДОВ ---
+// --- 4. Change trend chart component ---
 const FinancialTrendChart = ({ data }) => {
     const chartData = {
         labels: data.map(d => new Date(d.period).toLocaleString('default', { month: 'short', year: '2-digit' })),
@@ -60,14 +60,14 @@ const FinancialTrendChart = ({ data }) => {
             {
                 label: 'Income',
                 data: data.map(d => d.income),
-                backgroundColor: 'rgba(56, 161, 105, 0.7)', // Более насыщенный цвет для столбцов
+                backgroundColor: 'rgba(56, 161, 105, 0.7)', // More saturated color for columns
                 borderColor: 'rgba(56, 161, 105, 1)',
                 borderWidth: 1,
             },
             {
                 label: 'Expenses',
                 data: data.map(d => d.expenses),
-                backgroundColor: 'rgba(197, 48, 48, 0.7)', // Более насыщенный цвет для столбцов
+                backgroundColor: 'rgba(197, 48, 48, 0.7)', // More saturated color for columns
                 borderColor: 'rgba(197, 48, 48, 1)',
                 borderWidth: 1,
             },
@@ -78,13 +78,13 @@ const FinancialTrendChart = ({ data }) => {
         maintainAspectRatio: false,
         scales: {
             y: { beginAtZero: true },
-            x: { grid: { display: false } } // Убираем вертикальные линии для чистоты
+            x: { grid: { display: false } } // Remove vertical lines for cleanliness
         },
         plugins: {
             legend: { position: 'top' }
         }
     };
-    // --- 5. ЗАМЕНЯЕМ Line НА Bar ---
+    // --- 5. Replace Line with Bar ---
     return <Bar data={chartData} options={options} />;
 };
 

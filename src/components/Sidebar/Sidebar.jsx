@@ -9,9 +9,12 @@ const Sidebar = () => {
     const role = localStorage.getItem('userRole');
 
     const handleLogout = () => {
-        localStorage.clear();
-        history.push('/login');
-        window.location.reload();
+        // Remove only app-specific keys instead of clearing all localStorage
+        localStorage.removeItem('userToken');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userName');
+        // Use window.location.href for clean state reset
+        window.location.href = '/login';
     };
 
     return (
@@ -61,23 +64,23 @@ const Sidebar = () => {
                     </li>
                 )}
 
-                {/* --- ИЗМЕНЕНИЕ: Мобильные иконки перемещены в конец списка и расставлены в правильном порядке --- */}
+                {/* --- CHANGE: Mobile icons moved to end of list and arranged in correct order --- */}
                 
-                {/* Сначала Настройки */}
+                {/* First Settings */}
                 <li style={{display: 'none'}} className={styles.settingsIconMobile}>
                     <NavLink to="/settings" className={styles.menuItem} activeClassName={styles.active} title="Settings">
                         <FiSettings size={24} />
                     </NavLink>
                 </li>
 
-                {/* Затем Выход (последний элемент) */}
+                {/* Then Logout (last element) */}
                  <li style={{display: 'none'}} className={styles.logoutIconMobile}>
                     <div className={styles.menuItem} onClick={handleLogout} title="Logout">
                         <FiLogOut size={24} />
                     </div>
                 </li>
 
-                {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
+                {/* --- END OF CHANGES --- */}
             </ul>
 
             <ul className={styles.bottomMenu}>

@@ -5,14 +5,14 @@ import styles from './FinancePage.module.css';
 import API from '../api';
 import Modal from '../components/Modal/Modal';
 import { FiPlusCircle, FiTrendingUp, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
-// --- 1. ИМПОРТИРУЕМ ХУК ДЛЯ ДОСТУПА К КОНТЕКСТУ ---
+// --- 1. Import hook for context access ---
 import { useStudentProfile } from '../context/StudentProfileContext';
 
 
-// Хелпер для получения текущего месяца в формате YYYY-MM
+// Helper to get current month in YYYY-MM format
 const getCurrentMonth = () => new Date().toISOString().slice(0, 7);
 
-// Компонент для карточки со статистикой
+// Component for statistics card
 const StatCard = ({ icon, label, value, color }) => (
     <div className={styles.statCard}>
         <div className={styles.statIcon} style={{ backgroundColor: color }}>{icon}</div>
@@ -23,7 +23,7 @@ const StatCard = ({ icon, label, value, color }) => (
     </div>
 );
 
-// Компонент для статуса
+// Component for status
 const StatusIndicator = ({ status }) => {
     const config = {
         paid: { text: 'Paid', className: styles.statusPaid },
@@ -34,22 +34,22 @@ const StatusIndicator = ({ status }) => {
 };
 
 const FinancePage = () => {
-    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА ---
+    // --- 2. Get function from context ---
     const { showProfile } = useStudentProfile();
 
-    // Состояния для фильтров
+    // Filter states
     const [periodStart, setPeriodStart] = useState(getCurrentMonth());
     const [periodEnd, setPeriodEnd] = useState(getCurrentMonth());
     const [selectedGroup, setSelectedGroup] = useState('all');
 
-    // Состояния для данных и UI
+    // Data and UI states
     const [payments, setPayments] = useState([]);
     const [groupsForFilter, setGroupsForFilter] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
 
-    // Состояния для модального окна
+    // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalBillingPeriod, setModalBillingPeriod] = useState(getCurrentMonth());
     const [groupAmounts, setGroupAmounts] = useState({});
@@ -92,7 +92,7 @@ const FinancePage = () => {
                 const response = await API.get('/api/finance/last-amounts');
                 setGroupAmounts(response.data);
             } catch (error) {
-                console.error("Не удалось загрузить последние суммы:", error);
+                console.error("Failed to load last amounts:", error);
             }
         };
 
@@ -136,7 +136,7 @@ const FinancePage = () => {
         );
 
         if (Object.keys(finalGroupAmounts).length === 0) {
-            setModalError('Пожалуйста, укажите сумму хотя бы для одной группы.');
+            setModalError('Please specify an amount for at least one group.');
             setIsGenerating(false);
             return;
         }
@@ -146,7 +146,7 @@ const FinancePage = () => {
                 billingPeriod: modalBillingPeriod,
                 groupAmounts: finalGroupAmounts
             });
-            setModalMessage(`Успешно! Создано новых счетов: ${response.data.createdCount}.`);
+            setModalMessage(`Success! Created ${response.data.createdCount} new invoice(s).`);
             await fetchPayments();
             setTimeout(() => {
                 setIsModalOpen(false);
@@ -154,7 +154,7 @@ const FinancePage = () => {
                 setGroupAmounts({});
             }, 2000);
         } catch (err) {
-            setModalError(err.response?.data?.message || 'Произошла ошибка.');
+            setModalError(err.response?.data?.message || 'An error occurred.');
         } finally {
             setIsGenerating(false);
         }
@@ -224,7 +224,7 @@ const FinancePage = () => {
                             ) : payments.length > 0 ? (
                                 payments.map(p => (
                                     <tr key={p._id}>
-                                        {/* --- 3. ДЕЛАЕМ ИМЯ СТУДЕНТА КЛИКАБЕЛЬНЫМ --- */}
+                                        {/* --- 3. Make student name clickable --- */}
                                         <td>
                                             {p.student ? (
                                                 <span 
@@ -282,11 +282,11 @@ const FinancePage = () => {
                                     onChange={e => handleAmountChange(group._id, e.target.value)}
                                 />
                             </div>
-                        )) : <p>Загрузка списка групп...</p>}
+                        )) : <p>Loading groups list...</p>}
                     </div>
 
                     <button type="submit" className={styles.button} disabled={isGenerating}>
-                        {isGenerating ? 'Генерация...' : 'Сгенерировать'}
+                        {isGenerating ? 'Generating...' : 'Generate'}
                     </button>
                     {modalMessage && <div className={`${styles.message} ${styles.success}`}>{modalMessage}</div>}
                     {modalError && <div className={`${styles.message} ${styles.error}`}>{modalError}</div>}

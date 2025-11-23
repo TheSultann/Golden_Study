@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from '../TeacherDashboard/TeacherDashboard.module.css';
 import API from '../../../api';
-// --- 1. ДОБАВЛЯЕМ ИМПОРТ ХУКА КОНТЕКСТА ---
+// --- 1. Add context hook import ---
 import { useStudentProfile } from '../../../context/StudentProfileContext';
 
 const GroupStatistics = ({ groups }) => {
@@ -9,7 +9,7 @@ const GroupStatistics = ({ groups }) => {
     const [studentStats, setStudentStats] = useState([]);
     const [groupAverage, setGroupAverage] = useState(0);
     const [loading, setLoading] = useState(false);
-    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ИЗ КОНТЕКСТА ---
+    // --- 2. Get function from context ---
     const { showProfile } = useStudentProfile();
     
     useEffect(() => {
@@ -31,7 +31,7 @@ const GroupStatistics = ({ groups }) => {
                     setStudentStats(newStudentStats);
                     setGroupAverage(newGroupAverage); 
                 } else {
-                    console.error("Ошибка загрузки статистики или неверный формат данных");
+                    console.error("Error loading statistics or invalid data format");
                     setStudentStats([]);
                     setGroupAverage(0);
                 }
@@ -72,7 +72,7 @@ const GroupStatistics = ({ groups }) => {
                 </select>
             </div>
             
-            {loading ? <p>Загрузка...</p> : (
+            {loading ? <p>Loading...</p> : (
                 <>
                     <div className={styles.groupAverageCard}>
                         <div className={styles.groupAverageTitle}>AVERAGE GROUP PERFORMANCE</div>
@@ -92,7 +92,7 @@ const GroupStatistics = ({ groups }) => {
                             {studentStats.length > 0 ? studentStats.map((stat) => (
                                 <tr key={stat.studentId}>
                                     <td data-label="Rank" className={styles.rankCell}>{getMedal(stat.rank)} {stat.rank}</td>
-                                    {/* --- 3. ДЕЛАЕМ ИМЯ КЛИКАБЕЛЬНЫМ --- */}
+                                    {/* --- 3. Make name clickable --- */}
                                     <td data-label="Student">
                                         <span 
                                             className={styles.clickableStudentName}

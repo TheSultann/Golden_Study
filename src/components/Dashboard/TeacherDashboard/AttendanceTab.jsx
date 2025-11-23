@@ -19,8 +19,8 @@ const AttendanceTab = ({ lessonId }) => {
             );
             setPresentStudentIds(initialPresentIds);
         } catch (error) {
-            console.error("Ошибка загрузки данных о посещаемости:", error);
-            alert("Не удалось загрузить данные о посещаемости.");
+            console.error("Error loading attendance data:", error);
+            alert("Failed to load attendance data.");
         } finally {
             setIsLoading(false);
         }
@@ -48,17 +48,17 @@ const AttendanceTab = ({ lessonId }) => {
             await API.post(`/api/attendance/${lessonId}`, {
                 presentStudentIds: Array.from(presentStudentIds)
             });
-            alert('Посещаемость сохранена!');
+            alert('Attendance saved!');
         } catch (error) {
-            console.error("Ошибка сохранения посещаемости:", error);
-            alert("Не удалось сохранить посещаемость.");
+            console.error("Error saving attendance:", error);
+            alert("Failed to save attendance.");
         } finally {
             setIsSaving(false);
         }
     };
 
     if (isLoading) {
-        return <p>Загрузка списка студентов...</p>;
+        return <p>Loading student list...</p>;
     }
 
     return (

@@ -6,7 +6,7 @@ import EvaluationRow from './EvaluationRow';
 import AssignmentItem from './AssignmentItem';
 import GroupStatistics from '../Statistics/GroupStatistics';
 import API from '../../../api';
-import AttendanceTab from './AttendanceTab'; // <-- 1. ИМПОРТ НОВОГО КОМПОНЕНТА
+import AttendanceTab from './AttendanceTab'; // <-- 1. Import new component
 
 const TeacherDashboard = () => {
     const teacherName = localStorage.getItem('userName') || 'Teacher';
@@ -237,11 +237,11 @@ const TeacherDashboard = () => {
                 isOpen={isDetailModalOpen} 
                 onRequestClose={handleCloseDetailModal} 
                 title={`Lesson: ${selectedLesson?.title || 'Loading...'}`}
-                modalClassName={activeTab === 'evaluations' || activeTab === 'attendance' ? styles.wideModal : styles.defaultModal} // <-- 2. ИЗМЕНЕНО
+                modalClassName={activeTab === 'evaluations' || activeTab === 'attendance' ? styles.wideModal : styles.defaultModal} // <-- 2. CHANGED
             >
-                {isDetailLoading ? (<p>Загрузка данных урока...</p>) : selectedLesson && (
+                {isDetailLoading ? (<p>Loading lesson data...</p>) : selectedLesson && (
                     <>
-                        {/* --- 3. ИЗМЕНЕН БЛОК Вкладок --- */}
+                        {/* --- 3. CHANGED Tab block --- */}
                         <div className={styles.tabContainer}>
                             <button onClick={() => setActiveTab('assignments')} className={activeTab === 'assignments' ? styles.activeTab : styles.tab}>Assignments</button>
                             <button onClick={() => setActiveTab('attendance')} className={activeTab === 'attendance' ? styles.activeTab : styles.tab}>Attendance</button>
@@ -268,7 +268,7 @@ const TeacherDashboard = () => {
                                 </div>
                             )}
 
-                            {/* --- 4. ДОБАВЛЕНА НОВАЯ Вкладка --- */}
+                            {/* --- 4. NEW Tab added --- */}
                             {activeTab === 'attendance' && (
                                 <AttendanceTab lessonId={selectedLesson._id} />
                             )}

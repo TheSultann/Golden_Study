@@ -135,3 +135,5 @@ API Роуты (/api/accounting):
 Оптимизация фронтенда с использованием React.lazy и добавление ErrorBoundary для отказоустойчивости 
 Новые зависимости:
 Для реализации графиков в проект были добавлены библиотеки: chart.js, react-chartjs-2 и chartjs-plugin-datalabels.
+
+

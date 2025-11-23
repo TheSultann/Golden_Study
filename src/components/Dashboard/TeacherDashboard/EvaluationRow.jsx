@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import styles from './TeacherDashboard.module.css';
 import API from '../../../api';
-// --- 1. ИМПОРТИРУЕМ ХУК ДЛЯ ДОСТУПА К КОНТЕКСТУ ---
+// --- 1. Import hook for context access ---
 import { useStudentProfile } from '../../../context/StudentProfileContext';
 
 const EvaluationRow = ({ studentData, lessonId, onSave }) => {
     const [evaluation, setEvaluation] = useState(studentData.evaluation);
-    // --- 2. ПОЛУЧАЕМ ФУНКЦИЮ ДЛЯ ВЫЗОВА МОДАЛЬНОГО ОКНА ---
+    // --- 2. Get function to call modal window ---
     const { showProfile } = useStudentProfile();
 
     const handleGradeChange = (e) => {
@@ -32,26 +32,26 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
             });
 
             const savedEvaluation = res.data;
-            alert(`Оценка для ${studentData.student.name} сохранена.`);
+            alert(`Grade for ${studentData.student.name} saved.`);
             onSave(studentData.student._id, savedEvaluation);
             
         } catch (error) {
-            console.error("Ошибка:", error);
-            alert(error.response?.data?.message || 'Ошибка сохранения');
+            console.error("Error:", error);
+            alert(error.response?.data?.message || 'Error saving');
         }
     };
     
     return (
         <div className={styles.evaluationRow}>
-            {/* --- 3. ДЕЛАЕМ ИМЯ СТУДЕНТА КЛИКАБЕЛЬНЫМ --- */}
+            {/* --- 3. Make student name clickable --- */}
             <span 
                 className={`${styles.studentNameCell} ${styles.clickableStudentName}`}
                 onClick={() => showProfile(studentData.student._id)}
-                title={`Посмотреть профиль ${studentData.student.name}`}
+                title={`View profile of ${studentData.student.name}`}
             >
                 {studentData.student.name}
             </span>
-            {/* --- КОНЕЦ ИЗМЕНЕНИЙ --- */}
+            {/* --- END OF CHANGES --- */}
             
             <div>
                 <input

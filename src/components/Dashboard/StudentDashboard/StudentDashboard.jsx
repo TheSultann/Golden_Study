@@ -26,11 +26,11 @@ const StudentDashboard = () => {
             try {
                 const response = await API.get('/api/lessons');
                 setLessons(response.data);
-            } catch (error) { console.error("Ошибка загрузки уроков:", error); } 
+            } catch (error) { console.error("Error loading lessons:", error); } 
             finally { setIsLoadingLessons(false); }
         };
         const fetchStats = async () => {
-            if (!token) { setStatsError('Нет авторизации'); setStatsLoading(false); return; }
+            if (!token) { setStatsError('No authorization'); setStatsLoading(false); return; }
             try {
                 const res = await API.get('/api/stats/student');
                 setStats(res.data);
@@ -42,33 +42,33 @@ const StudentDashboard = () => {
         fetchStats();
     }, [token]);
     
-    // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Функция теперь делает два запроса ---
+    // --- CHANGE HERE: Function now makes two requests ---
     const handleOpenDetailModal = async (lesson) => {
         setIsDetailModalOpen(true);
-        setIsLoadingEvaluation(true); // Используем этот state для общей загрузки в модальном окне
-        setSelectedLesson(null);      // Сбрасываем старые данные
+        setIsLoadingEvaluation(true); // Use this state for general loading in modal
+        setSelectedLesson(null);      // Reset old data
         setEvaluation(null);
 
         try {
-            // Выполняем оба запроса параллельно для эффективности
+            // Execute both requests in parallel for efficiency
             const [lessonResponse, evaluationResponse] = await Promise.all([
-                API.get(`/api/lessons/${lesson._id}`), // 1. Запрос на полную информацию об уроке
+                API.get(`/api/lessons/${lesson._id}`), // 1. Request for full lesson information
                 API.get(`/api/evaluations/student/${lesson._id}`).catch(err => {
-                    // Если оценка не найдена (404), это не ошибка, просто возвращаем null
+                    // If evaluation not found (404), it's not an error, just return null
                     if (err.response?.status === 404) return null;
-                    throw err; // Другие ошибки пробрасываем дальше
+                    throw err; // Other errors are rethrown
                 })
             ]);
 
-            // Сохраняем результаты в state
+            // Save results to state
             setSelectedLesson(lessonResponse.data);
             if (evaluationResponse) {
                 setEvaluation(evaluationResponse.data);
             }
             
         } catch (error) {
-            console.error('Ошибка загрузки деталей урока:', error);
-            // Можно добавить обработку ошибки, например, закрыть модальное окно
+            console.error('Error loading lesson details:', error);
+            // Can add error handling, e.g., close modal
         } finally {
             setIsLoadingEvaluation(false);
         }
@@ -102,7 +102,7 @@ const StudentDashboard = () => {
                 <section className={styles.section}>
                     <div className={styles.sectionHeader}><h3>My Lessons</h3><a href="#">All Lessons</a></div>
                     <div className={styles.coursesGrid}>
-                        {isLoadingLessons ? (<p>Loading lessons...</p>) : lessons.length > 0 ? (lessons.map(lesson => (<CourseCard key={lesson._id} lesson={lesson} onClick={() => handleOpenDetailModal(lesson)} />))) : (<p>Вам еще не назначили уроков.</p>)}
+                        {isLoadingLessons ? (<p>Loading lessons...</p>) : lessons.length > 0 ? (lessons.map(lesson => (<CourseCard key={lesson._id} lesson={lesson} onClick={() => handleOpenDetailModal(lesson)} />))) : (<p>No lessons assigned to you yet.</p>)}
                     </div>
                 </section>
                 <section className={styles.section}>
@@ -111,17 +111,17 @@ const StudentDashboard = () => {
                 </section>
             </main>
 
-            <Modal isOpen={isDetailModalOpen} onRequestClose={handleCloseDetailModal} title={`Урок: ${selectedLesson?.title || ''}`}>
-                {/* --- ИЗМЕНЕНИЕ ЗДЕСЬ: Добавлена проверка на загрузку, чтобы избежать ошибок --- */}
-                {isLoadingEvaluation ? (<p>Загрузка данных урока...</p>) : selectedLesson && (
+            <Modal isOpen={isDetailModalOpen} onRequestClose={handleCloseDetailModal} title={`Lesson: ${selectedLesson?.title || ''}`}>
+                {/* --- CHANGE HERE: Added loading check to avoid errors --- */}
+                {isLoadingEvaluation ? (<p>Loading lesson data...</p>) : selectedLesson && (
                     <div className={styles.studentModalContainer}>
                         <div className={styles.assignmentsSection}>
-                            <h4><FiClipboard /> Задания к уроку:</h4>
-                            {/* Эта логика теперь будет работать правильно, т.к. selectedLesson содержит все задания */}
+                            <h4><FiClipboard /> Lesson assignments:</h4>
+                            {/* This logic will now work correctly, as selectedLesson contains all assignments */}
                             {selectedLesson.assignments && selectedLesson.assignments.length > 0 ? (
                                 <div className={styles.assignmentList}>
                                     {selectedLesson.assignments.map(assign => {
-                                        // evaluation?.skills - массив ID выполненных заданий
+                                        // evaluation?.skills - array of completed assignment IDs
                                         const isCompleted = evaluation?.skills?.includes(assign._id);
                                         return (
                                             <div key={assign._id} className={styles.assignmentItem}>
@@ -129,12 +129,12 @@ const StudentDashboard = () => {
                                                     <strong>{assign.title}</strong>
                                                     <p>{assign.description}</p>
                                                 </div>
-                                                {/* Иконка показывается только если есть оценка */}
+                                                {/* Icon is shown only if there is an evaluation */}
                                                 {evaluation && (
                                                     isCompleted ? (
-                                                        <FiCheckCircle className={styles.completedIcon} title="Выполнено" />
+                                                        <FiCheckCircle className={styles.completedIcon} title="Completed" />
                                                     ) : (
-                                                        <FiXCircle className={styles.notCompletedIcon} title="Не выполнено" />
+                                                        <FiXCircle className={styles.notCompletedIcon} title="Not completed" />
                                                     )
                                                 )}
                                             </div>
@@ -142,28 +142,28 @@ const StudentDashboard = () => {
                                     })}
                                 </div>
                             ) : (
-                                <p>К этому уроку нет заданий.</p>
+                                <p>No assignments for this lesson.</p>
                             )}
                         </div>
                         
                         <hr className={styles.divider} />
 
                         <div>
-                            <h4><FiStar /> Ваша оценка:</h4>
+                            <h4><FiStar /> Your grade:</h4>
                             {evaluation ? (
                                 <div className={styles.evaluationBox}>
                                     <div className={styles.grade}>
-                                        <strong>Оценка:</strong> {evaluation.grade}%
+                                        <strong>Grade:</strong> {evaluation.grade}%
                                     </div>
                                     {evaluation.feedback && (
                                        <div className={styles.feedbackResult}>
-                                           <h4><FiMessageSquare/> Комментарий от {evaluation.teacher?.name || 'учителя'}:</h4>
+                                           <h4><FiMessageSquare/> Comment from {evaluation.teacher?.name || 'teacher'}:</h4>
                                            <p>{evaluation.feedback}</p>
                                        </div>
                                     )}
                                 </div>
                             ) : (
-                                <p>Оценка еще не выставлена.</p>
+                                <p>Grade not assigned yet.</p>
                             )}
                         </div>
                     </div>

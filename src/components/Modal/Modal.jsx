@@ -5,13 +5,13 @@ import { FiX } from 'react-icons/fi';
 
 ReactModal.setAppElement('#root');
 
-// Добавлен `modalClassName` в пропсы
+// Added `modalClassName` to props
 const Modal = ({ isOpen, onRequestClose, title, children, modalClassName = '' }) => {
     return (
         <ReactModal
             isOpen={isOpen}
             onRequestClose={onRequestClose}
-            // Класс теперь динамический: базовый + дополнительный
+            // Class is now dynamic: base + additional
             className={`${styles.modal} ${modalClassName}`}
             overlayClassName={styles.overlay}
             contentLabel={title}
