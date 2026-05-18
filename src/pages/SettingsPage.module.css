@@ -278,6 +278,42 @@
     .emailCell {
         display: none;
     }
+
+    .usersTableWrapper {
+        overflow-x: hidden;
+    }
+
+    .usersTable {
+        table-layout: fixed;
+    }
+
+    .usersTable th,
+    .usersTable td {
+        padding: 0.75rem 0.85rem;
+        white-space: normal;
+    }
+
+    .usersTable th:first-child,
+    .usersTable td:first-child {
+        width: 56%;
+    }
+
+    .usersTable th:last-child,
+    .usersTable td:last-child {
+        width: 44%;
+    }
+
+    .clickableName {
+        display: block;
+        overflow-wrap: anywhere;
+        line-height: 1.35;
+    }
+
+    .roleSelect {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
 }
 
 .roleSelect {

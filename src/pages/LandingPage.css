@@ -3,16 +3,20 @@
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    padding: 24px;
     background-color: #f9fafb;
     font-family: sans-serif;
+    box-sizing: border-box;
 }
 
 .landing-content {
+    width: min(100%, 520px);
     text-align: center;
     padding: 40px;
     background-color: white;
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-sizing: border-box;
 }
 
 .landing-content h1 {
@@ -56,4 +60,45 @@
 
 .landing-button.secondary:hover {
     background-color: #f9fafb;
+}
+
+@media (max-width: 520px) {
+    .landing-container {
+        align-items: center;
+        padding: 20px 16px;
+    }
+
+    .landing-content {
+        padding: 28px 20px;
+        border-radius: 10px;
+    }
+
+    .landing-content h1 {
+        font-size: 1.85rem;
+        line-height: 1.15;
+        margin-bottom: 12px;
+    }
+
+    .landing-content p {
+        font-size: 1rem;
+        line-height: 1.45;
+        margin-bottom: 24px;
+    }
+
+    .landing-actions {
+        gap: 10px;
+    }
+
+    .landing-button {
+        flex: 1;
+        min-width: 0;
+        padding: 11px 14px;
+        text-align: center;
+    }
+}
+
+@media (max-width: 520px) and (max-height: 520px) {
+    .landing-container {
+        align-items: flex-start;
+    }
 }
