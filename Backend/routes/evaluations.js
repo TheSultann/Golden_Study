@@ -4,6 +4,7 @@ const Evaluation = require('../models/Evaluation');
 const Lesson = require('../models/Lesson');
 const router = Router();
 const redisClient = require('../redis-client');
+const { clearCacheByPattern } = require('../middleware/cache.middleware');
 const asyncHandler = require('../utils/asyncHandler'); // --- 1. ИМПОРТИРУЕМ ОБЕРТКУ ---
 
 // --- 2. ОБОРАЧИВАЕМ РОУТЫ В asyncHandler И УБИРАЕМ try...catch ---
@@ -54,18 +55,24 @@ router.post('/', auth, asyncHandler(async (req, res) => {
         return res.status(403).json({ message: 'Доступ запрещен' });
     }
     const { lessonId, studentId, grade, skills, feedback } = req.body;
+    const numericGrade = Number(grade);
+
+    if (!Number.isFinite(numericGrade) || numericGrade < 0 || numericGrade > 100) {
+        return res.status(400).json({ message: 'Grade must be a number between 0 and 100' });
+    }
+
     const evaluationData = {
         lesson: lessonId,
         student: studentId,
         teacher: req.user.userId,
-        grade,
+        grade: numericGrade,
         skills,
         feedback,
     };
     const updatedEvaluation = await Evaluation.findOneAndUpdate(
         { lesson: lessonId, student: studentId },
         evaluationData,
-        { new: true, upsert: true }
+        { new: true, upsert: true, runValidators: true }
     );
 
     const overviewCacheKey = 'cache:GET:/api/overview/teachers';
@@ -73,6 +80,8 @@ router.post('/', auth, asyncHandler(async (req, res) => {
         await redisClient.del(overviewCacheKey);
         console.log(`CACHE CLEARED: ${overviewCacheKey}`);
     }
+
+    await clearCacheByPattern('cache:*:GET:/api/stats*');
 
     res.status(200).json(updatedEvaluation);
 }));

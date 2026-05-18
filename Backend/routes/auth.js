@@ -4,8 +4,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { clearCacheByPattern } = require('../middleware/cache.middleware');
 const router = express.Router();
-const asyncHandler = require('../utils/asyncHandler'); // --- 1. ИМПОРТИРУЕМ ОБЕРТКУ ---
+const asyncHandler = require('../utils/asyncHandler');
 
 // --- 2. ОБОРАЧИВАЕМ РОУТЫ В asyncHandler И УБИРАЕМ try...catch ---
 
@@ -19,6 +20,10 @@ router.post('/register', asyncHandler(async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     const user = new User({ name, email, password: hashedPassword });
     await user.save();
+
+    // Invalidate unassigned students cache so teachers see the new student immediately
+    await clearCacheByPattern('cache:*:GET:/api/groups/unassigned*');
+
     res.status(201).json({ message: 'Пользователь создан' });
 }));
 

@@ -1,20 +1,25 @@
-// Backend/queues/taskQueue.js
-
 const { Queue } = require('bullmq');
 const { URL } = require('url');
 require('dotenv').config();
+const { isRedisDisabled } = require('../config/env');
 
-// Парсим REDIS_URL, чтобы BullMQ его понял
-const redisUrl = new URL(process.env.REDIS_URL);
-const connectionOptions = {
-    host: redisUrl.hostname,
-    port: redisUrl.port,
-    password: redisUrl.password,
-};
+function createDisabledQueue() {
+    return {
+        add: async () => null,
+    };
+}
 
-// Создаем новую, более универсальную очередь для всех типов задач
-const taskQueue = new Queue('task-queue', {
-    connection: connectionOptions,
-});
+function createInvoiceQueue() {
+    const redisUrl = new URL(process.env.REDIS_URL);
+    const connectionOptions = {
+        host: redisUrl.hostname,
+        port: redisUrl.port,
+        password: redisUrl.password,
+    };
 
-module.exports = taskQueue;
+    return new Queue('task-queue', {
+        connection: connectionOptions,
+    });
+}
+
+module.exports = isRedisDisabled() ? createDisabledQueue() : createInvoiceQueue();

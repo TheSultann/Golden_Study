@@ -55,27 +55,38 @@ const TeachersOverviewPage = () => {
                 <button onClick={() => setSelectedTeacher(null)} className={styles.backButton}>
                     <FiArrowLeft /> Back to Overview
                 </button>
-                <header className={styles.header}>
-                    <h1>{selectedTeacher.name}'s Groups</h1>
-                    <p>Detailed performance of each group.</p>
-                </header>
+                
+                <div className={styles.teacherDetailHeader}>
+                    <div className={styles.teacherAvatar}>{selectedTeacher.name.charAt(0)}</div>
+                    <div>
+                        <h1>{selectedTeacher.name}</h1>
+                        <p>{selectedTeacher.groupCount} group{selectedTeacher.groupCount !== 1 ? 's' : ''} · {selectedTeacher.totalStudents} student{selectedTeacher.totalStudents !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div className={styles.teacherOverallGrade}>
+                        <span>Overall</span>
+                        <strong>{selectedTeacher.overallAverageGrade.toFixed(1)}%</strong>
+                    </div>
+                </div>
+
                 <div className={styles.tableContainer}>
                     <table className={styles.table}>
                         <thead>
                             <tr>
                                 <th>Group Name</th>
-                                <th>Student Count</th>
-                                <th>Average Grade</th>
+                                <th>Students</th>
+                                <th>Avg. Grade</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {selectedTeacher.groups.map(group => (
+                            {selectedTeacher.groups.length > 0 ? selectedTeacher.groups.map(group => (
                                 <tr key={group._id}>
-                                    <td>{group.name}</td>
+                                    <td><strong>{group.name}</strong></td>
                                     <td>{group.studentCount}</td>
                                     <td>{group.averageGrade.toFixed(1)}%</td>
                                 </tr>
-                            ))}
+                            )) : (
+                                <tr><td colSpan="3" style={{textAlign:'center', color:'#6c757d', padding:'2rem'}}>No groups assigned yet.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>

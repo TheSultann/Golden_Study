@@ -13,7 +13,7 @@ const generateCacheKey = (req) => {
 };
 
 const cacheMiddleware = (durationInSeconds) => async (req, res, next) => {
-    if (process.env.NODE_ENV !== 'production' || !redisClient.isOpen) {
+    if (process.env.NODE_ENV === 'test' || !redisClient.isOpen) {
         return next();
     }
     const key = generateCacheKey(req);
@@ -45,19 +45,36 @@ const cacheMiddleware = (durationInSeconds) => async (req, res, next) => {
     }
 };
 
+const clearCacheByPattern = async (pattern) => {
+    if (!redisClient.isOpen || !pattern) {
+        return 0;
+    }
+
+    try {
+        const stream = redisClient.scanIterator({ MATCH: pattern, COUNT: 100 });
+        const keysToDelete = [];
+
+        for await (const key of stream) {
+            keysToDelete.push(key);
+        }
+
+        if (keysToDelete.length > 0) {
+            await redisClient.del(keysToDelete);
+            console.log(`CACHE CLEARED by pattern ${pattern}. Keys deleted:`, keysToDelete.length);
+        }
+
+        return keysToDelete.length;
+    } catch (err) {
+        console.error(`Error clearing cache by pattern ${pattern}:`, err);
+        return 0;
+    }
+};
+
 const clearCacheForUser = async (req, res, next) => {
     try {
         if (redisClient.isOpen && req.user) {
             const userIdentifier = req.user.userId;
-            const stream = redisClient.scanIterator({ MATCH: `cache:${userIdentifier}:*`, COUNT: 100 });
-            const keysToDelete = [];
-            for await (const key of stream) {
-                keysToDelete.push(key);
-            }
-            if (keysToDelete.length > 0) {
-                await redisClient.del(keysToDelete);
-                console.log(`CACHE CLEARED for user ${userIdentifier}. Keys deleted:`, keysToDelete.length);
-            }
+            await clearCacheByPattern(`cache:${userIdentifier}:*`);
         }
     } catch (err) {
         console.error('Error clearing cache for user:', err);
@@ -86,15 +103,7 @@ const clearOverviewCache = async (req, res, next) => {
 const clearUserCacheById = async (userId) => {
     if (!redisClient.isOpen || !userId) return;
     try {
-        const stream = redisClient.scanIterator({ MATCH: `cache:${userId}:*`, COUNT: 100 });
-        const keysToDelete = [];
-        for await (const key of stream) {
-            keysToDelete.push(key);
-        }
-        if (keysToDelete.length > 0) {
-            await redisClient.del(keysToDelete);
-            console.log(`BACKGROUND CACHE CLEARED for user ${userId}. Keys deleted:`, keysToDelete.length);
-        }
+        await clearCacheByPattern(`cache:${userId}:*`);
     } catch (err) {
         console.error('Error clearing cache for user by ID:', err);
     }
@@ -104,5 +113,6 @@ module.exports = {
     cache: cacheMiddleware,
     clearCache: clearCacheForUser,
     clearOverviewCache,
-    clearUserCacheById
+    clearUserCacheById,
+    clearCacheByPattern
 };

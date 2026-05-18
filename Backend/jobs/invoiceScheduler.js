@@ -70,14 +70,40 @@ const runMonthlyInvoiceGeneration = async () => {
 };
 
 /**
+ * Marks unpaid invoices from previous months as overdue.
+ * Runs daily to catch any invoices past their billing period.
+ */
+const markOverdueInvoices = async () => {
+    try {
+        const currentPeriod = new Date().toISOString().slice(0, 7);
+        const result = await TuitionPayment.updateMany(
+            { status: 'unpaid', billingPeriod: { $lt: currentPeriod } },
+            { $set: { status: 'overdue' } }
+        );
+        if (result.modifiedCount > 0) {
+            console.log(`[${new Date().toISOString()}] Marked ${result.modifiedCount} invoices as overdue.`);
+        }
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] Error marking overdue invoices:`, error);
+    }
+};
+
+/**
  * Функция для запуска планировщика.
  * Расписание: '0 2 1 * *' - означает "в 0 минут 2-го часа 1-го числа каждого месяца".
  */
 const startInvoiceScheduler = () => {
+    // Monthly invoice generation: 1st of each month at 2:00 AM
     cron.schedule('0 2 1 * *', runMonthlyInvoiceGeneration, {
+        scheduled: true,
+        timezone: "Asia/Tashkent"
+    });
+
+    // Daily overdue check: every day at 3:00 AM
+    cron.schedule('0 3 * * *', markOverdueInvoices, {
         scheduled: true,
         timezone: "Asia/Tashkent"
     });
 };
 
-module.exports = { startInvoiceScheduler, };
+module.exports = { startInvoiceScheduler, markOverdueInvoices };

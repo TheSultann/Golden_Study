@@ -101,8 +101,20 @@ const StudentDashboard = () => {
                 </div>
                 <section className={styles.section}>
                     <div className={styles.sectionHeader}><h3>My Lessons</h3><a href="#">All Lessons</a></div>
-                    <div className={styles.coursesGrid}>
-                        {isLoadingLessons ? (<p>Loading lessons...</p>) : lessons.length > 0 ? (lessons.map(lesson => (<CourseCard key={lesson._id} lesson={lesson} onClick={() => handleOpenDetailModal(lesson)} />))) : (<p>No lessons assigned to you yet.</p>)}
+                    <div className={lessons.length > 0 ? styles.coursesGrid : styles.emptyLessonsWrap}>
+                        {isLoadingLessons ? (
+                            <p>Loading lessons...</p>
+                        ) : lessons.length > 0 ? (
+                            lessons.map(lesson => (
+                                <CourseCard key={lesson._id} lesson={lesson} onClick={() => handleOpenDetailModal(lesson)} />
+                            ))
+                        ) : (
+                            <div className={styles.emptyLessons}>
+                                <div className={styles.emptyLessonsIcon}><FiClipboard /></div>
+                                <h4>No lessons assigned yet</h4>
+                                <p>Your lessons and assignments will appear here as soon as your teacher adds them.</p>
+                            </div>
+                        )}
                     </div>
                 </section>
                 <section className={styles.section}>

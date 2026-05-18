@@ -3,9 +3,15 @@ const authMiddleware = require('../middleware/auth.middleware');
 const asyncHandler = require('../utils/asyncHandler');
 const Attendance = require('../models/Attendance');
 const Lesson = require('../models/Lesson');
-const Group = require('../models/Group');
-
 const router = Router();
+
+function canManageLessonAttendance(user, lesson) {
+    if (user.role === 'admin') {
+        return true;
+    }
+
+    return user.role === 'teacher' && lesson.teacher.toString() === user.userId;
+}
 
 // GET /api/attendance/:lessonId
 // Получает список студентов урока и их текущий статус посещаемости
@@ -23,6 +29,10 @@ router.get('/:lessonId', authMiddleware, asyncHandler(async (req, res) => {
 
     if (!lesson) {
         return res.status(404).json({ message: 'Урок не найден' });
+    }
+
+    if (!canManageLessonAttendance(req.user, lesson)) {
+        return res.status(403).json({ message: 'Access denied' });
     }
 
     const studentIds = lesson.group.students.map(s => s._id);
@@ -49,11 +59,19 @@ router.get('/:lessonId', authMiddleware, asyncHandler(async (req, res) => {
 router.post('/:lessonId', authMiddleware, asyncHandler(async (req, res) => {
     const { lessonId } = req.params;
     const { presentStudentIds } = req.body; // Массив ID присутствующих студентов
-    const teacherId = req.user.id;
+    const teacherId = req.user.userId;
+
+    if (!Array.isArray(presentStudentIds)) {
+        return res.status(400).json({ message: 'presentStudentIds must be an array' });
+    }
 
     const lesson = await Lesson.findById(lessonId).populate('group');
     if (!lesson) {
         return res.status(404).json({ message: 'Урок не найден' });
+    }
+
+    if (!canManageLessonAttendance(req.user, lesson)) {
+        return res.status(403).json({ message: 'Access denied' });
     }
 
     const allStudentIdsInGroup = lesson.group.students;

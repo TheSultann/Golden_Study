@@ -48,29 +48,36 @@ const FinancePage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     const [updatingPaymentId, setUpdatingPaymentId] = useState(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalCount, setTotalCount] = useState(0);
 
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalBillingPeriod, setModalBillingPeriod] = useState(getCurrentMonth());
+    const [modalGroup, setModalGroup] = useState('all');
     const [groupAmounts, setGroupAmounts] = useState({});
     const [modalMessage, setModalMessage] = useState('');
     const [modalError, setModalError] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
 
-    const fetchPayments = useCallback(async () => {
+    const fetchPayments = useCallback(async (page = currentPage) => {
         if (!periodStart || !periodEnd) return;
         setIsLoading(true);
         setError('');
         try {
-            const url = `/api/finance?periodStart=${periodStart}&periodEnd=${periodEnd}&groupId=${selectedGroup}`;
+            const url = `/api/finance?periodStart=${periodStart}&periodEnd=${periodEnd}&groupId=${selectedGroup}&page=${page}&limit=50`;
             const response = await API.get(url);
-            setPayments(response.data);
+            setPayments(response.data.payments);
+            setTotalPages(response.data.totalPages);
+            setTotalCount(response.data.total);
+            setCurrentPage(response.data.page);
         } catch (err) {
             setError('Failed to load invoices.');
         } finally {
             setIsLoading(false);
         }
-    }, [periodStart, periodEnd, selectedGroup]);
+    }, [periodStart, periodEnd, selectedGroup, currentPage]);
 
     useEffect(() => {
         fetchPayments();
@@ -90,7 +97,11 @@ const FinancePage = () => {
         const fetchLastAmounts = async () => {
             try {
                 const response = await API.get('/api/finance/last-amounts');
-                setGroupAmounts(response.data);
+                // Normalize to digits-only strings for consistent state
+                const normalized = Object.fromEntries(
+                    Object.entries(response.data).map(([id, val]) => [id, String(Math.round(Number(val)))])
+                );
+                setGroupAmounts(normalized);
             } catch (error) {
                 console.error("Failed to load last amounts:", error);
             }
@@ -114,6 +125,7 @@ const FinancePage = () => {
     }, [payments]);
 
     const handleMarkAsPaid = async (paymentId) => {
+        if (!window.confirm('Mark this invoice as paid? This action cannot be undone.')) return;
         setUpdatingPaymentId(paymentId);
         try {
             const response = await API.patch(`/api/finance/${paymentId}/pay`);
@@ -132,7 +144,10 @@ const FinancePage = () => {
         setModalError('');
 
         const finalGroupAmounts = Object.fromEntries(
-            Object.entries(groupAmounts).filter(([_, amount]) => amount && Number(amount) > 0)
+            Object.entries(groupAmounts)
+                .filter(([id]) => modalGroup === 'all' || id === modalGroup)
+                .map(([id, val]) => [id, parseSum(val)])
+                .filter(([_, amount]) => amount !== '' && Number(amount) > 0)
         );
 
         if (Object.keys(finalGroupAmounts).length === 0) {
@@ -160,20 +175,61 @@ const FinancePage = () => {
         }
     };
     
+    /**
+     * Parses user input into a clean integer.
+     * Accepts: "500000", "500.000", "500 000" → 500000
+     */
+    const parseSum = (value) => {
+        const cleaned = String(value).replace(/[\s.]/g, '');
+        const parsed = parseInt(cleaned, 10);
+        return isNaN(parsed) ? '' : parsed;
+    };
+
+    /**
+     * Formats a number for display: 500000 → "500.000"
+     * Input is always a digits-only string from state.
+     */
+    const formatSum = (value) => {
+        const num = parseInt(String(value).replace(/\D/g, ''), 10);
+        if (isNaN(num) || num === 0) return '';
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    };
+
     const handleAmountChange = (groupId, value) => {
+        // Allow only digits while typing (strip everything else)
+        const digits = value.replace(/\D/g, '');
         setGroupAmounts(prev => ({
             ...prev,
-            [groupId]: value
+            [groupId]: digits
         }));
     };
 
-    const formatCurrency = (amount) => `${Number(amount).toLocaleString('uz-UZ')} UZS`;
+    const handleAmountBlur = (groupId, value) => {
+        // On blur: clean up leading zeros
+        const digits = String(value).replace(/\D/g, '');
+        const parsed = parseInt(digits, 10);
+        setGroupAmounts(prev => ({
+            ...prev,
+            [groupId]: isNaN(parsed) || parsed === 0 ? '' : String(parsed)
+        }));
+    };
+
+    const formatCurrency = (amount) => {
+        const num = Math.round(Number(amount));
+        if (isNaN(num)) return '0 сум';
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' сум';
+    };
 
     return (
         <div className={styles.dashboardWrapper}>
             <header className={styles.header}>
-                <h1>Finance Dashboard</h1>
-                <p>Overview of financial activity and invoice management.</p>
+                <div>
+                    <h1>Finance Dashboard</h1>
+                    <p>Overview of financial activity and invoice management.</p>
+                </div>
+                <button className={styles.actionButton} onClick={() => setIsModalOpen(true)}>
+                    <FiPlusCircle /> Generate Invoices
+                </button>
             </header>
 
             <div className={styles.statsGrid}>
@@ -201,9 +257,6 @@ const FinancePage = () => {
                             </select>
                         </div>
                     </div>
-                    <button className={styles.actionButton} onClick={() => setIsModalOpen(true)}>
-                        <FiPlusCircle /> Generate Invoices
-                    </button>
                 </div>
 
                 <div className={styles.tableContainer}>
@@ -256,33 +309,65 @@ const FinancePage = () => {
                         </tbody>
                     </table>
                     {error && <div className={styles.errorMessage}>{error}</div>}
+                    {totalPages > 1 && (
+                        <div className={styles.pagination}>
+                            <button
+                                className={styles.pageButton}
+                                disabled={currentPage <= 1}
+                                onClick={() => fetchPayments(currentPage - 1)}
+                            >
+                                Previous
+                            </button>
+                            <span className={styles.pageInfo}>
+                                Page {currentPage} of {totalPages} ({totalCount} total)
+                            </span>
+                            <button
+                                className={styles.pageButton}
+                                disabled={currentPage >= totalPages}
+                                onClick={() => fetchPayments(currentPage + 1)}
+                            >
+                                Next
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} title="Generate Monthly Invoices">
+            <Modal isOpen={isModalOpen} onRequestClose={() => setIsModalOpen(false)} title="Generate Invoices">
                 <form onSubmit={handleGenerateInvoices} className={styles.modalForm}>
-                    <p>Specify the month and amount for each group. Amounts are automatically filled in from the latest invoices.</p>
+                    <p>Select the billing month, group, and specify the amount per group.</p>
                     
                     <div className={styles.formGroup}>
                         <label htmlFor="modalBillingPeriod">Billing month</label>
                         <input type="month" id="modalBillingPeriod" value={modalBillingPeriod} onChange={e => setModalBillingPeriod(e.target.value)} className={styles.input} required />
                     </div>
 
+                    <div className={styles.formGroup}>
+                        <label htmlFor="modalGroupSelect">Group</label>
+                        <select id="modalGroupSelect" value={modalGroup} onChange={e => setModalGroup(e.target.value)} className={styles.input}>
+                            <option value="all">All Groups</option>
+                            {groupsForFilter.map(g => <option key={g._id} value={g._id}>{g.name}</option>)}
+                        </select>
+                    </div>
+
                     <div className={styles.groupAmountsGrid}>
-                        {groupsForFilter.length > 0 ? groupsForFilter.map(group => (
+                        {groupsForFilter.length > 0 ? groupsForFilter
+                            .filter(group => modalGroup === 'all' || group._id === modalGroup)
+                            .map(group => (
                             <div key={group._id} className={styles.groupAmountItem}>
                                 <label htmlFor={`group-amount-${group._id}`}>{group.name}</label>
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     id={`group-amount-${group._id}`}
-                                    placeholder="0 UZS"
+                                    placeholder="0 сум"
                                     className={styles.input}
-                                    min="1"
-                                    value={groupAmounts[group._id] || ''}
+                                    value={groupAmounts[group._id] ? formatSum(groupAmounts[group._id]) : ''}
                                     onChange={e => handleAmountChange(group._id, e.target.value)}
+                                    onBlur={e => handleAmountBlur(group._id, e.target.value)}
                                 />
                             </div>
-                        )) : <p>Loading groups list...</p>}
+                        )) : <p>Loading groups...</p>}
                     </div>
 
                     <button type="submit" className={styles.button} disabled={isGenerating}>

@@ -141,9 +141,10 @@ const AccountingPage = () => {
     useEffect(() => { if (activeTab === 'salaries') fetchSalaries(); }, [activeTab, fetchSalaries]);
 
     const handleSaveSalary = async (teacherId, amount) => {
-        if (!amount || amount <= 0) return setError('Please enter a valid amount.');
+        const parsed = parseInt(String(amount).replace(/\D/g, ''), 10);
+        if (!parsed || parsed <= 0) return setError('Please enter a valid amount.');
         try {
-            await API.post('/api/accounting/salaries', { teacherId, period: salaryPeriod, amount });
+            await API.post('/api/accounting/salaries', { teacherId, period: salaryPeriod, amount: parsed });
             setEditingSalary(null);
             fetchSalaries();
         } catch (err) { setError('Failed to save salary.'); }
@@ -174,7 +175,8 @@ const AccountingPage = () => {
         setIsAddingExpense(true);
         setError('');
         try {
-            await API.post('/api/accounting/expenses', newExpense);
+            const parsedAmount = parseInt(String(newExpense.amount).replace(/\D/g, ''), 10);
+            await API.post('/api/accounting/expenses', { ...newExpense, amount: parsedAmount });
             setNewExpense({ description: '', amount: '', category: 'other', expenseDate: new Date().toISOString().slice(0, 10) });
             fetchExpenses();
         } catch (err) { setError('Failed to add expense.'); } 
@@ -259,18 +261,19 @@ const AccountingPage = () => {
             </div>
             <div className={styles.tableContainer}>
                 <table className={styles.table}>
-                    <thead><tr><th>Teacher</th><th>Amount (UZS)</th><th>Status</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Teacher</th><th>Amount (UZS)</th><th>Status</th><th>Paid on</th><th>Action</th></tr></thead>
                     <tbody>
-                        {isLoadingSalaries ? (<tr><td colSpan="4">Loading...</td></tr>) : (
+                        {isLoadingSalaries ? (<tr><td colSpan="5">Loading...</td></tr>) : salaries.length > 0 ? (
                             salaries.map(s => (
                                 <tr key={s.teacher._id}>
                                     <td data-label="Teacher">{s.teacher.name}</td>
                                     <td data-label="Amount">
                                         {editingSalary?.teacherId === s.teacher._id ? (
-                                            <input type="number" className={styles.input} value={editingSalary.amount} onChange={e => setEditingSalary({ ...editingSalary, amount: e.target.value })} autoFocus />
-                                        ) : (s.amount.toLocaleString('uz-UZ'))}
+                                            <input type="text" inputMode="numeric" className={styles.input} value={editingSalary.amount ? parseInt(String(editingSalary.amount).replace(/\D/g, ''), 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''} onChange={e => setEditingSalary({ ...editingSalary, amount: e.target.value.replace(/\D/g, '') })} placeholder="0 сум" autoFocus />
+                                        ) : (s.amount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' сум')}
                                     </td>
                                     <td data-label="Status"><span className={`${styles.status} ${s.status === 'paid' ? styles.paid : styles.pending}`}>{s.status}</span></td>
+                                    <td data-label="Paid on">{s.paymentDate ? (() => { const d = new Date(s.paymentDate); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`; })() : '—'}</td>
                                     <td data-label="Action" className={styles.actions}>
                                         {editingSalary?.teacherId === s.teacher._id ? (
                                             <><button onClick={() => handleSaveSalary(s.teacher._id, editingSalary.amount)} className={styles.saveButton}>Save</button><button onClick={() => setEditingSalary(null)} className={styles.cancelButton}>Cancel</button></>
@@ -280,7 +283,7 @@ const AccountingPage = () => {
                                     </td>
                                 </tr>
                             ))
-                        )}
+                        ) : (<tr><td colSpan="5" style={{textAlign:'center', color:'#6c757d', padding:'2rem'}}>No teachers found. Add teachers to manage salaries.</td></tr>)}
                     </tbody>
                 </table>
             </div>
@@ -292,10 +295,15 @@ const AccountingPage = () => {
             <div className={styles.card}>
                 <h3>Add New Expense</h3>
                 <form onSubmit={handleAddExpense}>
-                    <div className={styles.formGroup}><label>Description</label><input type="text" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} className={styles.input} required /></div>
-                    <div className={styles.formGroup}><label>Amount (UZS)</label><input type="number" value={newExpense.amount} onChange={e => setNewExpense({...newExpense, amount: e.target.value})} className={styles.input} required /></div>
                     <div className={styles.formGroup}><label>Category</label><select value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})} className={styles.input} required><option value="rent">Rent</option><option value="utilities">Utilities</option><option value="supplies">Supplies</option><option value="marketing">Marketing</option><option value="other">Other</option></select></div>
-                    <div className={styles.formGroup}><label>Date</label><input type="date" value={newExpense.expenseDate} onChange={e => setNewExpense({...newExpense, expenseDate: e.target.value})} className={styles.input} required /></div>
+                    <div className={styles.formGroup}><label>Description</label><input type="text" value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} className={styles.input} required /></div>
+                    <div className={styles.formGroup}><label>Amount (UZS)</label><input type="text" inputMode="numeric" value={newExpense.amount ? parseInt(String(newExpense.amount).replace(/\D/g, ''), 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : ''} onChange={e => setNewExpense({...newExpense, amount: e.target.value.replace(/\D/g, '')})} placeholder="0 сум" className={styles.input} required /></div>
+                    <div className={styles.formGroup}><label>Date</label>
+                        <div className={styles.dateInputWrapper} onClick={e => e.currentTarget.querySelector('input').showPicker()}>
+                            <span className={styles.dateDisplay}>{(() => { const [y, m, d] = newExpense.expenseDate.split('-'); return `${d}.${m}.${y}`; })()}</span>
+                            <input type="date" value={newExpense.expenseDate} onChange={e => setNewExpense({...newExpense, expenseDate: e.target.value})} className={`${styles.input} ${styles.dateInputHidden}`} required />
+                        </div>
+                    </div>
                     <button type="submit" className={styles.button} disabled={isAddingExpense}>{isAddingExpense ? 'Adding...' : 'Add Expense'}</button>
                 </form>
             </div>
@@ -308,7 +316,7 @@ const AccountingPage = () => {
                             {isLoadingExpenses ? (<tr><td colSpan="5">Loading...</td></tr>) : (
                                 expenses.map(exp => (
                                     <tr key={exp._id}>
-                                        <td data-label="Date">{new Date(exp.expenseDate).toLocaleDateString()}</td><td data-label="Description">{exp.description}</td><td data-label="Category">{exp.category}</td><td data-label="Amount">{exp.amount.toLocaleString('uz-UZ')} UZS</td>
+                                        <td data-label="Date">{(() => { const d = new Date(exp.expenseDate); return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`; })()}</td><td data-label="Description">{exp.description}</td><td data-label="Category">{exp.category}</td><td data-label="Amount">{exp.amount.toLocaleString('uz-UZ')} UZS</td>
                                         <td data-label="Action"><button onClick={() => handleDeleteExpense(exp._id)} className={styles.deleteButton}><FiTrash2 /></button></td>
                                     </tr>
                                 ))

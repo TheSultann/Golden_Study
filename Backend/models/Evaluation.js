@@ -42,6 +42,10 @@ const EvaluationSchema = new mongoose.Schema({
         max: 100,
         default: 0
     },
+    feedback: {
+        type: String,
+        default: ''
+    },
     skills: [SkillEvaluationSchema], 
 }, { 
     timestamps: true 

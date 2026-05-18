@@ -1,0 +1,207 @@
+.container {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 20px 0;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 40px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 0;
+    color: #c0392b;
+    font-size: 14px;
+    text-align: center;
+}
+
+.retryButton {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.retryButton:hover {
+    background: #f7f8fa;
+    border-color: var(--text-secondary);
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 48px 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+}
+
+.emptyIcon {
+    font-size: 32px;
+    color: var(--text-secondary);
+    opacity: 0.4;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.record {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    background: #fafbfc;
+    transition: all 0.15s ease;
+}
+
+.record:hover {
+    background: #f0f4f8;
+    border-color: #d0d7de;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.period {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.periodBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 130px;
+}
+
+.groupName {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+.amounts {
+    display: flex;
+    gap: 24px;
+}
+
+.amountBlock {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+}
+
+.amountLabel {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.amountValue {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.statusBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    min-width: 80px;
+    letter-spacing: 0.2px;
+}
+
+.statusPaid {
+    background-color: #e6f9f0;
+    color: #1a7f4b;
+}
+
+.statusPending {
+    background-color: #fff8e6;
+    color: #b8860b;
+}
+
+.statusOverdue {
+    background-color: #fde8e8;
+    color: #c0392b;
+}
+
+.statusDefault {
+    background-color: #f0f2f5;
+    color: #6c757d;
+}
+
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+    }
+
+    .record {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+    }
+
+    .amounts {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .amountBlock {
+        align-items: flex-start;
+    }
+
+    .statusBadge {
+        align-self: flex-end;
+    }
+}

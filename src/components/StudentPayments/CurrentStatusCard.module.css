@@ -1,0 +1,174 @@
+.card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+    position: relative;
+    overflow: hidden;
+}
+
+.card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 16px 16px 0 0;
+    background: var(--border-color);
+}
+
+.card.cardPaid::before {
+    background: linear-gradient(90deg, #38a169, #48bb78);
+}
+
+.card.cardPending::before {
+    background: linear-gradient(90deg, #d69e2e, #ecc94b);
+}
+
+.card.cardOverdue::before {
+    background: linear-gradient(90deg, #e53e3e, #fc8181);
+}
+
+.statusContent {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.iconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    flex-shrink: 0;
+}
+
+.details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.statusLabel {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.amount {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.date {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.message {
+    font-size: 15px;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Status color variants */
+.statusPaid {
+    color: #1a7f4b;
+    background-color: #e6f9f0;
+}
+
+.statusPending {
+    color: #b8860b;
+    background-color: #fff8e6;
+}
+
+.statusOverdue {
+    color: #c0392b;
+    background-color: #fde8e8;
+}
+
+.statusDefault {
+    color: #6c757d;
+    background-color: #f0f2f5;
+}
+
+/* Loading state */
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+}
+
+.spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-blue);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Error state */
+.error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+}
+
+.errorMessage {
+    font-size: 14px;
+    color: #c0392b;
+    margin: 0;
+}
+
+.retryButton {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    background-color: var(--primary-blue);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.retryButton:hover {
+    opacity: 0.85;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+    .card {
+        padding: 20px;
+    }
+
+    .amount {
+        font-size: 22px;
+    }
+
+    .iconWrapper {
+        width: 44px;
+        height: 44px;
+    }
+}

@@ -43,17 +43,21 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
     
     return (
         <div className={styles.evaluationRow}>
-            {/* --- 3. Make student name clickable --- */}
-            <span 
-                className={`${styles.studentNameCell} ${styles.clickableStudentName}`}
-                onClick={() => showProfile(studentData.student._id)}
-                title={`View profile of ${studentData.student.name}`}
-            >
-                {studentData.student.name}
-            </span>
-            {/* --- END OF CHANGES --- */}
-            
-            <div>
+            <div className={styles.evaluationCell}>
+                <span className={styles.mobileLabel}>Student</span>
+                {/* --- 3. Make student name clickable --- */}
+                <span
+                    className={`${styles.studentNameCell} ${styles.clickableStudentName}`}
+                    onClick={() => showProfile(studentData.student._id)}
+                    title={`View profile of ${studentData.student.name}`}
+                >
+                    {studentData.student.name}
+                </span>
+                {/* --- END OF CHANGES --- */}
+            </div>
+
+            <div className={styles.evaluationCell}>
+                <span className={styles.mobileLabel}>Grade (%)</span>
                 <input
                     type="number"
                     min="0"
@@ -63,7 +67,9 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
                     placeholder="%"
                 />
             </div>
-            <div className={styles.skillsCell}>
+
+            <div className={`${styles.evaluationCell} ${styles.skillsCell}`}>
+                <span className={styles.mobileLabel}>Completed assignments</span>
                 {evaluation.skills.map(skill => (
                     <label key={skill.assignmentId}>
                         <input
@@ -74,7 +80,8 @@ const EvaluationRow = ({ studentData, lessonId, onSave }) => {
                     </label>
                 ))}
             </div>
-            <div>
+
+            <div className={styles.evaluationCell}>
                 <button onClick={handleSaveClick} className={styles.saveButton}>Save</button>
             </div>
         </div>

@@ -24,7 +24,7 @@
   }
   
   .createButton {
-    background-color: #007bff;
+    background-color: #0f766e;
     color: white;
     border: none;
     padding: 10px 15px;
@@ -239,6 +239,221 @@
     }
     .lessonRow.active .lessonDeleteButton {
       opacity: 1; /* Показываем только на активной строке */
+    }
+  }
+  
+  .lessonsPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .lessonToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .lessonToolbar h4 {
+    margin: 0;
+    color: #111827;
+    font-size: 1.15rem;
+  }
+
+  .lessonToolbar span {
+    display: inline-block;
+    margin-top: 4px;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 500;
+  }
+
+  .groupFilters {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filterChip,
+  .activeFilterChip {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #374151;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 220px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .filterChip span,
+  .activeFilterChip span {
+    margin: 0;
+    color: inherit;
+    font-size: 12px;
+    opacity: 0.75;
+  }
+
+  .activeFilterChip {
+    background: #0f766e;
+    border-color: #0f766e;
+    color: #fff;
+  }
+
+  .lessonList {
+    gap: 16px;
+  }
+
+  .groupSection {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  .groupSectionHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .groupSectionHeader h5 {
+    margin: 0;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .groupSectionHeader span {
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .lessonCards {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .lessonCard {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  }
+
+  .lessonCard:hover,
+  .lessonCard.active {
+    border-color: #99f6e4;
+    background: #f0fdfa;
+    box-shadow: 0 8px 22px rgba(15, 118, 110, 0.08);
+  }
+
+  .lessonCardMain {
+    min-width: 0;
+  }
+
+  .lessonCardMain h6 {
+    margin: 0 0 8px;
+    overflow: hidden;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lessonDate {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .gradeButton {
+    background: #0f766e;
+    color: #fff;
+    border-color: #0f766e;
+    font-weight: 600;
+  }
+
+  .noLessons {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+
+  .actionsContainer {
+    justify-self: end;
+  }
+
+  .lessonDeleteButton {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  .lessonCard:hover .lessonDeleteButton,
+  .lessonCard.active .lessonDeleteButton {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .lessonDeleteButton:hover {
+    border-color: #fecaca;
+  }
+
+  @media (max-width: 768px) {
+    .lessonToolbar {
+      flex-direction: column;
+    }
+    .groupFilters {
+      justify-content: flex-start;
+      width: 100%;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      padding-bottom: 4px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .groupFilters::-webkit-scrollbar {
+      display: none;
+    }
+    .filterChip,
+    .activeFilterChip {
+      flex: 0 0 auto;
+      max-width: 180px;
+    }
+    .lessonCard {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    .actionsContainer {
+      justify-self: stretch;
+      margin-top: 0;
+    }
+    .lessonDeleteButton {
+      opacity: 1;
+      transform: scale(1);
     }
   }
   
@@ -562,19 +777,44 @@
     .evaluationHeader {
       display: none;
     }
+    .evaluationContainer {
+      max-height: none;
+      padding-right: 0;
+    }
     .evaluationRow {
       grid-template-columns: 1fr;
-      gap: 1rem;
+      gap: 0.75rem;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+      border-radius: 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+    .evaluationRow:last-child {
+      border-bottom: 1px solid #e5e7eb;
     }
     .evaluationCell {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      align-items: flex-start;
+      gap: 6px;
+      align-items: stretch;
+      width: 100%;
     }
-    .evaluationCell input[type="number"],
-    .evaluationCell .saveButton {
+    .evaluationRow input[type="number"] {
+      max-width: 100%;
       margin: 0;
+      display: block;
+      text-align: left;
+      padding: 0.65rem 0.75rem;
+    }
+    .skillsCell {
+      gap: 0.5rem;
+    }
+    .saveButton {
+      max-width: 100%;
+      margin: 4px 0 0;
     }
   }
   
