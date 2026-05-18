@@ -1,10 +1,14 @@
 // src/api.js
 
 import axios from 'axios';
+import { clearAuthStorage } from './auth';
 
 const API = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL
+    baseURL: import.meta.env.VITE_API_BASE_URL,
+    timeout: 15000
 });
+
+let isRedirectingToLogin = false;
 
 // This interceptor adds token to every request (unchanged)
 API.interceptors.request.use((req) => {
@@ -26,13 +30,14 @@ API.interceptors.response.use(
         // This is the standard code for expired or invalid token.
         if (error.response && error.response.status === 401) {
             // 1. Clear all user data from localStorage.
-            localStorage.removeItem('userToken');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userRole');
+            clearAuthStorage();
             
             // 2. Force redirect user to login page.
             // This is the most reliable way that resets application state.
-            window.location.href = '/login';
+            if (!isRedirectingToLogin && window.location.pathname !== '/login') {
+                isRedirectingToLogin = true;
+                window.location.replace('/login');
+            }
         }
         
         // For all other errors (404, 500, etc.) we just rethrow them,

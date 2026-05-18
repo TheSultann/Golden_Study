@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Switch, Route, Redirect } from 'react-router-dom';
 
 import Sidebar from './components/Sidebar/Sidebar.jsx';
@@ -8,6 +8,7 @@ import styles from './App.module.css';
 // --- 1. IMPORTS FOR GLOBAL MODAL WINDOW ---
 import { StudentProfileProvider, useStudentProfile } from './context/StudentProfileContext';
 import StudentProfileCard from './components/StudentProfileCard/StudentProfileCard';
+import { AUTH_CHANGED_EVENT, readAuthState } from './auth';
 
 // --- Lazy Loaded Components ---
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
@@ -45,23 +46,25 @@ const GlobalStudentProfileModal = () => {
 };
 
 function App() {
-    const [userVersion, setUserVersion] = useState(0);
+    const [authState, setAuthState] = useState(readAuthState);
 
     useEffect(() => {
-        const handleUserUpdate = () => {
-            setUserVersion(v => v + 1);
-        };
-        window.addEventListener('userProfileUpdated', handleUserUpdate);
+        const refreshAuthState = () => setAuthState(readAuthState());
+
+        window.addEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
+        window.addEventListener('storage', refreshAuthState);
+        window.addEventListener('focus', refreshAuthState);
+        window.addEventListener('userProfileUpdated', refreshAuthState);
+
         return () => {
-            window.removeEventListener('userProfileUpdated', handleUserUpdate);
+            window.removeEventListener(AUTH_CHANGED_EVENT, refreshAuthState);
+            window.removeEventListener('storage', refreshAuthState);
+            window.removeEventListener('focus', refreshAuthState);
+            window.removeEventListener('userProfileUpdated', refreshAuthState);
         };
     }, []);
 
-    // Memoize auth check to avoid unnecessary re-reads on every render
-    const { token, role } = useMemo(() => ({
-        token: localStorage.getItem('userToken'),
-        role: localStorage.getItem('userRole')
-    }), [userVersion]);
+    const { token, role } = authState;
 
     const PrivateRouteWithLayout = ({ component: Component, ...rest }) => (
         <Route {...rest} render={props => (

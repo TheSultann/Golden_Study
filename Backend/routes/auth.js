@@ -7,6 +7,7 @@ const User = require('../models/User');
 const { clearCacheByPattern } = require('../middleware/cache.middleware');
 const router = express.Router();
 const asyncHandler = require('../utils/asyncHandler');
+const TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 
 // --- 2. ОБОРАЧИВАЕМ РОУТЫ В asyncHandler И УБИРАЕМ try...catch ---
 
@@ -42,7 +43,7 @@ router.post('/login', asyncHandler(async (req, res) => {
     const token = jwt.sign(
         { userId: user.id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: '1h' }
+        { expiresIn: TOKEN_EXPIRES_IN }
     );
     
     res.json({ token, userId: user.id, role: user.role, name: user.name });
