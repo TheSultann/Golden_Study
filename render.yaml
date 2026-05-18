@@ -7,7 +7,7 @@ services:
     repo: https://github.com/TheSultann/Golden_Study
     branch: master
     buildCommand: npm run render-build
-    startCommand: npm start
+    startCommand: cd Backend && node server.js
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV

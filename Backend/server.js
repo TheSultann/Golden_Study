@@ -1,6 +1,5 @@
-const path = require('path');
 const mongoose = require('mongoose');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config();
 const app = require('./app');
 const { startInvoiceScheduler } = require('./jobs/invoiceScheduler');
 const { getServerEnv } = require('./config/env');
