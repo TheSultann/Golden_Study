@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "render-build": "npm install && npm run build && cd Backend && npm install",
-    "start": "cd Backend && npm start",
+    "start": "node Backend/server.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
