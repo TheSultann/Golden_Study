@@ -6,8 +6,9 @@ const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const mongoose = require('mongoose');
 const asyncHandler = require('../utils/asyncHandler');
+const { cache } = require('../middleware/cache.middleware');
 
-router.get('/group/:groupId', auth, asyncHandler(async (req, res) => {
+router.get('/group/:groupId', [auth, cache(300)], asyncHandler(async (req, res) => {
     if (req.user.role !== 'teacher' && req.user.role !== 'admin') {
         return res.status(403).json({ msg: 'Access denied' });
     }
@@ -47,7 +48,7 @@ router.get('/group/:groupId', auth, asyncHandler(async (req, res) => {
     });
 }));
 
-router.get('/student', auth, asyncHandler(async (req, res) => {
+router.get('/student', [auth, cache(300)], asyncHandler(async (req, res) => {
     if (req.user.role !== 'student') {
         return res.status(403).json({ msg: 'Access denied' });
     }

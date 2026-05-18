@@ -24,6 +24,7 @@ function LoginPage() {
             localStorage.setItem('userToken', data.token);
             localStorage.setItem('userRole', data.role);
             localStorage.setItem('userName', data.name); 
+            localStorage.setItem('userId', data.userId);
 
             // Use window.location.href instead of history.push + reload for clean state reset
             window.location.href = '/';
@@ -79,7 +80,7 @@ function LoginPage() {
 
                 <div className="signup-link">
                 Don't have an account? <Link to="/register">Sign Up</Link>
-                <p className="copyright">Project by Sultan | v2.0.0</p>
+                <p className="copyright">Project by Sultan | v2.1.0</p>
 
                 </div>
             </div>

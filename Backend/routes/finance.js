@@ -4,20 +4,23 @@ const auth = require('../middleware/auth.middleware');
 const TuitionPayment = require('../models/TuitionPayment');
 const User = require('../models/User');
 const redisClient = require('../redis-client');
+const { cache, clearCacheByPattern } = require('../middleware/cache.middleware');
 const asyncHandler = require('../utils/asyncHandler'); // --- 1. ИМПОРТИРУЕМ ОБЕРТКУ ---
 
 const clearFinanceCache = async (req, res, next) => {
     try {
         if (redisClient.isOpen) {
-            // Используем SCAN вместо KEYS для безопасности в продакшене
-            const stream = redisClient.scanIterator({ MATCH: 'cache:GET:/api/finance*', COUNT: 100 });
-            const keysToDelete = [];
-            for await (const key of stream) {
-                keysToDelete.push(key);
-            }
-            if (keysToDelete.length > 0) {
-                await redisClient.del(keysToDelete);
-                console.log(`FINANCE CACHE CLEARED: ${keysToDelete.length} keys deleted.`);
+            // Clear all finance-related cache keys (admin + student)
+            const patterns = ['cache:*:/api/finance*', 'cache:*:/api/student*'];
+            for (const pattern of patterns) {
+                const stream = redisClient.scanIterator({ MATCH: pattern, COUNT: 100 });
+                const keysToDelete = [];
+                for await (const key of stream) {
+                    keysToDelete.push(key);
+                }
+                if (keysToDelete.length > 0) {
+                    await redisClient.del(keysToDelete);
+                }
             }
         }
     } catch (e) {
@@ -28,7 +31,7 @@ const clearFinanceCache = async (req, res, next) => {
 
 // --- 2. ОБОРАЧИВАЕМ РОУТЫ В asyncHandler И УБИРАЕМ try...catch ---
 
-router.get('/last-amounts', [auth, auth.adminOnly], asyncHandler(async (req, res) => {
+router.get('/last-amounts', [auth, auth.adminOnly, cache(300)], asyncHandler(async (req, res) => {
     const lastAmounts = await TuitionPayment.aggregate([
         { $sort: { billingPeriod: -1 } },
         { $group: { _id: '$group', lastAmount: { $first: '$amountDue' } } }
@@ -81,18 +84,29 @@ router.post('/generate', [auth, auth.adminOnly, clearFinanceCache], asyncHandler
     res.status(201).json({ message: 'Генерация счетов завершена', createdCount: result.length });
 }));
 
-router.get('/', [auth, auth.adminOnly], asyncHandler(async (req, res) => {
-    const cacheKey = `cache:GET:${req.originalUrl}`;
-    if (redisClient.isOpen) {
-        const cachedData = await redisClient.get(cacheKey);
-        if (cachedData) {
-            console.log(`CACHE HIT: ${cacheKey}`);
-            return res.json(JSON.parse(cachedData));
-        }
-    }
+// Student-only route: get authenticated student's payment records
+router.get('/my-payments', [auth, auth.studentOnly, cache(300)], asyncHandler(async (req, res) => {
+    const studentId = req.user.userId;
 
-    console.log(`CACHE MISS: ${cacheKey}`);
-    const { periodStart, periodEnd, groupId } = req.query;
+    const payments = await TuitionPayment.find({ student: studentId })
+        .populate('group', 'name')
+        .sort({ billingPeriod: -1 })
+        .lean();
+
+    const result = payments.map(p => ({
+        billingPeriod: p.billingPeriod,
+        amountDue: p.amountDue,
+        amountPaid: p.amountPaid,
+        paymentDate: p.paymentDate || null,
+        status: p.status,
+        groupName: p.group?.name || 'Unknown'
+    }));
+
+    res.json(result);
+}));
+
+router.get('/', [auth, auth.adminOnly, cache(3600)], asyncHandler(async (req, res) => {
+    const { periodStart, periodEnd, groupId, page = 1, limit = 50 } = req.query;
     if (!periodStart || !periodEnd) {
         return res.status(400).json({ message: 'Необходимо указать начальный и конечный период' });
     }
@@ -105,21 +119,29 @@ router.get('/', [auth, auth.adminOnly], asyncHandler(async (req, res) => {
         const studentsInGroup = await User.find({ group: groupId, role: 'student' }).select('_id').lean();
         const studentIds = studentsInGroup.map(s => s._id);
         if (studentIds.length === 0) {
-            return res.json([]);
+            return res.json({ payments: [], total: 0, page: 1, totalPages: 0 });
         }
         filter.student = { $in: studentIds };
     }
 
-    const payments = await TuitionPayment.find(filter)
-        .populate('student', 'name')
-        .populate('group', 'name')
-        .sort({ 'billingPeriod': -1, 'student.name': 1 })
-        .lean(); // Добавляем .lean()
+    const skip = (Number(page) - 1) * Number(limit);
+    const [payments, total] = await Promise.all([
+        TuitionPayment.find(filter)
+            .populate('student', 'name')
+            .populate('group', 'name')
+            .sort({ 'billingPeriod': -1 })
+            .skip(skip)
+            .limit(Number(limit))
+            .lean(),
+        TuitionPayment.countDocuments(filter)
+    ]);
 
-    if (redisClient.isOpen) {
-        redisClient.setEx(cacheKey, 3600, JSON.stringify(payments));
-    }
-    res.json(payments);
+    res.json({
+        payments,
+        total,
+        page: Number(page),
+        totalPages: Math.ceil(total / Number(limit))
+    });
 }));
 
 router.patch('/:paymentId/pay', [auth, auth.adminOnly, clearFinanceCache], asyncHandler(async (req, res) => {

@@ -31,8 +31,6 @@ function RegisterPage() {
         setIsLoading(true);
         try {
             await API.post('/api/auth/register', { name, email, password });
-            
-            alert('Registration successful! You can now log in.');
             history.push('/login');
 
         } catch (error) {

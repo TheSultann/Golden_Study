@@ -36,4 +36,12 @@ authMiddleware.teacherOrAdmin = (req, res, next) => {
 };
 // --- КОНЕЦ НОВОГО БЛОКА ---
 
+// Middleware для проверки прав студента
+authMiddleware.studentOnly = (req, res, next) => {
+    if (!req.user || req.user.role !== 'student') {
+        return res.status(403).json({ message: 'Access denied. Student role required.' });
+    }
+    next();
+};
+
 module.exports = authMiddleware;

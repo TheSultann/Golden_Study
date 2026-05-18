@@ -1,41 +1,79 @@
 .settingsWrapper {
-    padding: 1rem;
+    padding: 2rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+}
+
+.pageHeader {
+    margin-bottom: 2rem;
+}
+
+.pageHeader h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+    margin: 0 0 0.25rem 0;
+}
+
+.pageHeader p {
+    font-size: 1rem;
+    color: #6c757d;
+    margin: 0;
+}
+
+.settingsGrid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    max-width: 800px;
 }
 
 .settingsContainer {
     background-color: #ffffff;
     border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    max-width: 700px;
-    margin: 2rem auto;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
     overflow: hidden;
 }
 
 .header {
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.75rem;
     border-bottom: 1px solid #e5e7eb;
-    background-color: #f9fafb;
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-.header h2 {
-    margin: 0 0 0.25rem 0;
-    font-size: 1.25rem;
+.headerIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #2563eb;
+    flex-shrink: 0;
+}
+
+.headerText h2 {
+    margin: 0;
+    font-size: 1.1rem;
     font-weight: 600;
     color: #111827;
 }
 
-.header p {
+.headerText p {
     margin: 0;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #6b7280;
 }
 
 .settingsForm {
     display: flex;
     flex-direction: column;
-    padding: 2rem;
-    gap: 1.5rem;
+    padding: 1.5rem 1.75rem;
+    gap: 1.25rem;
 }
 
 .formGroup {
@@ -44,16 +82,17 @@
 }
 
 .formGroup label {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
     font-weight: 500;
+    font-size: 0.875rem;
     color: #374151;
 }
 
 .input {
-    padding: 0.75rem 1rem;
+    padding: 0.7rem 1rem;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
-    font-size: 1rem;
+    border-radius: 10px;
+    font-size: 0.95rem;
     color: #111827;
     transition: border-color 0.2s, box-shadow 0.2s;
     background-color: #fff;
@@ -66,42 +105,34 @@
 .input:focus {
     outline: none;
     border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.3);
+    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.15);
 }
 
 .footer {
     display: flex;
-    justify-content: flex-end; /* По умолчанию кнопка справа */
+    justify-content: space-between;
     align-items: center;
     gap: 1rem;
     padding-top: 1rem;
-    border-top: 1px solid #e5e7eb;
-    flex-wrap: wrap; /* Для мобильных */
-}
-
-/* ИСПРАВЛЕНИЕ: Главное правило для десктопа */
-@media (min-width: 640px) {
-    .footer {
-       justify-content: space-between; /* Распределяем место */
-    }
+    border-top: 1px solid #f0f0f0;
+    flex-wrap: wrap;
 }
 
 .saveButton {
-    padding: 0.65rem 1.5rem;
+    padding: 0.6rem 1.5rem;
     background-color: #2563eb;
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
-    transition: background-color 0.2s, box-shadow 0.2s;
-    flex-shrink: 0; /* Чтобы кнопка не сжималась */
+    transition: all 0.15s ease;
 }
 
 .saveButton:hover:not(:disabled) {
     background-color: #1d4ed8;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transform: translateY(-1px);
 }
 
 .saveButton:disabled {
@@ -111,10 +142,10 @@
 
 .message {
     text-align: left;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
-    flex-grow: 1; /* Чтобы сообщение заняло всё доступное место */
-    min-height: 1.2rem; /* Чтобы контейнер не схлопывался, когда пустой */
+    flex-grow: 1;
+    min-height: 1.2rem;
 }
 
 .successMessage {
@@ -123,4 +154,186 @@
 
 .errorMessage {
     color: #dc2626;
+}
+
+.rolesSection {
+    padding: 1.5rem 1.75rem;
+}
+
+.rolesFilters {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.searchWrapper {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+}
+
+.searchIcon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+}
+
+.searchInput {
+    width: 100%;
+    padding: 0.6rem 1rem 0.6rem 2.25rem;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #111827;
+    transition: border-color 0.15s;
+}
+
+.searchInput:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.searchInput::placeholder {
+    color: #9ca3af;
+}
+
+.roleFilterSelect {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: #111827;
+    background: #fff;
+    cursor: pointer;
+}
+
+.clickableName {
+    color: #2563eb;
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.15s;
+}
+
+.clickableName:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+.usersTableWrapper {
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+}
+
+.usersTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.usersTable th,
+.usersTable td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+    color: #111827;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.usersTable th:first-child,
+.usersTable td:first-child {
+    width: 50%;
+}
+
+.usersTable th:last-child,
+.usersTable td:last-child {
+    width: 50%;
+}
+
+.usersTable th {
+    background-color: #f9fafb;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7280;
+}
+
+.emailCell {
+    /* Hidden on mobile */
+}
+
+.usersTable tr:last-child td {
+    border-bottom: none;
+}
+
+.usersTable tr:hover td {
+    background-color: #f9fafb;
+}
+
+@media (max-width: 640px) {
+    .emailCell {
+        display: none;
+    }
+}
+
+.roleSelect {
+    width: 130px;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #111827;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: border-color 0.15s;
+}
+
+.roleSelect:focus {
+    outline: none;
+    border-color: #3b82f6;
+}
+
+.roleSelect:disabled {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    cursor: not-allowed;
+}
+
+.emptyState {
+    margin: 0;
+    color: #6b7280;
+    text-align: center;
+    padding: 2rem;
+}
+
+@media (max-width: 640px) {
+    .settingsWrapper {
+        padding: 1rem;
+    }
+
+    .pageHeader h1 {
+        font-size: 1.5rem;
+    }
+
+    .settingsForm {
+        padding: 1.25rem;
+    }
+
+    .rolesSection {
+        padding: 1.25rem;
+    }
+
+    .footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .saveButton {
+        width: 100%;
+        text-align: center;
+    }
 }

@@ -10,6 +10,9 @@
 .formGroup { display: flex; flex-direction: column; margin-bottom: 1rem; }
 .formGroup label { font-weight: 600; margin-bottom: 0.5rem; font-size: 0.85rem; color: #495057; }
 .input { padding: 0.65rem 1rem; border: 1px solid #ced4da; border-radius: 8px; font-size: 1rem; }
+.dateInputWrapper { position: relative; display: flex; align-items: center; cursor: pointer; }
+.dateDisplay { padding: 0.65rem 1rem; border: 1px solid #ced4da; border-radius: 8px; font-size: 1rem; flex: 1; background: #fff; }
+.dateInputHidden { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 1; }
 .tableContainer { width: 100%; overflow-x: auto; }
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { padding: 1rem; border-bottom: 1px solid #e9ecef; text-align: left; vertical-align: middle; }

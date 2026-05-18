@@ -8,12 +8,14 @@ const Expense = require('../models/Expense');
 const User = require('../models/User');
 const TuitionPayment = require('../models/TuitionPayment'); 
 const redisClient = require('../redis-client'); 
+const { cache, clearCacheByPattern } = require('../middleware/cache.middleware');
 const asyncHandler = require('../utils/asyncHandler'); // --- 1. ИМПОРТИРУЕМ ОБЕРТКУ ---
 
 const clearAccountingCache = async (req, res, next) => {
     // Этот мидлвэр не асинхронный роут, оставляем try...catch для безопасности
     try {
         if (redisClient.isOpen) {
+            await clearCacheByPattern('cache:*:GET:/api/accounting*');
             const keysToDelete = [
                 'cache:GET:/api/accounting/trends',
                 `cache:GET:/api/accounting/summary?period=${new Date().toISOString().slice(0, 7)}`
@@ -90,7 +92,7 @@ router.delete('/expenses/:id', clearAccountingCache, asyncHandler(async (req, re
     res.json({ message: 'Expense deleted successfully' });
 }));
 
-router.get('/summary', asyncHandler(async (req, res) => {
+router.get('/summary', cache(300), asyncHandler(async (req, res) => {
     const { period } = req.query;
     if (!period) return res.status(400).json({ message: 'Period is required' });
     
@@ -124,7 +126,7 @@ router.get('/summary', asyncHandler(async (req, res) => {
     res.json(summaryData);
 }));
 
-router.get('/trends', asyncHandler(async (req, res) => {
+router.get('/trends', cache(300), asyncHandler(async (req, res) => {
     console.log(`CACHE BYPASSED: /api/accounting/trends`);
     
     const periods = [];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import styles from './TeacherDashboard.module.css';
-import { FiPlus, FiTrash2 } from 'react-icons/fi';
+import { FiCalendar, FiPlus, FiTrash2 } from 'react-icons/fi';
 import Modal from '../../Modal/Modal';
 import EvaluationRow from './EvaluationRow';
 import AssignmentItem from './AssignmentItem';
@@ -28,6 +28,7 @@ const TeacherDashboard = () => {
     const [activeTab, setActiveTab] = useState('assignments');
     const [mainTab, setMainTab] = useState('lessons');
     const [activeLessonId, setActiveLessonId] = useState(null);
+    const [selectedLessonGroup, setSelectedLessonGroup] = useState('all');
 
     const fetchData = async () => {
         try {
@@ -45,14 +46,31 @@ const TeacherDashboard = () => {
     }, [token]);
 
     const groupedLessons = useMemo(() => {
-        if (!lessons || lessons.length === 0) return {};
-        return lessons.reduce((acc, lesson) => {
+        if (!lessons || lessons.length === 0) return [];
+        const lessonsByGroup = lessons.reduce((acc, lesson) => {
             const groupName = lesson.group?.name || 'No group';
             if (!acc[groupName]) acc[groupName] = [];
             acc[groupName].push(lesson);
             return acc;
         }, {});
+        return Object.entries(lessonsByGroup).map(([groupName, groupLessons]) => ({
+            groupName,
+            lessons: groupLessons,
+            count: groupLessons.length
+        }));
     }, [lessons]);
+
+    const visibleLessonGroups = useMemo(() => {
+        if (selectedLessonGroup === 'all') return groupedLessons;
+        return groupedLessons.filter(group => group.groupName === selectedLessonGroup);
+    }, [groupedLessons, selectedLessonGroup]);
+
+    useEffect(() => {
+        const selectedGroupExists = groupedLessons.some(group => group.groupName === selectedLessonGroup);
+        if (selectedLessonGroup !== 'all' && !selectedGroupExists) {
+            setSelectedLessonGroup('all');
+        }
+    }, [groupedLessons, selectedLessonGroup]);
 
     const handleOpenCreateModal = () => {
         setNewLessonTitle('');
@@ -183,39 +201,71 @@ const TeacherDashboard = () => {
                     <button onClick={() => setMainTab('statistics')} className={mainTab === 'statistics' ? styles.activeMainTab : styles.mainTab}>📊 Group statistics</button>
                 </div>
                 {mainTab === 'lessons' && (
-                    <div className={styles.lessonList}>
-                        <div className={`${styles.lessonRow} ${styles.headerRow}`}>
-                            <span>Lesson</span>
-                            <span>Created in</span>
-                            <span>Actions</span>
+                    <div className={styles.lessonsPanel}>
+                        <div className={styles.lessonToolbar}>
+                            <div>
+                                <h4>Lessons</h4>
+                                <span>{lessons.length} total</span>
+                            </div>
+                            {groupedLessons.length > 0 && (
+                                <div className={styles.groupFilters} aria-label="Lesson group filters">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedLessonGroup('all')}
+                                        className={selectedLessonGroup === 'all' ? styles.activeFilterChip : styles.filterChip}
+                                    >
+                                        All groups <span>{lessons.length}</span>
+                                    </button>
+                                    {groupedLessons.map(group => (
+                                        <button
+                                            type="button"
+                                            key={group.groupName}
+                                            onClick={() => setSelectedLessonGroup(group.groupName)}
+                                            className={selectedLessonGroup === group.groupName ? styles.activeFilterChip : styles.filterChip}
+                                        >
+                                            {group.groupName} <span>{group.count}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                        
-                        {Object.keys(groupedLessons).length > 0 ? (
-                            Object.entries(groupedLessons).map(([groupName, lessonsInGroup]) => (
-                                <React.Fragment key={groupName}>
-                                    <h4 className={styles.groupHeader}>{groupName}</h4>
-                                    {lessonsInGroup.map(lesson => (
-                                        <div 
-                                            className={`${styles.lessonRow} ${activeLessonId === lesson._id ? styles.active : ''}`} 
+
+                        {visibleLessonGroups.length > 0 ? (
+                            <div className={styles.lessonList}>
+                                {visibleLessonGroups.map(group => (
+                                    <section className={styles.groupSection} key={group.groupName}>
+                                        <div className={styles.groupSectionHeader}>
+                                            <h5>{group.groupName}</h5>
+                                            <span>{group.count} lessons</span>
+                                        </div>
+                                        <div className={styles.lessonCards}>
+                                            {group.lessons.map(lesson => (
+                                                <article
+                                                    className={`${styles.lessonCard} ${activeLessonId === lesson._id ? styles.active : ''}`}
                                             key={lesson._id}
                                             onClick={() => handleLessonRowClick(lesson._id)}
                                         >
-                                            <span className={styles.lessonTitle}>{lesson.title}</span>
-                                            <span className={styles.lessonDate}>
-                                                {new Date(lesson.createdAt).toLocaleDateString('ru-RU', {
-                                                    day: '2-digit', month: '2-digit', year: 'numeric'
-                                                })}
-                                            </span>
-                                            <div className={styles.actionsContainer}>
-                                                <button onClick={(e) => { e.stopPropagation(); handleOpenDetailModal(lesson); }} className={styles.gradeButton}>Manage</button>
-                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson._id); }} className={styles.lessonDeleteButton} title="Delete lesson">
-                                                    <FiTrash2 />
-                                                </button>
-                                            </div>
+                                                    <div className={styles.lessonCardMain}>
+                                                        <h6>{lesson.title}</h6>
+                                                        <span className={styles.lessonDate}>
+                                                            <FiCalendar />
+                                                            {new Date(lesson.createdAt).toLocaleDateString('ru-RU', {
+                                                                day: '2-digit', month: '2-digit', year: 'numeric'
+                                                            })}
+                                                        </span>
+                                                    </div>
+                                                    <div className={styles.actionsContainer}>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleOpenDetailModal(lesson); }} className={styles.gradeButton}>Manage</button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson._id); }} className={styles.lessonDeleteButton} title="Delete lesson">
+                                                            <FiTrash2 />
+                                                        </button>
+                                                    </div>
+                                                </article>
+                                            ))}
                                         </div>
-                                    ))}
-                                </React.Fragment>
-                            ))
+                                    </section>
+                                ))}
+                            </div>
                         ) : (
                             <p className={styles.noLessons}>No lessons yet. Create the first one!</p>
                         )}

@@ -3,13 +3,13 @@ const router = express.Router();
 const Group = require('../models/Group');
 const User = require('../models/User');
 const auth = require('../middleware/auth.middleware');
-const { cache, clearUserCacheById, clearOverviewCache } = require('../middleware/cache.middleware');
+const { cache, clearUserCacheById, clearOverviewCache, clearCacheByPattern } = require('../middleware/cache.middleware');
 const taskQueue = require('../queues/taskQueue');
 const asyncHandler = require('../utils/asyncHandler'); // --- 1. ИМПОРТИРУЕМ ОБЕРТКУ ---
 
 // --- 2. ОБОРАЧИВАЕМ РОУТЫ В asyncHandler И УБИРАЕМ try...catch ---
 
-router.get('/all', [auth, auth.adminOnly], asyncHandler(async (req, res) => {
+router.get('/all', [auth, auth.adminOnly, cache(300)], asyncHandler(async (req, res) => {
     const groups = await Group.find({ status: 'active' }).select('name').sort({ name: 1 }).lean();
     res.json(groups);
 }));
@@ -45,6 +45,8 @@ router.post('/', [auth, auth.teacherOrAdmin], asyncHandler(async (req, res) => {
     await newGroup.save();
     await clearUserCacheById(req.user.userId);
     await clearOverviewCache();
+    await clearCacheByPattern('cache:*:GET:/api/groups*');
+    await clearCacheByPattern('cache:*:GET:/api/stats*');
     res.status(201).json(newGroup);
 }));
 
@@ -62,6 +64,8 @@ router.put('/:groupId/assign', [auth, auth.teacherOrAdmin], asyncHandler(async (
     
     await clearUserCacheById(req.user.userId);
     await clearOverviewCache();
+    await clearCacheByPattern('cache:*:GET:/api/groups*');
+    await clearCacheByPattern('cache:*:GET:/api/stats*');
     res.json({ message: 'Ученик успешно добавлен в группу' });
 }));
 
@@ -77,6 +81,8 @@ router.delete('/:groupId/students/:studentId', [auth, auth.teacherOrAdmin], asyn
     await User.updateOne({ _id: studentId }, { $set: { group: null } });
     await clearUserCacheById(req.user.userId);
     await clearOverviewCache();
+    await clearCacheByPattern('cache:*:GET:/api/groups*');
+    await clearCacheByPattern('cache:*:GET:/api/stats*');
     res.json({ message: 'Ученик успешно удален из группы' });
 }));
 
@@ -99,6 +105,8 @@ router.delete('/:groupId', [auth, auth.teacherOrAdmin], asyncHandler(async (req,
     taskQueue.add('delete-group', { groupId });
     await clearUserCacheById(userId);
     await clearOverviewCache();
+    await clearCacheByPattern('cache:*:GET:/api/groups*');
+    await clearCacheByPattern('cache:*:GET:/api/stats*');
     res.json({ message: 'Группа успешно удалена.' });
 }));
 

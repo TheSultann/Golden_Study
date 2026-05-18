@@ -64,6 +64,14 @@ const Sidebar = () => {
                     </li>
                 )}
 
+                {role === 'student' && (
+                    <li>
+                        <NavLink to="/my-payments" className={styles.menuItem} activeClassName={styles.active} title="My Payments">
+                            <FiDollarSign size={24} />
+                        </NavLink>
+                    </li>
+                )}
+
                 {/* --- CHANGE: Mobile icons moved to end of list and arranged in correct order --- */}
                 
                 {/* First Settings */}

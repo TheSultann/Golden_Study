@@ -20,6 +20,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx'));
 const FinancePage = lazy(() => import('./pages/FinancePage.jsx'));
 const AccountingPage = lazy(() => import('./pages/AccountingPage.jsx'));
 const TeachersOverviewPage = lazy(() => import('./pages/TeachersOverviewPage.jsx'));
+const StudentPaymentsPage = lazy(() => import('./pages/StudentPaymentsPage.jsx'));
 
 // --- Fallback Component ---
 const LoadingFallback = () => (
@@ -87,6 +88,13 @@ function App() {
         return <PrivateRouteWithLayout component={Component} {...rest} />;
     };
 
+    const StudentRouteWithLayout = ({ component: Component, ...rest }) => {
+        if (role !== 'student') {
+            return <Redirect to="/" />;
+        }
+        return <PrivateRouteWithLayout component={Component} {...rest} />;
+    };
+
     if (!token) {
         return (
             <Suspense fallback={<LoadingFallback />}>
@@ -120,6 +128,7 @@ function App() {
                         <TeacherOrAdminRouteWithLayout path="/groups" component={GroupsPage} />
                         
                         <PrivateRouteWithLayout path="/settings" component={SettingsPage} />
+                        <StudentRouteWithLayout path="/my-payments" component={StudentPaymentsPage} />
                         <AdminRouteWithLayout path="/finance" component={FinancePage} />
                         <AdminRouteWithLayout path="/accounting" component={AccountingPage} />
                         

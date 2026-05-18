@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: golden-study
+    runtime: node
+    plan: free
+    region: frankfurt
+    repo: https://github.com/TheSultann/Golden_Study
+    branch: master
+    buildCommand: npm run render-build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: REDIS_URL
+        sync: false

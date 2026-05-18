@@ -33,7 +33,7 @@ router.get('/:id/profile', authMiddleware, asyncHandler(async (req, res) => {
 
     let averageGrade = 0;
     if (evaluations.length > 0) {
-        const totalGrade = evaluations.reduce((sum, eval) => sum + eval.grade, 0);
+        const totalGrade = evaluations.reduce((sum, evaluation) => sum + evaluation.grade, 0);
         averageGrade = (totalGrade / evaluations.length).toFixed(1);
     }
     
@@ -60,7 +60,7 @@ router.get('/:id/profile', authMiddleware, asyncHandler(async (req, res) => {
 
     let financialStatus = { status: 'no_invoice', message: 'Счет не выставлен', details: null };
     if (payment) {
-        const amountFormatted = `${payment.amountDue} у.е.`; // Используем amountDue
+        const amountFormatted = `${payment.amountDue.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')} сум`;
 
         switch (payment.status) {
             case 'paid':
