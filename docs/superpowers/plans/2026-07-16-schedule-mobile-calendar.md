@@ -28,17 +28,17 @@
 - Consumes: `.schedule-calendar`, `.schedule-day`, существующий переключатель `Kalendar`.
 - Produces: responsive CSS-контракт одной колонки до 760 px.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Добавить проверку CSS-контракта: в mobile media query `.schedule-calendar` использует `grid-template-columns: minmax(0, 1fr)`, `overflow-x: visible`, а `.schedule-day` — `min-width: 0`.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `corepack pnpm --filter web test -- --run`
 
 Expected: FAIL, потому что mobile override отсутствует.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 В `@media (max-width: 760px)` добавить:
 
@@ -47,22 +47,22 @@ Expected: FAIL, потому что mobile override отсутствует.
 .schedule-day { min-width: 0; }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `corepack pnpm --filter web test -- --run`
 
 Expected: PASS.
 
-- [ ] **Step 5: Verify rendered UI**
+- [x] **Step 5: Verify rendered UI**
 
 Playwright flow: `/schedule` → `Kalendar` → 390 × 844. Проверить `scrollWidth === clientWidth` для документа и `.schedule-calendar`; затем проверить desktop 1440 × 900.
 
-- [ ] **Step 6: Run project checks**
+- [x] **Step 6: Run project checks**
 
 Run: `corepack pnpm lint && corepack pnpm typecheck && corepack pnpm build`
 
 Expected: exit code 0.
 
-- [ ] **Step 7: Update progress and commit**
+- [x] **Step 7: Update progress and commit**
 
 Записать изменение, файлы и результаты проверок в `docs/PROGRESS.md`, затем создать один логический commit.

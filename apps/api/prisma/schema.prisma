@@ -1,0 +1,575 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  KASSIR
+  TEACHER
+}
+
+enum SalaryType {
+  FIXED
+  PER_STUDENT
+  PERCENT
+}
+
+enum Weekday {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+  SUN
+}
+
+enum GroupStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum StudentStatus {
+  ACTIVE
+  FROZEN
+  GRADUATE
+  ARCHIVED
+}
+
+enum GroupStudentStatus {
+  ACTIVE
+  GRADUATE
+  REMOVED
+}
+
+enum BillingMode {
+  DAILY
+  MONTHLY
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  CALLBACK
+  TRIAL
+  CONVERTED
+  ARCHIVED
+}
+
+enum AttendanceStatus {
+  CAME
+  EXCUSED
+  ABSENT
+}
+
+enum LedgerAccountType {
+  STUDENT
+  TEACHER
+  CENTER
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerCategory {
+  STUDENT_PAYMENT
+  DAILY_LESSON_CHARGE
+  MONTHLY_TUITION_CHARGE
+  KPI_PERCENT_ACCRUAL
+  KPI_PER_STUDENT_ACCRUAL
+  KPI_FIXED_ACCRUAL
+  TEACHER_PAYOUT
+  STAFF_PAYOUT
+  MANUAL_INCOME
+  MANUAL_EXPENSE
+  ADJUSTMENT
+  REVERSAL
+}
+
+enum LedgerSourceType {
+  ATTENDANCE
+  MONTHLY_BILLING
+  PAYMENT
+  KPI
+  PAYOUT
+  MANUAL
+  REVERSAL
+}
+
+enum PaymentMethod {
+  CASH
+  CLICK
+  PAYME
+  UZUM
+  TERMINAL
+  BANK
+}
+
+enum BillingRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  login         String    @unique
+  passwordHash  String
+  role          Role
+  isActive      Boolean   @default(true)
+  teacherId     String?   @unique
+  phone         String?
+  position      String?
+  passportPinfl String?
+  hiredAt       DateTime? @db.Date
+  avatarUrl     String?
+  salaryUzs     Int?
+  lastSalaryPaidAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  teacher            Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  refreshTokens      RefreshToken[]
+  auditLogs          AuditLog[]
+  attendanceCreated  Attendance[]   @relation("AttendanceCreatedBy")
+  attendanceReversed Attendance[]   @relation("AttendanceReversedBy")
+  ledgerEntries      LedgerEntry[]
+  paymentsCreated    Payment[]
+  examsCreated       Exam[]
+  announcements      Announcement[] @relation("AnnouncementCreatedBy")
+
+  @@index([role, isActive])
+}
+
+model RefreshToken {
+  id                String    @id @default(uuid())
+  tokenHash         String    @unique
+  userId            String
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  replacedByTokenId String?   @unique
+  createdAt         DateTime  @default(now())
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replacedByToken RefreshToken? @relation("RefreshTokenRotation", fields: [replacedByTokenId], references: [id], onDelete: SetNull)
+  replacesToken   RefreshToken? @relation("RefreshTokenRotation")
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, revokedAt])
+}
+
+model Teacher {
+  id                 String     @id @default(uuid())
+  firstName          String
+  lastName           String
+  phone              String
+  salaryType         SalaryType
+  fixedSalaryUzs     Int?
+  perStudentRateUzs  Int?
+  kpiRateBasisPoints Int?
+  isActive           Boolean    @default(true)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  user          User?
+  groups        Group[]
+  leads         Lead[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([isActive])
+}
+
+model Course {
+  id               String   @id @default(uuid())
+  title            String   @unique
+  description      String?
+  durationMonths   Int
+  pricePerMonthUzs Int
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  groups Group[]
+  leads  Lead[]
+
+  @@index([isActive])
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groups Group[]
+}
+
+model Group {
+  id                    String      @id @default(uuid())
+  name                  String      @unique
+  courseId              String
+  teacherId             String
+  roomId                String?
+  weekdays              Weekday[]
+  lessonStartMinutes    Int
+  lessonDurationMinutes Int         @default(90)
+  startDate             DateTime    @db.Date
+  endDate               DateTime?   @db.Date
+  status                GroupStatus @default(ACTIVE)
+  createdAt             DateTime    @default(now())
+  updatedAt             DateTime    @updatedAt
+
+  course     Course         @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  teacher    Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  room       Room?          @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  students   GroupStudent[]
+  attendance Attendance[]
+  payments   Payment[]
+  exams      Exam[]
+
+  @@index([teacherId, status])
+  @@index([courseId, status])
+  @@index([roomId])
+}
+
+model Student {
+  id          String        @id @default(uuid())
+  studentCode String        @unique
+  firstName   String
+  lastName    String
+  birthDate   DateTime?     @db.Date
+  phone       String?
+  address     String?
+  parentName  String?
+  parentPhone String?
+  status      StudentStatus @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  groups        GroupStudent[]
+  attendance    Attendance[]
+  convertedLead Lead?
+  ledgerEntries LedgerEntry[]
+  payments      Payment[]
+  statusPeriods StudentStatusPeriod[]
+  examResults   ExamResult[]
+  telegramLinks TelegramLink[]
+
+  @@index([status])
+  @@index([lastName, firstName])
+}
+
+model GroupStudent {
+  id        String             @id @default(uuid())
+  groupId   String
+  studentId String
+  joinedAt  DateTime           @default(now())
+  leftAt    DateTime?
+  status    GroupStudentStatus @default(ACTIVE)
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([groupId, studentId, joinedAt])
+  @@index([groupId, status])
+  @@index([studentId, status])
+}
+
+model Settings {
+  id          String      @id @default("singleton")
+  centerName  String
+  logoUrl     String?
+  billingMode BillingMode @default(DAILY)
+  timezone    String      @default("Asia/Tashkent")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model StudentCodeCounter {
+  id        String   @id @default("singleton")
+  nextValue Int      @default(101)
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entity      String
+  entityId    String?
+  before      Json?
+  after       Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([actorUserId, createdAt])
+  @@index([entity, entityId, createdAt])
+}
+
+model Lead {
+  id                 String     @id @default(uuid())
+  fullName           String
+  phone              String
+  interestedCourseId String?
+  teacherId          String?
+  status             LeadStatus @default(NEW)
+  comment            String     @default("")
+  convertedStudentId String?    @unique
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  interestedCourse Course?  @relation(fields: [interestedCourseId], references: [id], onDelete: SetNull)
+  teacher          Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  convertedStudent Student? @relation(fields: [convertedStudentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([interestedCourseId, status])
+  @@index([teacherId, status])
+  @@index([phone])
+}
+
+model Attendance {
+  id               String           @id @default(uuid())
+  groupId          String
+  studentId        String
+  date             DateTime         @db.Date
+  status           AttendanceStatus
+  rating           Int?
+  homeworkDone     Boolean          @default(false)
+  comment          String           @default("")
+  lockedByAdmin    Boolean          @default(false)
+  isReversed       Boolean          @default(false)
+  reversedAt       DateTime?
+  createdByUserId  String
+  reversedByUserId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  group      Group   @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  createdBy  User    @relation("AttendanceCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  reversedBy User?   @relation("AttendanceReversedBy", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([groupId, studentId, date])
+  @@index([studentId, date])
+  @@index([groupId, date, isReversed])
+}
+
+model Exam {
+  id              String       @id @default(uuid())
+  groupId         String
+  name            String
+  date            DateTime     @db.Date
+  maxScore        Int
+  createdByUserId String
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  group     Group        @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  createdBy User         @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  results   ExamResult[]
+
+  @@index([groupId, date])
+}
+
+model ExamResult {
+  id        String @id @default(uuid())
+  examId    String
+  studentId String
+  score     Int
+  comment   String @default("")
+  rank      Int
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@unique([examId, studentId])
+  @@index([studentId])
+}
+
+model LedgerEntry {
+  id              String            @id @default(uuid())
+  accountType     LedgerAccountType
+  studentId       String?
+  teacherId       String?
+  direction       LedgerDirection
+  category        LedgerCategory
+  amountUzs       Int
+  operationKey    String            @unique
+  sourceType      LedgerSourceType
+  sourceId        String?
+  reversalOfId    String?           @unique
+  comment         String            @default("")
+  createdByUserId String
+  createdAt       DateTime          @default(now())
+
+  student    Student?     @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  teacher    Teacher?     @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  createdBy  User         @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  reversalOf LedgerEntry? @relation("LedgerReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversedBy LedgerEntry? @relation("LedgerReversal")
+  payment    Payment?
+
+  @@index([studentId, createdAt])
+  @@index([teacherId, createdAt])
+  @@index([accountType, direction, createdAt])
+  @@index([sourceType, sourceId])
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  studentId       String
+  groupId         String?
+  amountUzs       Int
+  method          PaymentMethod
+  comment         String        @default("")
+  ledgerEntryId   String        @unique
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  group       Group?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  ledgerEntry LedgerEntry @relation(fields: [ledgerEntryId], references: [id], onDelete: Restrict)
+  createdBy   User        @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, createdAt])
+  @@index([groupId, createdAt])
+}
+
+model BillingRun {
+  id           String           @id @default(uuid())
+  mode         BillingMode
+  periodKey    String
+  status       BillingRunStatus @default(RUNNING)
+  processed    Int              @default(0)
+  createdCount Int              @default(0)
+  skippedCount Int              @default(0)
+  errorSummary String?
+  startedAt    DateTime         @default(now())
+  completedAt  DateTime?
+
+  @@unique([mode, periodKey])
+  @@index([status, startedAt])
+}
+
+model StudentStatusPeriod {
+  id        String        @id @default(uuid())
+  studentId String
+  status    StudentStatus
+  startedAt DateTime
+  endedAt   DateTime?
+  createdAt DateTime      @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([studentId, startedAt])
+  @@index([studentId, status, endedAt])
+}
+
+enum TelegramLinkStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum AnnouncementTargetType {
+  ALL
+  GROUP
+  COURSE
+}
+
+enum AnnouncementDeliveryStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  BOT_DELIVERED
+  FAILED
+}
+
+enum TelegramTriggerType {
+  ATTENDANCE_ABSENT
+  HOMEWORK_MISSING
+  EXAM_RESULT
+  PAYMENT_RECEIVED
+  DEBT_REMINDER
+  ANNOUNCEMENT
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+model TelegramLink {
+  id             String             @id @default(uuid())
+  telegramChatId String
+  studentId      String
+  parentName     String?
+  parentPhone    String?
+  status         TelegramLinkStatus @default(PENDING)
+  requestedAt    DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  student       Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  notifications TelegramNotificationLog[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([telegramChatId])
+}
+
+model TelegramNotificationLog {
+  id             String              @id @default(uuid())
+  telegramLinkId String
+  triggerType    TelegramTriggerType
+  status         NotificationStatus  @default(QUEUED)
+  payload        String
+  queuedAt       DateTime            @default(now())
+  sentAt         DateTime?
+  attempts       Int                 @default(0)
+  maxAttempts    Int                 @default(3)
+  errorMessage   String?
+  jobId          String              @default(uuid())
+
+  telegramLink TelegramLink @relation(fields: [telegramLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId])
+  @@index([telegramLinkId])
+  @@index([status])
+}
+
+model Announcement {
+  id               String                     @id @default(uuid())
+  targetType       AnnouncementTargetType
+  targetId         String?
+  targetName       String
+  title            String
+  body             String
+  deliveryStatus   AnnouncementDeliveryStatus @default(QUEUED)
+  scheduledAt      DateTime?
+  deliveredAt      DateTime?
+  createdByUserId  String
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  createdBy User @relation("AnnouncementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+}
+

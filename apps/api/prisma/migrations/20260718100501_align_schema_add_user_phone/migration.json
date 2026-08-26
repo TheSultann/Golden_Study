@@ -1,0 +1,33 @@
+{
+  "version": "5.2",
+  "steps": [
+    {
+      "tag": "AlterEnum",
+      "enum": "LedgerCategory",
+      "values": ["STUDENT_PAYMENT", "DAILY_LESSON_CHARGE", "MONTHLY_TUITION_CHARGE", "KPI_PERCENT_ACCRUAL", "KPI_PER_STUDENT_ACCRUAL", "KPI_FIXED_ACCRUAL", "TEACHER_PAYOUT", "STAFF_PAYOUT", "MANUAL_INCOME", "MANUAL_EXPENSE", "ADJUSTMENT", "REVERSAL"]
+    },
+    {
+      "tag": "AlterEnum",
+      "enum": "PaymentMethod",
+      "values": ["CASH", "CLICK", "PAYME", "UZUM", "TERMINAL", "BANK"]
+    },
+    {
+      "tag": "AlterEnum",
+      "enum": "Role",
+      "values": ["SUPER_ADMIN", "ADMIN", "MANAGER", "ACCOUNTANT", "KASSIR", "TEACHER"]
+    },
+    {
+      "tag": "AlterTable",
+      "table": "User",
+      "operations": [
+        { "tag": "AddColumn", "column": { "name": "phone", "type": "TEXT", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "position", "type": "TEXT", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "passportPinfl", "type": "TEXT", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "hiredAt", "type": "DateTime", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "avatarUrl", "type": "TEXT", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "salaryUzs", "type": "Int", "nullable": true } },
+        { "tag": "AddColumn", "column": { "name": "lastSalaryPaidAt", "type": "DateTime", "nullable": true } }
+      ]
+    }
+  ]
+}

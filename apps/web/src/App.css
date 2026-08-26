@@ -1,0 +1,13 @@
+.app-placeholder {
+  display: grid;
+  min-height: 100vh;
+  place-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.app-placeholder h1,
+.app-placeholder p {
+  margin: 0;
+}

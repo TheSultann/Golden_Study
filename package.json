@@ -1,0 +1,15 @@
+{
+  "name": "golden-study-crm",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "dev": "corepack pnpm --filter @golden-study/contracts build && corepack pnpm --parallel --filter @golden-study/api --filter @golden-study/web dev",
+    "dev:web": "corepack pnpm --filter @golden-study/contracts build && corepack pnpm --filter @golden-study/web dev",
+    "dev:api": "corepack pnpm --filter @golden-study/api dev",
+    "dev:bot": "corepack pnpm --filter @golden-study/bot dev",
+    "build": "corepack pnpm -r build",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test"
+  }
+}
