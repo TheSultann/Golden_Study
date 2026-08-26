@@ -1,15 +1,22 @@
-import { config } from 'dotenv';
 import path from 'node:path';
-config({ path: path.resolve(process.cwd(), '.env') });
+import { fileURLToPath } from 'node:url';
+import { config } from 'dotenv';
+import { PrismaClient, Role } from '@prisma/client';
 
-import { PrismaClient } from '@prisma/client';
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+config({ path: path.resolve(currentDir, '../../../.env') });
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('Cleaning ALL data (courses, rooms, students, groups, attendance, leads, payments)...');
+  console.log('Cleaning ALL test data (keeping only SUPER_ADMIN)...');
 
   await prisma.$transaction([
+    prisma.examResult.deleteMany({}),
+    prisma.exam.deleteMany({}),
+    prisma.telegramNotificationLog.deleteMany({}),
+    prisma.telegramLink.deleteMany({}),
+    prisma.announcement.deleteMany({}),
     prisma.payment.deleteMany({}),
     prisma.ledgerEntry.deleteMany({}),
     prisma.attendance.deleteMany({}),
@@ -22,10 +29,11 @@ async function main() {
     prisma.room.deleteMany({}),
     prisma.billingRun.deleteMany({}),
     prisma.auditLog.deleteMany({}),
-    // Delete all users except main admin
+    prisma.refreshToken.deleteMany({}),
+    // Delete all users except SUPER_ADMIN
     prisma.user.deleteMany({
       where: {
-        login: { not: 'admin' },
+        role: { not: Role.SUPER_ADMIN },
       },
     }),
     prisma.teacher.deleteMany({}),
@@ -36,8 +44,9 @@ async function main() {
     }),
   ]);
 
-  console.log('Successfully cleaned ALL courses, rooms, students, groups, leads and payments!');
+  console.log('Successfully cleaned database! Only SUPER_ADMIN remains.');
 }
+
 
 main()
   .catch((e) => {
