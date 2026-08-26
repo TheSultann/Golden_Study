@@ -24,3 +24,5 @@ test-results/
 .playwright-cli/
 output/playwright/
 *.tsbuildinfo
+
+DEPLOY.md
