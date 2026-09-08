@@ -8,6 +8,29 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; }
+html, body {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted, #687085) 68%, transparent) transparent;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html::-webkit-scrollbar-track, body::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb, body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted, #687085) 68%, transparent);
+  border-radius: 999px;
+}
+html::-webkit-scrollbar-thumb:hover, body::-webkit-scrollbar-thumb:hover {
+  background: var(--muted, #687085);
+}
+html::-webkit-scrollbar-button, body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
 button, input { font: inherit; }
 button { cursor: pointer; }
 
@@ -2920,6 +2943,11 @@ select {
   border: 0;
 }
 
+body:has(.modal-backdrop),
+body:has(.student-profile-backdrop) {
+  overflow: hidden;
+}
+
 .student-profile-drawer {
   position: fixed;
   z-index: 80;
@@ -2929,6 +2957,7 @@ select {
   width: min(400px, 100%);
   height: 100dvh;
   flex-direction: column;
+  overflow: hidden;
   color: var(--text);
   background: var(--surface);
   border-left: 1px solid var(--border);
@@ -2953,7 +2982,7 @@ select {
   flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2966,7 +2995,19 @@ select {
 .student-profile-drawer header button:hover { color: var(--text); background: var(--surface-soft); }
 .student-profile-drawer button:focus-visible { outline: 3px solid rgb(var(--accent-rgb) / 20%); outline-offset: 2px; }
 
-.student-profile-body { display: flex; flex-direction: column; gap: 16px; min-height: 0; padding: 16px; overflow-y: auto; }
+.student-profile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 14px 16px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.student-profile-body::-webkit-scrollbar {
+  display: none;
+}
 .student-profile-body section { display: grid; gap: 8px; }
 .student-profile-body h3 { font-size: 12px; font-weight: 600; margin: 0; }
 .student-profile-headline { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -2974,18 +3015,18 @@ select {
 .student-profile-headline .student-profile-groups { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .student-profile-headline .student-profile-groups span { padding: 3px 8px; color: var(--muted); background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; font-size: 9.5px; }
 
-.student-profile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.student-profile-metrics article { display: grid; gap: 4px; min-height: 60px; align-content: center; padding: 8px 12px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
+.student-profile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.student-profile-metrics article { display: grid; gap: 2px; min-height: 48px; align-content: center; padding: 6px 10px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
 .student-profile-metrics article:last-child { grid-column: 1 / -1; }
-.student-profile-metrics span { color: var(--muted); font-size: 9.5px; }
-.student-profile-metrics strong { font-size: 15px; font-weight: 600; }
-.student-profile-empty { padding: 16px; color: var(--muted); background: var(--surface-soft); border: 1px dashed var(--border); border-radius: 8px; text-align: center; font-size: 11px; }
+.student-profile-metrics span { color: var(--muted); font-size: 9px; }
+.student-profile-metrics strong { font-size: 14px; font-weight: 600; }
+.student-profile-empty { padding: 14px; color: var(--muted); background: var(--surface-soft); border: 1px dashed var(--border); border-radius: 8px; text-align: center; font-size: 11px; }
 
-.student-profile-balance { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
+.student-profile-balance { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
 .student-profile-balance span { color: var(--muted); font-size: 10px; }
 .student-profile-balance strong { font-size: 13px; font-weight: 600; }
 .student-profile-details { display: grid; margin: 0; border: 1px solid var(--border); border-radius: 8px; }
-.student-profile-details div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.student-profile-details div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
 .student-profile-details div:last-child { border-bottom: 0; }
 .student-profile-details dt { color: var(--muted); font-size: 10px; }
 .student-profile-details dd { margin: 0; overflow-wrap: anywhere; font-size: 11px; }
@@ -2993,7 +3034,7 @@ select {
 .student-profile-state { display: grid; flex: 1; place-items: center; padding: 24px; color: var(--muted); font-size: 11px; text-align: center; }
 .student-profile-error { align-content: center; gap: 12px; color: #b91c1c; }
 .student-profile-error button { display: inline-flex; align-items: center; gap: 6px; }
-.student-profile-drawer > footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: var(--surface); border-top: 1px solid var(--border); }
+.student-profile-drawer > footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--border); }
 .student-profile-drawer > footer button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 
 @media (max-width: 760px) {

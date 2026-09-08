@@ -122,4 +122,13 @@ describe('StudentProfileDrawer', () => {
     expect(await screen.findByText('Ma’lumot yetarli emas')).toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
   })
+
+  it('locks body overflow while open and restores it when unmounted', async () => {
+    document.body.style.overflow = 'auto'
+    const view = renderDrawer('s1')
+    await screen.findByRole('dialog')
+    expect(document.body.style.overflow).toBe('hidden')
+    view.unmount()
+    expect(document.body.style.overflow).toBe('auto')
+  })
 })
