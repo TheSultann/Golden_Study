@@ -12,7 +12,7 @@ export function createStaffRouter(
 ): Router {
   const router = Router();
   router.use(createAuthenticate(authService));
-  router.use(requireRoles('SUPER_ADMIN', 'ADMIN'));
+  router.use(requireRoles('SUPER_ADMIN'));
 
   router.get('/', async (_request, response) => {
     const data = await staffService.list();

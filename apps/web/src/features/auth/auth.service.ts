@@ -22,11 +22,26 @@ let session: AuthUser | null = null
 let restorePromise: Promise<AuthUser | null> | null = null
 
 function toUiUser(user: ApiAuthUser): AuthUser {
-  const role = user.role === 'TEACHER' ? 'teacher' : 'admin'
+  let role: AuthUser['role'] = 'admin'
+  if (user.role === 'SUPER_ADMIN') {
+    role = 'superadmin'
+  } else if (user.role === 'TEACHER') {
+    role = 'teacher'
+  } else {
+    role = 'admin'
+  }
+
+  let name = 'Administrator'
+  if (role === 'superadmin') {
+    name = 'SuperAdmin'
+  } else if (role === 'teacher') {
+    name = "O‘qituvchi"
+  }
+
   return {
     id: user.id,
     login: user.login,
-    name: role === 'admin' ? 'Administrator' : "O‘qituvchi",
+    name,
     role,
   }
 }

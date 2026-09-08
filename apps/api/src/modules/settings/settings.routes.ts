@@ -18,7 +18,7 @@ export function createSettingsRouter(
     response.json(successResponse(data));
   });
 
-  router.patch('/', async (request, response) => {
+  router.patch('/', requireRoles('SUPER_ADMIN'), async (request, response) => {
     const data = await settingsService.updateSettings(request.body as Record<string, unknown>);
     response.json(successResponse(data));
   });

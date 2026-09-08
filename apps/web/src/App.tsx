@@ -50,18 +50,23 @@ function App() {
           <Route path="/attendance" element={<AttendanceHome />} />
           <Route path="/rating" element={<RatingHome />} />
           <Route path="/exams" element={<ExamsHome />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route element={<RoleRoute allowed={['admin']} />}>
-          <Route path="/teachers" element={<TeachersPage />} />
-          <Route path="/courses" element={<CoursesPage />} />
-          <Route path="/groups" element={<GroupsPage />} />
-          <Route path="/students" element={<StudentsPage />} />
-          <Route path="/leads" element={<LeadsPage />} />
-          <Route path="/finance" element={<FinancePage />} />
-          <Route path="/staff" element={<StaffPage />} />
-          <Route path="/announcements" element={<AnnouncementsPage />} />
-          <Route path="/telegram-bot" element={<TelegramBotPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
+          {/* Shared for superadmin and admin */}
+          <Route element={<RoleRoute allowed={['superadmin', 'admin']} />}>
+            <Route path="/teachers" element={<TeachersPage />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/students" element={<StudentsPage />} />
+            <Route path="/leads" element={<LeadsPage />} />
+            <Route path="/announcements" element={<AnnouncementsPage />} />
+            <Route path="/telegram-bot" element={<TelegramBotPage />} />
+          </Route>
+
+          {/* Superadmin ONLY */}
+          <Route element={<RoleRoute allowed={['superadmin']} />}>
+            <Route path="/finance" element={<FinancePage />} />
+            <Route path="/staff" element={<StaffPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="/:module" element={<HomePage />} />
         </Route>

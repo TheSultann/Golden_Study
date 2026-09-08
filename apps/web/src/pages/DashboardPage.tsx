@@ -2,9 +2,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, CalendarCheck, GraduationCap, TrendingUp, UsersRound, WalletCards } from 'lucide-react'
 
 import { useDashboard } from '../features/dashboard/useDashboard'
+import { getSession } from '../features/auth/auth.service'
 
 const statIcons = [UsersRound, GraduationCap, CalendarCheck, WalletCards]
-const statPaths = ['/students', '/courses', '/attendance', '/finance']
 
 function AttendanceChart() {
   const points = '0,55 28,70 56,64 84,72 112,48 140,61 168,43 196,68 224,59 252,74 280,46 308,58 336,39 364,50 392,42 420,57 448,36 476,49 504,32 532,45 560,37 588,51 616,35 644,44 672,31 700,49'
@@ -23,6 +23,10 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const dashboardQuery = useDashboard()
   const data = dashboardQuery.data
+  const isSuperAdmin = getSession()?.role === 'superadmin'
+  const statPaths = isSuperAdmin
+    ? ['/students', '/courses', '/attendance', '/finance']
+    : ['/students', '/courses', '/attendance', '/students']
 
   return (
     <section className="dashboard-page">
@@ -41,6 +45,7 @@ export function DashboardPage() {
       {data ? <>
       <div className="stats-grid">
         {data.stats.map((stat, index) => {
+          if (index === 3 && !isSuperAdmin) return null
           const Icon = statIcons[index]
           return <Link className="stat stat-link" to={statPaths[index]} key={stat.label}><span className={`stat-icon stat-${stat.tone}`}><Icon size={20} /></span><div><p>{stat.label}</p><strong>{stat.value}</strong><small><TrendingUp size={12} /> {stat.change} o‘tgan oyга nisbatan</small></div></Link>
         })}
