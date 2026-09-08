@@ -60,7 +60,7 @@ export function TelegramBotPage() {
       <div className="page-heading">
         <div>
           <h1>Telegram Bot</h1>
-          <p>Ota-ona ulanishlari, BullMQ navbati va push bildirishnomalar jurnali</p>
+          <p>Telegram bot ulanishlari, BullMQ navbati va push bildirishnomalar jurnali</p>
         </div>
       </div>
 
@@ -98,7 +98,7 @@ function TelegramContent({ overview, links, statusFilter, setStatusFilter, selec
       <div className="telegram-layout">
         <section className="panel telegram-links">
           <header>
-            <div><h2>Ulanish so'rovlari</h2><span className="finance-note">Ota-onalar ulanishini tasdiqlash</span></div>
+            <div><h2>Ulanish so'rovlari</h2><span className="finance-note">Telegram profil ulanishini tasdiqlash</span></div>
             <select aria-label="Telegram link holati" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | TelegramLink['status'])}>
               <option value="pending">Kutilmoqda</option>
               <option value="active">Faol</option>
@@ -108,8 +108,8 @@ function TelegramContent({ overview, links, statusFilter, setStatusFilter, selec
           </header>
           <div className="table-scroll">
             <table aria-label="Telegram ulanishlari">
-              <thead><tr><th>O'quvchi</th><th>Ota-ona</th><th>Chat ID</th><th>Holat</th><th>So'rov</th><th>Amal</th></tr></thead>
-              <tbody>{links.map((link) => <tr key={link.id}><td data-label="O‘quvchi"><strong>{link.studentName}</strong><span>{link.studentCode}</span></td><td data-label="Ota-ona"><strong>{link.parentName}</strong><span>{link.parentPhone}</span></td><td data-label="Chat ID">{link.telegramChatId}</td><td data-label="Holat"><span className={`telegram-status ${link.status}`}>{statusLabels[link.status]}</span></td><td data-label="So‘rov">{formatDate(link.requestedAt)}</td><td data-label="Amallar"><div className="telegram-actions">{link.status === 'pending' && <><button type="button" className="telegram-approve-button" onClick={() => void approve(link)}><CheckCircle2 size={13} /> Tasdiqlash</button><button type="button" className="telegram-reject-button" onClick={() => void reject(link)}><XCircle size={13} /> Rad etish</button></>}{link.status === 'active' && <button type="button" onClick={() => void sendManual(link)}><Send size={13} /> Test yuborish</button>}</div></td></tr>)}</tbody>
+              <thead><tr><th>O'quvchi</th><th>Bog'langan profil</th><th>Chat ID</th><th>Holat</th><th>So'rov</th><th>Amal</th></tr></thead>
+              <tbody>{links.map((link) => <tr key={link.id}><td data-label="O‘quvchi"><strong>{link.studentName}</strong><span>{link.studentCode}</span></td><td data-label="Bog'langan profil"><strong>{link.parentName}</strong><span>{link.parentPhone}</span></td><td data-label="Chat ID">{link.telegramChatId}</td><td data-label="Holat"><span className={`telegram-status ${link.status}`}>{statusLabels[link.status]}</span></td><td data-label="So‘rov">{formatDate(link.requestedAt)}</td><td data-label="Amallar"><div className="telegram-actions">{link.status === 'pending' && <><button type="button" className="telegram-approve-button" onClick={() => void approve(link)}><CheckCircle2 size={13} /> Tasdiqlash</button><button type="button" className="telegram-reject-button" onClick={() => void reject(link)}><XCircle size={13} /> Rad etish</button></>}{link.status === 'active' && <button type="button" className="telegram-test-button" onClick={() => void sendManual(link)}><Send size={13} /> Test yuborish</button>}</div></td></tr>)}</tbody>
             </table>
           </div>
         </section>
@@ -147,7 +147,7 @@ function TelegramContent({ overview, links, statusFilter, setStatusFilter, selec
         <section className="teacher-modal telegram-log-modal" role="dialog" aria-modal="true" aria-labelledby="telegram-log-dialog-title" onClick={(event) => event.stopPropagation()}>
           <header><div><h2 id="telegram-log-dialog-title">Xabar tafsilotlari</h2><p>{triggerLabels[selectedLog.triggerType]}</p></div><button type="button" aria-label="Tafsilotlarni yopish" onClick={() => setSelectedLog(null)}><X size={18} /></button></header>
           <dl>
-            <div><dt>Ota-ona</dt><dd>{selectedRecipient?.parentName ?? 'Noma’lum'}</dd></div>
+            <div><dt>Bog'langan profil</dt><dd>{selectedRecipient?.parentName ?? 'Noma’lum'}</dd></div>
             <div><dt>O‘quvchi</dt><dd>{selectedRecipient ? `${selectedRecipient.studentName} · ${selectedRecipient.studentCode}` : selectedLog.telegramLinkId}</dd></div>
             <div><dt>Chat ID</dt><dd>{selectedRecipient?.telegramChatId ?? 'Topilmadi'}</dd></div>
             <div><dt>Job ID</dt><dd>{selectedLog.jobId}</dd></div>

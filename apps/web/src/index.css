@@ -2019,6 +2019,7 @@ button:disabled { cursor: not-allowed; opacity: .58; }
 
 .telegram-actions {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
@@ -2026,16 +2027,22 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   display: inline-flex;
   height: 30px;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 0 9px;
+  padding: 0 10px;
+  font-family: inherit;
   font-size: 10px;
+  border-radius: 8px;
+  margin: 0;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .telegram-actions .telegram-approve-button {
   color: #fff;
   background: #15803d;
   border: 1px solid #15803d;
-  border-radius: 8px;
   font-weight: 600;
 }
 
@@ -2048,7 +2055,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   color: #b91c1c;
   background: transparent;
   border: 1px solid rgb(185 28 28 / 45%);
-  border-radius: 8px;
   font-weight: 600;
 }
 
@@ -2057,8 +2063,23 @@ button:disabled { cursor: not-allowed; opacity: .58; }
   border-color: #b91c1c;
 }
 
+.telegram-actions .telegram-test-button {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.telegram-actions .telegram-test-button:hover {
+  background: rgb(var(--accent-rgb) / 8%);
+  border-color: var(--gold);
+  color: var(--gold-dark);
+}
+
 .telegram-actions .telegram-approve-button:focus-visible,
-.telegram-actions .telegram-reject-button:focus-visible {
+.telegram-actions .telegram-reject-button:focus-visible,
+.telegram-actions .telegram-test-button:focus-visible {
   outline: 3px solid rgb(var(--accent-rgb) / 28%);
   outline-offset: 2px;
 }
@@ -2954,7 +2975,7 @@ body:has(.student-profile-backdrop) {
   top: 0;
   right: 0;
   display: flex;
-  width: min(400px, 100%);
+  width: min(420px, 100%);
   height: 100dvh;
   flex-direction: column;
   overflow: hidden;
@@ -2980,27 +3001,29 @@ body:has(.student-profile-backdrop) {
 .student-profile-drawer > header {
   display: flex;
   flex: 0 0 auto;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border);
 }
+
 
 .student-profile-drawer h2,
 .student-profile-drawer h3,
 .student-profile-drawer p { margin: 0; }
 .student-profile-drawer h2 { font-size: 16px; font-weight: 600; }
-.student-profile-drawer header p { margin-top: 4px; color: var(--muted); font-size: 10px; }
-.student-profile-drawer header button { display: grid; width: 36px; height: 36px; place-items: center; color: var(--muted); background: transparent; border: 0; border-radius: 8px; }
+.student-profile-drawer header p { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.student-profile-drawer header button { display: grid; width: 34px; height: 34px; place-items: center; color: var(--muted); background: transparent; border: 0; border-radius: 8px; }
 .student-profile-drawer header button:hover { color: var(--text); background: var(--surface-soft); }
 .student-profile-drawer button:focus-visible { outline: 3px solid rgb(var(--accent-rgb) / 20%); outline-offset: 2px; }
 
 .student-profile-body {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
   min-height: 0;
-  padding: 14px 16px;
+  padding: 16px 20px;
   overflow-y: auto;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -3015,27 +3038,32 @@ body:has(.student-profile-backdrop) {
 .student-profile-headline .student-profile-groups { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
 .student-profile-headline .student-profile-groups span { padding: 3px 8px; color: var(--muted); background: var(--surface-soft); border: 1px solid var(--border); border-radius: 6px; font-size: 9.5px; }
 
-.student-profile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.student-profile-metrics article { display: grid; gap: 2px; min-height: 48px; align-content: center; padding: 6px 10px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
+.student-profile-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.student-profile-metrics article { display: grid; gap: 3px; min-height: 56px; align-content: center; padding: 9px 12px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 9px; }
 .student-profile-metrics article:last-child { grid-column: 1 / -1; }
-.student-profile-metrics span { color: var(--muted); font-size: 9px; }
-.student-profile-metrics strong { font-size: 14px; font-weight: 600; }
+.student-profile-metrics span { color: var(--muted); font-size: 10px; }
+.student-profile-metrics strong { font-size: 15px; font-weight: 600; }
 .student-profile-empty { padding: 14px; color: var(--muted); background: var(--surface-soft); border: 1px dashed var(--border); border-radius: 8px; text-align: center; font-size: 11px; }
 
-.student-profile-balance { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 8px; }
-.student-profile-balance span { color: var(--muted); font-size: 10px; }
-.student-profile-balance strong { font-size: 13px; font-weight: 600; }
-.student-profile-details { display: grid; margin: 0; border: 1px solid var(--border); border-radius: 8px; }
-.student-profile-details div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.student-profile-balance { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--surface-soft); border: 1px solid var(--border); border-radius: 9px; }
+.student-profile-balance span { color: var(--muted); font-size: 11px; display: block; }
+.student-profile-balance small { display: block; margin-top: 1px; color: #15803d; font-size: 10px; font-weight: 500; }
+.student-profile-balance.debt small { color: #b91c1c; }
+.student-profile-balance strong { font-size: 15px; font-weight: 600; }
+
+.student-profile-details { display: grid; margin: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.student-profile-details div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .student-profile-details div:last-child { border-bottom: 0; }
-.student-profile-details dt { color: var(--muted); font-size: 10px; }
-.student-profile-details dd { margin: 0; overflow-wrap: anywhere; font-size: 11px; }
+.student-profile-details dt { color: var(--muted); font-size: 10.5px; }
+.student-profile-details dd { margin: 0; overflow-wrap: anywhere; font-size: 11.5px; }
+.student-profile-details dd.muted-placeholder { color: var(--muted); opacity: 0.7; }
 
 .student-profile-state { display: grid; flex: 1; place-items: center; padding: 24px; color: var(--muted); font-size: 11px; text-align: center; }
 .student-profile-error { align-content: center; gap: 12px; color: #b91c1c; }
 .student-profile-error button { display: inline-flex; align-items: center; gap: 6px; }
-.student-profile-drawer > footer { display: flex; flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 10px 16px; background: var(--surface); border-top: 1px solid var(--border); }
-.student-profile-drawer > footer button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+
+.student-profile-drawer > footer { display: flex; flex: 0 0 auto; margin-top: auto; justify-content: flex-end; gap: 8px; padding: 14px 20px; background: var(--surface); border-top: 1px solid var(--border); }
+.student-profile-drawer > footer button { display: inline-flex; flex: 1; min-height: 38px; align-items: center; justify-content: center; gap: 6px; font-size: 12px; font-weight: 500; }
 
 @media (max-width: 760px) {
   .student-profile-drawer { width: 100%; border-left: 0; }

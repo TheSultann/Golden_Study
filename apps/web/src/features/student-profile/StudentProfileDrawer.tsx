@@ -93,7 +93,10 @@ export function StudentProfileDrawer({ studentId, onClose, onEdit }: StudentProf
               <section aria-labelledby="student-finance-title">
                 <h3 id="student-finance-title">Moliya</h3>
                 <div className={`student-profile-balance ${profile.student.balance < 0 ? 'debt' : 'credit'}`}>
-                  <span>Balans</span>
+                  <div>
+                    <span>Balans</span>
+                    <small>{profile.student.balance < 0 ? 'Qarzdorlik mavjud' : 'Qarzdorlik yo‘q'}</small>
+                  </div>
                   <strong>{money.format(profile.student.balance)} UZS</strong>
                 </div>
               </section>
@@ -101,10 +104,10 @@ export function StudentProfileDrawer({ studentId, onClose, onEdit }: StudentProf
               <section aria-labelledby="student-contacts-title">
                 <h3 id="student-contacts-title">Aloqa ma’lumotlari</h3>
                 <dl className="student-profile-details">
-                  <div><dt>Telefon</dt><dd>{profile.student.phone}</dd></div>
-                  <div><dt>Ota-ona</dt><dd>{profile.student.parentName}</dd></div>
-                  <div><dt>Ota-ona telefoni</dt><dd>{profile.student.parentPhone}</dd></div>
-                  <div><dt>Manzil</dt><dd>{profile.student.address}</dd></div>
+                  <div><dt>Telefon</dt><dd>{profile.student.phone || '—'}</dd></div>
+                  <div><dt>Ota-ona</dt><dd className={profile.student.parentName ? '' : 'muted-placeholder'}>{profile.student.parentName || 'Kiritilmagan'}</dd></div>
+                  <div><dt>Ota-ona telefoni</dt><dd className={profile.student.parentPhone ? '' : 'muted-placeholder'}>{profile.student.parentPhone || 'Kiritilmagan'}</dd></div>
+                  <div><dt>Manzil</dt><dd className={profile.student.address ? '' : 'muted-placeholder'}>{profile.student.address || 'Kiritilmagan'}</dd></div>
                 </dl>
               </section>
             </div>
