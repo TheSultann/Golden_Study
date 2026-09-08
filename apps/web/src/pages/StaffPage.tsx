@@ -1,5 +1,5 @@
 import type { StaffCreateInput, StaffMember, StaffRole, StaffStatus } from '@golden-study/contracts'
-import { Archive, Banknote, Check, Copy, Eye, EyeOff, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Search, ShieldCheck, Unlock, X } from 'lucide-react'
+import { Archive, Banknote, Check, CheckCircle2, Copy, Eye, EyeOff, Lock, MoreHorizontal, Pencil, Plus, RefreshCw, Search, ShieldCheck, Unlock, X } from 'lucide-react'
 import { type FormEvent, useMemo, useState } from 'react'
 import { usePayStaffSalary, useSaveStaffMember, useSetStaffStatus, useStaff } from '../features/staff/useStaff'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
@@ -55,7 +55,7 @@ function StaffForm({
   const [showPassword, setShowPassword] = useState(false)
   const [role, setRoleState] = useState<StaffRole>(member?.role ?? 'admin')
   const [login, setLogin] = useState(member?.login ?? '')
-  const [password, setPassword] = useState(() => (member ? '••••••••' : generateRandomPassword()))
+  const [password, setPassword] = useState(() => (member ? '' : generateRandomPassword()))
   const [copied, setCopied] = useState(false)
   const [salaryRaw, setSalaryRaw] = useState(() => (member?.salaryUzs ? String(member.salaryUzs) : ''))
 
@@ -94,6 +94,7 @@ function StaffForm({
       return
     }
 
+    const passVal = password.trim()
     save({
       ...member,
       ...base,
@@ -102,6 +103,7 @@ function StaffForm({
       linkedTeacherName: member?.linkedTeacherName ?? null,
       lastLoginAt: member?.lastLoginAt ?? null,
       createdAt: member?.createdAt ?? new Date().toISOString().slice(0, 10),
+      ...(passVal ? { password: passVal } : {}),
     })
   }
 
@@ -161,50 +163,47 @@ function StaffForm({
 
             <div className="form-section-title" style={{ marginTop: '6px' }}>
               <strong>Tizimga kirish huquqi</strong>
-              <span>Avtomatik login va boshlang‘ich parol</span>
+              <span>{member ? 'Login va yangi parol o‘rnatish' : 'Avtomatik login va boshlang‘ich parol'}</span>
             </div>
 
-            <label className={member ? 'form-wide' : ''}>Login
+            <label className="form-wide">Login
               <input name="login" required value={login} onChange={(event) => setLogin(event.target.value)} placeholder="Masalan: a.karimov" />
             </label>
 
-            {!member && (
-              <>
-                <label>
-                  <span>Parol</span>
-                  <div className="password-field">
-                    <input
-                      name="password"
-                      aria-label="Parol"
-                      type={showPassword ? 'text' : 'password'}
-                      minLength={8}
-                      required
-                      autoComplete="new-password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      aria-label={showPassword ? 'Parolni yashirish' : "Parolni ko'rsatish"}
-                      onClick={() => setShowPassword((value) => !value)}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </label>
-
+            <label className="form-wide">
+              <span>{member ? 'Yangi parol (o‘zgartirish uchun kiriting)' : 'Parol'}</span>
+              <div className="password-field">
+                <input
+                  name="password"
+                  aria-label="Parol"
+                  type={showPassword ? 'text' : 'password'}
+                  minLength={6}
+                  required={!member}
+                  autoComplete="new-password"
+                  placeholder={member ? 'O‘zgartirish uchun yangi parol kiriting' : ''}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                />
                 <button
                   type="button"
-                  className="secondary-button credential-copy-button form-wide"
-                  aria-label="Login va parolni nusxalash"
-                  disabled={!login || !password}
-                  onClick={copyCredentials}
-                  style={{ gap: '6px' }}
+                  aria-label={showPassword ? 'Parolni yashirish' : "Parolni ko'rsatish"}
+                  onClick={() => setShowPassword((value) => !value)}
                 >
-                  <Copy size={14} /> <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
-              </>
-            )}
+              </div>
+            </label>
+
+            <button
+              type="button"
+              className="secondary-button credential-copy-button form-wide"
+              aria-label="Login va parolni nusxalash"
+              disabled={!login || !password}
+              onClick={copyCredentials}
+              style={{ gap: '6px' }}
+            >
+              <Copy size={14} /> <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
+            </button>
           </div>
           <footer>
             <button type="button" className="secondary-button" onClick={close}>Bekor qilish</button>
@@ -233,6 +232,12 @@ export function StaffPage() {
   const [editing, setEditing] = useState<StaffMember | 'new' | null>(null)
   const [payoutStaff, setPayoutStaff] = useState<StaffMember | null>(null)
   const [payoutFeedback, setPayoutFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 3000)
+  }
 
   const handleQueryChange = (val: string) => { setQuery(val); setPage(1) }
   const handleRoleChange = (val: 'all' | StaffRole) => { setRole(val); setPage(1) }
@@ -259,12 +264,14 @@ export function StaffPage() {
 
   async function saveMember(input: StaffCreateInput | StaffMember) {
     try {
+      const isEdit = 'id' in input && input.id
       const saved = await saveMutation.mutateAsync(input)
       setSelected(saved)
       setEditing(null)
       setQuery('')
       setRole('all')
       setStatus('active')
+      showToast(isEdit ? 'Xodim ma’lumotlari muvaffaqiyatli saqlandi' : 'Yangi xodim muvaffaqiyatli qo‘shildi')
     } catch (err: any) {
       console.error('Failed to save staff member:', err)
     }
@@ -273,6 +280,7 @@ export function StaffPage() {
   async function changeStatus(member: StaffMember, targetStatus: StaffStatus) {
     const updated = await statusMutation.mutateAsync({ id: member.id, status: targetStatus })
     setSelected(updated)
+    showToast('Xodim holati muvaffaqiyatli o‘zgartirildi')
   }
 
 function isPaidThisMonth(lastSalaryPaidAt?: string | null): boolean {
@@ -642,6 +650,34 @@ function isPaidThisMonth(lastSalaryPaidAt?: string | null): boolean {
           />
         )
       })()}
+
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            color: '#15803d',
+            background: '#f0fdf4',
+            border: '1px solid rgb(34 197 94 / 30%)',
+            borderRadius: '9999px',
+            boxShadow: '0 8px 24px rgb(0 0 0 / 12%)',
+            fontSize: '13px',
+            fontWeight: 500,
+            pointerEvents: 'none',
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>{toast}</span>
+        </div>
+      )}
     </section>
   )
 }

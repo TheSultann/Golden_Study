@@ -26,3 +26,4 @@ output/playwright/
 *.tsbuildinfo
 
 DEPLOY.md
+opencode.json

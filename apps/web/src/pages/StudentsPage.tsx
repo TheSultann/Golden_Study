@@ -1,5 +1,6 @@
 import type { Student } from '@golden-study/contracts';
 import { 
+  CheckCircle2,
   MoreHorizontal, 
   Plus, 
   Search, 
@@ -216,7 +217,12 @@ export function StudentsPage() {
   const [pendingFreeze, setPendingFreeze] = useState<Student | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Student | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
+  function showToast(msg: string) {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 3000);
+  }
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -289,8 +295,10 @@ export function StudentsPage() {
   }), [data]);
 
   async function save(v: Student) {
+    const isNew = !data.some((s) => s.id === v.id);
     await saveM.mutateAsync(v);
     setEditing(null);
+    showToast(isNew ? 'Yangi o‘quvchi muvaffaqiyatli qo‘shildi' : 'O‘quvchi ma’lumotlari muvaffaqiyatli yangilandi');
   }
 
   function handleExport(type: 'pdf' | 'csv') {
@@ -680,6 +688,34 @@ export function StudentsPage() {
           })()}
         </div>,
         document.querySelector('.app-shell') ?? document.body
+      )}
+
+      {toast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            color: '#15803d',
+            background: '#f0fdf4',
+            border: '1px solid rgb(34 197 94 / 30%)',
+            borderRadius: '9999px',
+            boxShadow: '0 8px 24px rgb(0 0 0 / 12%)',
+            fontSize: '13px',
+            fontWeight: 500,
+            pointerEvents: 'none',
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>{toast}</span>
+        </div>
       )}
     </section>
   );

@@ -96,6 +96,7 @@ function toUpdateInput(teacher: Teacher) {
     fixedSalaryUzs: apiSalaryType === 'FIXED' ? teacher.rate : undefined,
     perStudentRateUzs: apiSalaryType === 'PER_STUDENT' ? teacher.rate : undefined,
     kpiRateBasisPoints: apiSalaryType === 'PERCENT' ? teacher.rate * 100 : undefined,
+    ...((teacher as any).password ? { password: (teacher as any).password } : {}),
   }
 }
 

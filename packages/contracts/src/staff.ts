@@ -24,6 +24,7 @@ export const staffMemberSchema = z.object({
   lastLoginAt: z.string().nullable(),
   lastSalaryPaidAt: z.string().nullable().optional(),
   createdAt: z.string(),
+  password: z.string().min(6).optional(),
 })
 
 export const staffCreateInputSchema = staffMemberSchema

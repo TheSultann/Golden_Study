@@ -9,7 +9,10 @@ export const useStaff = () => useQuery({ queryKey: staffKey, queryFn: () => staf
 export function useSaveStaffMember() {
   const client = useQueryClient()
   return useMutation({
-    mutationFn: (input: StaffCreateInput | StaffMember) => 'password' in input ? staffRepository.create(input) : staffRepository.update(input),
+    mutationFn: (input: StaffCreateInput | StaffMember) =>
+      'id' in input && input.id
+        ? staffRepository.update(input)
+        : staffRepository.create(input as StaffCreateInput),
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: staffKey }),

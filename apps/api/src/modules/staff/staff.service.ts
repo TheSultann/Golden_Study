@@ -140,6 +140,11 @@ export class StaffService {
   public async update(member: StaffMember): Promise<StaffMember> {
     const pos = archivePrefix(member.position, member.status);
 
+    const passwordHash =
+      member.password && member.password.trim().length >= 6
+        ? await bcrypt.hash(member.password.trim(), 10)
+        : undefined;
+
     const user = await this.prisma.user.update({
       where: { id: member.id },
       data: {
@@ -151,6 +156,7 @@ export class StaffService {
         passportPinfl: member.passportPinfl ?? null,
         hiredAt: member.hiredAt ? new Date(member.hiredAt) : null,
         salaryUzs: member.salaryUzs ?? null,
+        ...(passwordHash ? { passwordHash } : {}),
       },
       include: { teacher: true },
     });

@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Copy, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react'
+import { AlertCircle, Check, CheckCircle2, Copy, Eye, EyeOff, MoreHorizontal, Plus, Search, Trash2, X } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 
@@ -25,7 +25,7 @@ function TeacherForm({ teacher, pending, error, onClose, onSave }: TeacherFormPr
   const [fullName, setFullName] = useState(() => teacher ? joinFullName(teacher.firstName, teacher.lastName) : '')
   const [phone, setPhone] = useState(() => teacher?.phone ?? '')
   const [phoneError, setPhoneError] = useState<string | null>(null)
-  const [password] = useState(() => teacher ? '••••••••' : `gs_${Math.random().toString(36).slice(-4)}${Math.floor(1000 + Math.random() * 9000)}`)
+  const [password, setPassword] = useState(() => teacher ? '' : `gs_${Math.random().toString(36).slice(-4)}${Math.floor(1000 + Math.random() * 9000)}`)
   const [showPassword, setShowPassword] = useState(true)
   const [copied, setCopied] = useState(false)
 
@@ -59,7 +59,7 @@ function TeacherForm({ teacher, pending, error, onClose, onSave }: TeacherFormPr
       groups: teacher?.groups ?? [],
       login,
       active: teacher?.active ?? true,
-      ...(password && !teacher ? { password } : {}),
+      ...(password && password.trim() ? { password: password.trim() } : {}),
     } as Teacher)
   }
 
@@ -102,21 +102,19 @@ function TeacherForm({ teacher, pending, error, onClose, onSave }: TeacherFormPr
               <input type="hidden" name="rate" value={numericRate} />
               {rateHint ? <small className="form-field-hint">{rateHint}</small> : null}
             </label>
-            <div className="form-section-title"><strong>Tizimga kirish</strong><span>Avtomatik login va boshlang‘ich parol</span></div>
+            <div className="form-section-title"><strong>Tizimga kirish</strong><span>{teacher ? 'Login va yangi parol o‘rnatish' : 'Avtomatik login va boshlang‘ich parol'}</span></div>
             <label>Login<input name="login" readOnly value={login} /></label>
-            <label><span>Parol</span><div className="password-field"><input name="password" type={showPassword ? 'text' : 'password'} readOnly value={password} /><button type="button" aria-label={showPassword ? 'Parolni yashirish' : "Parolni ko‘rsatish"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
-            {!teacher && (
-              <button
-                type="button"
-                className="secondary-button credential-copy-button"
-                aria-label="Login va parolni nusxalash"
-                disabled={pending || !login}
-                onClick={handleCopy}
-              >
-                {copied ? <Check size={14} style={{ color: '#15803d' }} /> : <Copy size={14} />}
-                <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
-              </button>
-            )}
+            <label><span>{teacher ? 'Yangi parol (ixtiyoriy)' : 'Parol'}</span><div className="password-field"><input name="password" type={showPassword ? 'text' : 'password'} readOnly={!teacher} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={teacher ? 'O‘zgartirish uchun kiriting' : ''} /><button type="button" aria-label={showPassword ? 'Parolni yashirish' : "Parolni ko‘rsatish"} onClick={() => setShowPassword((value) => !value)}>{showPassword ? <EyeOff size={16} /> : <Eye size={16} />}</button></div></label>
+            <button
+              type="button"
+              className="secondary-button credential-copy-button"
+              aria-label="Login va parolni nusxalash"
+              disabled={pending || !login || !password}
+              onClick={handleCopy}
+            >
+              {copied ? <Check size={14} style={{ color: '#15803d' }} /> : <Copy size={14} />}
+              <span>{copied ? 'Nusxalandi!' : 'Nusxalash'}</span>
+            </button>
           </div>
 
           {phoneError || error ? (
@@ -174,6 +172,13 @@ export function TeachersPage() {
   }, [searchParams])
 
   const teachers = teachersQuery.data ?? emptyTeachers
+  const [toast, setToast] = useState<string | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 3000)
+  }
+
   const filtered = useMemo(() => teachers.filter((teacher) => {
     if (!teacher.active) return false
     const fullName = `${teacher.firstName} ${teacher.lastName}`.toLowerCase()
@@ -184,9 +189,11 @@ export function TeachersPage() {
 
   async function saveTeacher(value: Teacher) {
     try {
+      const isNew = value.id.startsWith('new-')
       const saved = await saveMutation.mutateAsync(value)
       setSelected(saved)
       closeForm()
+      showToast(isNew ? 'Yangi o‘qituvchi muvaffaqiyatli qo‘shildi' : 'O‘qituvchi ma’lumotlari muvaffaqiyatli yangilandi')
     } catch {
       // Mutation error caught and rendered inside TeacherForm
     }
@@ -197,6 +204,7 @@ export function TeachersPage() {
       await activeMutation.mutateAsync({ id: teacher.id, active: false })
       setDeletingTeacher(null)
       setSelected(null)
+      showToast('O‘qituvchi muvaffaqiyatli o‘chirildi')
     } catch {
       // Recoverable mutation error rendered via activeMutation.isError banner
     }
@@ -285,5 +293,33 @@ export function TeachersPage() {
         onConfirm={() => void deleteTeacher(deletingTeacher)}
       />
     ) : null}
+
+    {toast && (
+      <div
+        role="status"
+        style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          padding: '10px 20px',
+          color: '#15803d',
+          background: '#f0fdf4',
+          border: '1px solid rgb(34 197 94 / 30%)',
+          borderRadius: '9999px',
+          boxShadow: '0 8px 24px rgb(0 0 0 / 12%)',
+          fontSize: '13px',
+          fontWeight: 500,
+          pointerEvents: 'none',
+        }}
+      >
+        <CheckCircle2 size={16} />
+        <span>{toast}</span>
+      </div>
+    )}
   </section>
 }
