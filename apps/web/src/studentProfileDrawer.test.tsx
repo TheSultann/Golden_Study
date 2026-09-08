@@ -61,6 +61,8 @@ vi.mock('./features/student-profile/studentProfile.dependencies', () => ({
   },
 }))
 
+import * as authService from './features/auth/auth.service'
+
 function renderDrawer(studentId: string) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
@@ -70,12 +72,22 @@ function renderDrawer(studentId: string) {
 }
 
 describe('StudentProfileDrawer', () => {
-  it('shows identity, academic summary, finance and contacts', async () => {
+  it('shows identity, academic summary, finance, contacts and To‘lov button for non-teacher', async () => {
+    vi.spyOn(authService, 'getSession').mockReturnValue({
+      id: 'u1',
+      login: 'admin',
+      name: 'Admin',
+      role: 'admin',
+    })
+
     renderDrawer('s1')
 
     const dialog = await screen.findByRole('dialog')
     await screen.findByText('ST101')
     expect(dialog).toHaveTextContent('ST101')
+    expect(dialog).toHaveTextContent('O‘qish ko‘rsatkichlari')
+    expect(dialog).toHaveTextContent('Faol')
+    expect(dialog).toHaveTextContent('g1')
     expect(dialog).toHaveTextContent('Umumiy reyting')
     expect(dialog).toHaveTextContent('Guruhdagi o‘rni')
     expect(dialog).toHaveTextContent('Imtihonlar')
@@ -83,9 +95,28 @@ describe('StudentProfileDrawer', () => {
     expect(dialog).toHaveTextContent('Uy vazifasi')
     expect(dialog).toHaveTextContent('Balans')
     expect(dialog).toHaveTextContent('Akmal Abdullayev')
+    expect(screen.getByRole('button', { name: /to‘lov/i })).toBeInTheDocument()
+  })
+
+  it('hides To‘lov button when logged in as teacher', async () => {
+    vi.spyOn(authService, 'getSession').mockReturnValue({
+      id: 'u2',
+      login: 'teacher',
+      name: 'Teacher',
+      role: 'teacher',
+    })
+
+    renderDrawer('s1')
+
+    await screen.findByRole('dialog')
+    await screen.findByText('ST101')
+    expect(screen.queryByRole('button', { name: /to‘lov/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /tahrirlash/i })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /yopish/i }).length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders missing academic values without fake zeros', async () => {
+    vi.spyOn(authService, 'getSession').mockReturnValue(null)
     renderDrawer('s3')
 
     expect(await screen.findByText('Ma’lumot yetarli emas')).toBeInTheDocument()

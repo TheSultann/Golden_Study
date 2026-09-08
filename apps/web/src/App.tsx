@@ -22,6 +22,7 @@ import { TeacherSchedulePage } from './pages/TeacherSchedulePage'
 import { TeacherAttendancePage } from './pages/TeacherAttendancePage'
 import { TeacherRatingPage } from './pages/TeacherRatingPage'
 import { TeacherExamsPage } from './pages/TeacherExamsPage'
+import { TeacherSalaryPage } from './pages/TeacherSalaryPage'
 import { getSession } from './features/auth/auth.service'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { RoleRoute } from './routes/RoleRoute'
@@ -50,15 +51,25 @@ function App() {
           <Route path="/attendance" element={<AttendanceHome />} />
           <Route path="/rating" element={<RatingHome />} />
           <Route path="/exams" element={<ExamsHome />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          {/* Shared for superadmin, admin and teacher */}
+          <Route element={<RoleRoute allowed={['superadmin', 'admin', 'teacher']} />}>
+            <Route path="/students" element={<StudentsPage />} />
+          </Route>
+
           {/* Shared for superadmin and admin */}
           <Route element={<RoleRoute allowed={['superadmin', 'admin']} />}>
             <Route path="/teachers" element={<TeachersPage />} />
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/groups" element={<GroupsPage />} />
-            <Route path="/students" element={<StudentsPage />} />
             <Route path="/leads" element={<LeadsPage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/telegram-bot" element={<TelegramBotPage />} />
+          </Route>
+
+          {/* Teacher ONLY */}
+          <Route element={<RoleRoute allowed={['teacher']} />}>
+            <Route path="/my-salary" element={<TeacherSalaryPage />} />
           </Route>
 
           {/* Superadmin ONLY */}
@@ -66,7 +77,6 @@ function App() {
             <Route path="/finance" element={<FinancePage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
           </Route>
           <Route path="/:module" element={<HomePage />} />
         </Route>

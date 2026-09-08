@@ -16,6 +16,10 @@ export const teacherDashboardSchema = z.object({
   todayLessons: z.number().int().nonnegative(),
   attendancePercent: z.number().int().min(0).max(100),
   upcomingLessons: z.array(teacherDashboardLessonSchema),
+  kpiBalance: z.number().int().optional(),
+  salaryType: z.enum(['fixed', 'per_student', 'percent']).optional(),
+  salaryRate: z.number().optional(),
+  lastSalaryPaidAt: z.string().nullable().optional(),
 })
 
 export const teacherDashboardResponseSchema = z.object({ data: teacherDashboardSchema })

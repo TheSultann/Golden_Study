@@ -15,7 +15,7 @@ export const useFinance = (options?: { enabled?: boolean }) => {
   })
 }
 export function useSaveFinanceTransaction() { const client = useQueryClient(); return useMutation({ mutationFn: (input: SaveFinanceTransactionInput) => financeRepository.saveTransaction(input), onSuccess: async () => client.invalidateQueries({ queryKey: key }) }) }
-export function useSaveStudentPayment() { const client = useQueryClient(); return useMutation({ mutationFn: (input: SaveStudentPaymentInput) => financeRepository.saveStudentPayment(input), onSuccess: async () => { await Promise.all([client.invalidateQueries({ queryKey: key }), client.invalidateQueries({ queryKey: ['students'] }), client.invalidateQueries({ queryKey: ['student'] }), client.invalidateQueries({ queryKey: ['reports'] }), client.invalidateQueries({ queryKey: ['telegram-bot'] })]) } }) }
+export function useSaveStudentPayment() { const client = useQueryClient(); return useMutation({ mutationFn: (input: SaveStudentPaymentInput) => financeRepository.saveStudentPayment(input), onSuccess: async () => { await Promise.all([client.invalidateQueries({ queryKey: key }), client.invalidateQueries({ queryKey: ['students'] }), client.invalidateQueries({ queryKey: ['student'] }), client.invalidateQueries({ queryKey: ['student-profile'] }), client.invalidateQueries({ queryKey: ['reports'] }), client.invalidateQueries({ queryKey: ['telegram-bot'] })]) } }) }
 export function useSaveExpense() { const client = useQueryClient(); return useMutation({ mutationFn: (input: SaveExpenseInput) => financeRepository.saveExpense(input), onSuccess: async () => client.invalidateQueries({ queryKey: key }) }) }
 export function usePayTeacherSalary() {
   const client = useQueryClient()

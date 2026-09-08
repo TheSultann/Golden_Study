@@ -15,7 +15,12 @@ export function useSaveStudent() {
   const c = useQueryClient()
   return useMutation({
     mutationFn: (v: Student) => studentRepository.save(v),
-    onSuccess: async () => c.invalidateQueries({ queryKey: key }),
+    onSuccess: async () => {
+      await Promise.all([
+        c.invalidateQueries({ queryKey: key }),
+        c.invalidateQueries({ queryKey: ['student-profile'] }),
+      ])
+    },
   })
 }
 
@@ -24,7 +29,12 @@ export function useSetStudentStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: Student['status'] }) =>
       studentRepository.setStatus(id, status),
-    onSuccess: async () => c.invalidateQueries({ queryKey: key }),
+    onSuccess: async () => {
+      await Promise.all([
+        c.invalidateQueries({ queryKey: key }),
+        c.invalidateQueries({ queryKey: ['student-profile'] }),
+      ])
+    },
   })
 }
 
@@ -32,7 +42,12 @@ export function useDeleteStudent() {
   const c = useQueryClient()
   return useMutation({
     mutationFn: (id: string) => studentRepository.delete(id),
-    onSuccess: async () => c.invalidateQueries({ queryKey: key }),
+    onSuccess: async () => {
+      await Promise.all([
+        c.invalidateQueries({ queryKey: key }),
+        c.invalidateQueries({ queryKey: ['student-profile'] }),
+      ])
+    },
   })
 }
 

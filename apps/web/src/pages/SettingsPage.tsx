@@ -55,7 +55,7 @@ export function SettingsPage() {
   const profileStorageKey = isTeacher ? 'golden-study-teacher-profile' : 'golden-study-admin-profile'
 
   // Admin settings states
-  const settingsQuery = useSettings()
+  const settingsQuery = useSettings({ enabled: !isTeacher })
   const saveMutation = useSaveSettings()
   const [draft, setDraft] = useState<CenterSettings | null>(null)
   const [logoError, setLogoError] = useState('')

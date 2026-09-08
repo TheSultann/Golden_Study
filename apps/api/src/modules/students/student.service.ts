@@ -4,6 +4,7 @@ import type {
   StudentApi,
   StudentCreateInput,
   StudentListQuery,
+  StudentProfileApi,
   StudentUpdateInput,
 } from '@golden-study/contracts';
 import type { Prisma, PrismaClient } from '@prisma/client';
@@ -128,8 +129,20 @@ export class StudentService {
   public async update(
     id: string,
     input: StudentUpdateInput,
+    user?: AuthUser,
   ): Promise<StudentApi> {
     await this.assertExists(id);
+    if (user?.role === 'TEACHER') {
+      const membership = await this.prisma.groupStudent.findFirst({
+        where: {
+          studentId: id,
+          group: { teacherId: user.teacherId ?? '__missing__' },
+        },
+      });
+      if (!membership) {
+        throw new ApiError(403, 'FORBIDDEN', 'Access denied');
+      }
+    }
     const row = await this.prisma.student.update({
       where: { id },
       data: {
@@ -147,6 +160,9 @@ export class StudentService {
       const student = await transaction.student.findUnique({ where: { id } });
       if (!student) {
         throw new ApiError(404, 'NOT_FOUND', 'Student not found');
+      }
+      if (student.status === 'ARCHIVED') {
+        throw new ApiError(422, 'BUSINESS_ERROR', 'Archived student cannot be frozen');
       }
       const expected = frozen ? 'ACTIVE' : 'FROZEN';
       if (student.status !== expected) {
@@ -185,10 +201,16 @@ export class StudentService {
     });
   }
 
-  public async getProfile(id: string, user: AuthUser) {
+  public async getProfile(id: string, user: AuthUser): Promise<StudentProfileApi> {
     const student = await this.get(id, user);
     const attendanceRows = await this.prisma.attendance.findMany({
-      where: { studentId: id, isReversed: false },
+      where: {
+        studentId: id,
+        isReversed: false,
+        ...(user.role === 'TEACHER'
+          ? { group: { teacherId: user.teacherId ?? '__missing__' } }
+          : {}),
+      },
     });
     let cameCount = 0;
     let hwCount = 0;
@@ -200,8 +222,23 @@ export class StudentService {
     const attendancePercent = totalAtt > 0 ? Math.round((cameCount / totalAtt) * 100) : null;
     const homeworkPercent = totalAtt > 0 ? Math.round((hwCount / totalAtt) * 100) : null;
 
+    const ledgerRows = await this.prisma.ledgerEntry.groupBy({
+      by: ['direction'],
+      where: { studentId: id },
+      _sum: { amountUzs: true },
+    });
+    let balanceUzs = 0;
+    for (const row of ledgerRows) {
+      const amount = row._sum.amountUzs ?? 0;
+      if (row.direction === 'CREDIT') balanceUzs += amount;
+      if (row.direction === 'DEBIT') balanceUzs -= amount;
+    }
+
     return {
-      student,
+      student: {
+        ...student,
+        balanceUzs,
+      },
       academicSummary: {
         ratingScore: attendancePercent,
         groupPlace: 1,
@@ -229,7 +266,11 @@ export class StudentService {
   public async addToGroup(
     groupId: string,
     studentId: string,
+    user?: AuthUser,
   ): Promise<MembershipApi> {
+    if (user) {
+      await this.assertGroupAccess(groupId, user);
+    }
     try {
       const membership = await this.prisma.$transaction(async (transaction) => {
         const [group, student, duplicate] = await Promise.all([
@@ -265,7 +306,11 @@ export class StudentService {
     groupId: string,
     studentId: string,
     status: 'REMOVED' | 'GRADUATE',
+    user?: AuthUser,
   ): Promise<MembershipApi> {
+    if (user) {
+      await this.assertGroupAccess(groupId, user);
+    }
     return this.prisma.$transaction(async (transaction) => {
       const membership = await transaction.groupStudent.findFirst({
         where: { groupId, studentId, status: 'ACTIVE' },

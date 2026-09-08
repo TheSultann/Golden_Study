@@ -4,7 +4,12 @@ import { settingsRepository } from './settings.dependencies'
 
 const settingsKey = ['settings'] as const
 
-export const useSettings = () => useQuery({ queryKey: settingsKey, queryFn: () => settingsRepository.get() })
+export const useSettings = (options?: { enabled?: boolean }) =>
+  useQuery({
+    queryKey: settingsKey,
+    queryFn: () => settingsRepository.get(),
+    enabled: options?.enabled,
+  })
 
 export function useSaveSettings() {
   const client = useQueryClient()

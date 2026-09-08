@@ -1,5 +1,6 @@
 import { Edit3, Plus, RotateCcw, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
+import { getSession } from '../auth/auth.service'
 import { useStudentProfile } from './useStudentProfile'
 
 type StudentProfileDrawerProps = {
@@ -19,6 +20,8 @@ const money = new Intl.NumberFormat('uz-UZ')
 export function StudentProfileDrawer({ studentId, onClose, onEdit }: StudentProfileDrawerProps) {
   const profileQuery = useStudentProfile(studentId)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const user = getSession()
+  const isTeacher = user?.role === 'teacher'
   const profile = profileQuery.data
   const summary = profile?.academicSummary
   const hasAcademicData = summary ? Object.values(summary).some((value) => value !== null) : false
@@ -61,14 +64,18 @@ export function StudentProfileDrawer({ studentId, onClose, onEdit }: StudentProf
         {profile ? (
           <>
             <div className="student-profile-body">
-              <div className="student-profile-headline">
-                <span className={`student-status student-status--${profile.student.status}`}>{statusLabels[profile.student.status]}</span>
-                <div>{profile.student.groups.map((group) => <span key={group}>{group}</span>)}</div>
-              </div>
-
-
               <section aria-labelledby="academic-summary-title">
-                <h3 id="academic-summary-title">O‘qish ko‘rsatkichlari</h3>
+                <div className="student-profile-headline">
+                  <div className="student-profile-title-badges">
+                    <h3 id="academic-summary-title">O‘qish ko‘rsatkichlari</h3>
+                    <span className={`student-status student-status--${profile.student.status}`}>{statusLabels[profile.student.status]}</span>
+                  </div>
+                  {profile.student.groups.length > 0 ? (
+                    <div className="student-profile-groups">
+                      {profile.student.groups.map((group) => <span key={group}>{group}</span>)}
+                    </div>
+                  ) : null}
+                </div>
                 {hasAcademicData ? (
                   <div className="student-profile-metrics">
                     <Metric label="Umumiy reyting" value={summary?.ratingScore === null ? '—' : `${summary?.ratingScore}/100`} />
@@ -101,7 +108,9 @@ export function StudentProfileDrawer({ studentId, onClose, onEdit }: StudentProf
 
             <footer>
               <button type="button" className="secondary-button" onClick={onClose}>Yopish</button>
-              <button type="button" className="secondary-button" onClick={() => { onClose(); window.location.href = `/finance?studentId=${studentId}`; }}><Plus size={15} /> To‘lov</button>
+              {!isTeacher && (
+                <button type="button" className="secondary-button" onClick={() => { onClose(); window.location.href = `/finance?studentId=${studentId}`; }}><Plus size={15} /> To‘lov</button>
+              )}
               <button type="button" className="primary-button" onClick={() => onEdit(studentId)}><Edit3 size={15} /> Tahrirlash</button>
             </footer>
           </>

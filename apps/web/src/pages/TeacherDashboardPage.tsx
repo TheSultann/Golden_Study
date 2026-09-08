@@ -18,7 +18,8 @@ export function TeacherDashboardPage() {
           <Link className="stat stat-link" to="/schedule"><span className="stat-icon stat-gold"><Clock3 size={20} /></span><div><p>Bugungi darslar</p><strong>{data.todayLessons}</strong></div></Link>
           <Link className="stat stat-link" to="/attendance"><span className="stat-icon stat-violet"><CalendarCheck size={20} /></span><div><p>Davomat</p><strong>{data.attendancePercent}%</strong></div></Link>
         </div>
-        <article className="panel lessons-panel"><header><h2>Yaqin darslar</h2></header><div className="lesson-list">{data.upcomingLessons.map((lesson) => <Link aria-label={`${lesson.groupName} davomatini ochish`} className="lesson lesson-link" key={lesson.id} to={`/attendance?group=${lesson.groupId}`}><time>{lesson.time}</time><div><strong>{lesson.groupName}</strong><span>{lesson.courseName}</span></div><span><MapPin size={13} /> {lesson.room}</span></Link>)}</div></article>
+
+        <article className="panel lessons-panel" style={{ marginTop: '14px' }}><header><h2>Yaqin darslar</h2></header><div className="lesson-list">{data.upcomingLessons.map((lesson) => <Link aria-label={`${lesson.groupName} davomatini ochish`} className="lesson lesson-link" key={lesson.id} to={`/attendance?group=${lesson.groupId}`}><time>{lesson.time}</time><div><strong>{lesson.groupName}</strong><span>{lesson.courseName}</span></div><span><MapPin size={13} /> {lesson.room}</span></Link>)}</div></article>
       </> : null}
     </section>
   )

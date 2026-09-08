@@ -6,7 +6,7 @@ const mockProfile = {
   data: {
     student: {
       id: '550e8400-e29b-41d4-a716-446655440000',
-      code: 'ST101',
+      studentCode: 'ST101',
       firstName: 'Alisher',
       lastName: 'Navoiy',
       birthDate: '2000-01-01',
@@ -14,9 +14,11 @@ const mockProfile = {
       parentName: 'Ota-ona',
       parentPhone: '+998901234567',
       address: 'Toshkent',
-      status: 'active',
-      balance: 150000,
-      groups: [],
+      status: 'ACTIVE',
+      balanceUzs: 150000,
+      activeGroups: [],
+      createdAt: '2026-07-21T00:00:00.000Z',
+      updatedAt: '2026-07-21T00:00:00.000Z',
     },
     academicSummary: {
       ratingScore: 90,

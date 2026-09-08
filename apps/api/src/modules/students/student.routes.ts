@@ -22,7 +22,8 @@ export function createStudentRouter(
 ): Router {
   const router = Router();
   const authenticate = createAuthenticate(authService);
-  const canWrite = requireRoles('SUPER_ADMIN', 'ADMIN');
+  const canWriteAdmin = requireRoles('SUPER_ADMIN', 'ADMIN');
+  const canWriteStudent = requireRoles('SUPER_ADMIN', 'ADMIN', 'TEACHER');
   router.use(authenticate);
 
   router.get('/', async (request, response) => {
@@ -32,7 +33,7 @@ export function createStudentRouter(
     );
     response.json(paginatedResponse(result.data, result.meta));
   });
-  router.post('/', canWrite, async (request, response) => {
+  router.post('/', canWriteStudent, async (request, response) => {
     response
       .status(201)
       .json(
@@ -51,26 +52,27 @@ export function createStudentRouter(
     const { id } = uuidParamSchema.parse(request.params);
     response.json(successResponse(await service.get(id, request.user!)));
   });
-  router.patch('/:id', canWrite, async (request, response) => {
+  router.patch('/:id', canWriteStudent, async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
     response.json(
       successResponse(
         await service.update(
           id,
           studentUpdateInputSchema.parse(request.body as unknown),
+          request.user!,
         ),
       ),
     );
   });
-  router.patch('/:id/freeze', canWrite, async (request, response) => {
+  router.patch('/:id/freeze', canWriteAdmin, async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
     response.json(successResponse(await service.setFrozen(id, true)));
   });
-  router.patch('/:id/unfreeze', canWrite, async (request, response) => {
+  router.patch('/:id/unfreeze', canWriteAdmin, async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
     response.json(successResponse(await service.setFrozen(id, false)));
   });
-  router.delete('/:id', canWrite, async (request, response) => {
+  router.delete('/:id', canWriteAdmin, async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
     await service.archive(id);
     response.status(204).send();
@@ -84,7 +86,8 @@ export function createMembershipRouter(
 ): Router {
   const router = Router();
   const authenticate = createAuthenticate(authService);
-  const canWrite = requireRoles('SUPER_ADMIN', 'ADMIN');
+  const canWriteAdmin = requireRoles('SUPER_ADMIN', 'ADMIN');
+  const canWriteMembership = requireRoles('SUPER_ADMIN', 'ADMIN', 'TEACHER');
   router.use(authenticate);
 
   router.get('/:id/students', async (request, response) => {
@@ -93,32 +96,36 @@ export function createMembershipRouter(
       successResponse(await service.listGroupStudents(id, request.user!)),
     );
   });
-  router.post('/:id/students', canWrite, async (request, response) => {
+  router.post('/:id/students', canWriteMembership, async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
     const { studentId } = membershipCreateInputSchema.parse(
       request.body as unknown,
     );
     response
       .status(201)
-      .json(successResponse(await service.addToGroup(id, studentId)));
+      .json(
+        successResponse(
+          await service.addToGroup(id, studentId, request.user!),
+        ),
+      );
   });
   router.delete(
     '/:id/students/:studentId',
-    canWrite,
+    canWriteMembership,
     async (request, response) => {
       const { id, studentId } = membershipParams(request.params);
-      await service.closeMembership(id, studentId, 'REMOVED');
+      await service.closeMembership(id, studentId, 'REMOVED', request.user!);
       response.status(204).send();
     },
   );
   router.patch(
     '/:id/students/:studentId/graduate',
-    canWrite,
+    canWriteAdmin,
     async (request, response) => {
       const { id, studentId } = membershipParams(request.params);
       response.json(
         successResponse(
-          await service.closeMembership(id, studentId, 'GRADUATE'),
+          await service.closeMembership(id, studentId, 'GRADUATE', request.user!),
         ),
       );
     },

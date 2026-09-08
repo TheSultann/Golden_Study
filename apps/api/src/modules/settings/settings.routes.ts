@@ -11,9 +11,8 @@ export function createSettingsRouter(
 ): Router {
   const router = Router();
   router.use(createAuthenticate(authService));
-  router.use(requireRoles('SUPER_ADMIN', 'ADMIN'));
 
-  router.get('/', async (_request, response) => {
+  router.get('/', requireRoles('SUPER_ADMIN', 'ADMIN', 'TEACHER'), async (_request, response) => {
     const data = await settingsService.getSettings();
     response.json(successResponse(data));
   });

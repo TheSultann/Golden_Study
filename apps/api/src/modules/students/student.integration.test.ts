@@ -264,6 +264,79 @@ describe('Students and memberships API', () => {
     ).toBe(403);
   });
 
+  it('allows teacher to create and add student to own group, but forbids foreign group and delete', async () => {
+    // 1. Teacher creates a student
+    const createRes = await request(createApp())
+      .post('/api/v1/students')
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({
+        firstName: `${prefix} ByTeacher`,
+        lastName: 'Student',
+        phone: '+998909998877',
+      });
+    expect(createRes.status).toBe(201);
+    const newStudentId = (createRes.body as { data: { id: string } }).data.id;
+
+    // 2. Teacher adds student to own group -> 201
+    const addOwnRes = await request(createApp())
+      .post(`/api/v1/groups/${groupId}/students`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ studentId: newStudentId });
+    expect(addOwnRes.status).toBe(201);
+
+    // 3. Teacher tries to add student to foreign group -> 403 Forbidden
+    const addForeignRes = await request(createApp())
+      .post(`/api/v1/groups/${foreignGroupId}/students`)
+      .set('Authorization', `Bearer ${teacherToken}`)
+      .send({ studentId: newStudentId });
+    expect(addForeignRes.status).toBe(403);
+
+    // 4. Teacher tries to delete student -> 403 Forbidden
+    const deleteRes = await request(createApp())
+      .delete(`/api/v1/students/${newStudentId}`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(deleteRes.status).toBe(403);
+  });
+
+  it('returns student profile with academic summary and balance', async () => {
+    // Admin gets student profile
+    const res = await auth(
+      request(createApp()).get(`/api/v1/students/${studentId}/profile`),
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.student.id).toBe(studentId);
+    expect(res.body.data.student.studentCode).toMatch(/^ST\d+$/);
+    expect(typeof res.body.data.student.balanceUzs).toBe('number');
+    expect(res.body.data.academicSummary).toHaveProperty('attendancePercent');
+    expect(res.body.data.academicSummary).toHaveProperty('homeworkPercent');
+
+    // Teacher can view profile of student in own group
+    const teacherOwnRes = await request(createApp())
+      .get(`/api/v1/students/${studentId}/profile`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(teacherOwnRes.status).toBe(200);
+    expect(teacherOwnRes.body.data.student.id).toBe(studentId);
+
+    // Create a student only in foreign group
+    const foreignStudentRes = await auth(
+      request(createApp()).post('/api/v1/students'),
+    ).send({
+      firstName: `${prefix} Foreign`,
+      lastName: 'Only',
+      phone: '+998901110099',
+    });
+    const foreignStudentId = (foreignStudentRes.body as { data: { id: string } }).data.id;
+    await auth(
+      request(createApp()).post(`/api/v1/groups/${foreignGroupId}/students`),
+    ).send({ studentId: foreignStudentId });
+
+    // Teacher receives 403 when trying to view foreign student's profile
+    const teacherForeignRes = await request(createApp())
+      .get(`/api/v1/students/${foreignStudentId}/profile`)
+      .set('Authorization', `Bearer ${teacherToken}`);
+    expect(teacherForeignRes.status).toBe(403);
+  });
+
   it('archives student and closes active memberships', async () => {
     await auth(
       request(createApp()).post(`/api/v1/groups/${groupId}/students`),

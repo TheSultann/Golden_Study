@@ -12,7 +12,8 @@ import {
   Lock, 
   Unlock,
   Trash2,
-  Snowflake
+  Snowflake,
+  User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type FormEvent, useMemo, useState, useEffect, useRef } from 'react';
@@ -29,6 +30,7 @@ import { DateInput, displayToIsoDate } from '../shared/ui/DateInput';
 
 
 import { joinFullName, splitFullName } from '../shared/utils/fullName';
+import { getSession } from '../features/auth/auth.service';
 
 const empty: Student[] = [];
 const money = new Intl.NumberFormat('uz-UZ');
@@ -52,6 +54,22 @@ function Form({
 }) {
   const [formError, setFormError] = useState<string | null>(null);
   const groupsQuery = useGroups();
+  const user = getSession();
+  const isTeacher = user?.role === 'teacher';
+
+  const availableGroups = (groupsQuery.data ?? []).filter(
+    (g) => g.active || (student?.groups || []).includes(g.name),
+  );
+
+  const [selectedGroup, setSelectedGroup] = useState<string>(
+    student?.groups[0] ?? (isTeacher && availableGroups[0] ? availableGroups[0].name : ''),
+  );
+
+  useEffect(() => {
+    if (!selectedGroup && isTeacher && availableGroups.length > 0) {
+      setSelectedGroup(availableGroups[0].name);
+    }
+  }, [selectedGroup, isTeacher, availableGroups]);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -75,6 +93,12 @@ function Form({
       parentPhone = normalizePhoneWithPrefix(rawParentPhone);
     }
 
+    const groupToAssign = selectedGroup.trim();
+    if (isTeacher && !groupToAssign) {
+      setFormError('O‘quvchini o‘z guruhingizga biriktirishingiz shart.');
+      return;
+    }
+
     try {
       await save({
         id: student?.id ?? `new-${Date.now()}`,
@@ -88,7 +112,7 @@ function Form({
         address: String(d.get('address') || '').trim(),
         status: student?.status ?? 'active',
         balance: student?.balance ?? 0,
-        groups: d.get('group') ? [String(d.get('group'))] : []
+        groups: groupToAssign ? [groupToAssign] : []
       });
     } catch (err: unknown) {
       setFormError(formatApiError(err, 'Saqlashda xatolik yuz berdi'));
@@ -101,7 +125,7 @@ function Form({
         <header>
           <div>
             <h2>{student ? 'O‘quvchini tahrirlash' : 'O‘quvchi qo‘shish'}</h2>
-            <p>O‘quvchi va ota-ona ma’lumotlari</p>
+            <p>{isTeacher ? 'O‘quvchi ma’lumotlari va guruhingizga biriktirish' : 'O‘quvchi va ota-ona ma’lumotlari'}</p>
           </div>
           <button type="button" onClick={close} aria-label="Yopish"><X size={18} /></button>
         </header>
@@ -130,31 +154,52 @@ function Form({
             <label className="form-wide">Manzil
               <input name="address" defaultValue={student?.address} placeholder="Toshkent sh., Yunusobod tumani" />
             </label>
-            <label className="form-wide">Guruh
-              <select name="group" defaultValue={student?.groups[0] ?? ''} disabled={groupsQuery.isPending}>
-                <option value="">Guruhsiz</option>
-                {groupsQuery.isPending ? (
-                  <option disabled>Guruhlar yuklanmoqda...</option>
+            <label className="form-wide">Guruh {isTeacher ? '*' : ''}
+              <select
+                name="group"
+                required={isTeacher}
+                value={selectedGroup}
+                onChange={(e) => setSelectedGroup(e.target.value)}
+                disabled={groupsQuery.isPending}
+              >
+                {isTeacher ? (
+                  groupsQuery.isPending ? (
+                    <option disabled>Guruhlar yuklanmoqda...</option>
+                  ) : availableGroups.length === 0 ? (
+                    <option value="" disabled>Faol guruhingiz topilmadi (avval admin guruh ochishi kerak)</option>
+                  ) : (
+                    availableGroups.map((g) => (
+                      <option key={g.id} value={g.name} disabled={!g.active}>
+                        {g.name} {!g.active ? ' (Yakunlangan)' : ''}
+                      </option>
+                    ))
+                  )
                 ) : (
-                  (groupsQuery.data ?? []).filter((g) => g.active || (student?.groups || []).includes(g.name)).map((g) => (
-                    <option key={g.id} value={g.name} disabled={!g.active}>
-                      {g.name} {!g.active ? ' (Yakunlangan)' : ''}
-                    </option>
-                  ))
+                  <>
+                    <option value="">Guruhsiz</option>
+                    {groupsQuery.isPending ? (
+                      <option disabled>Guruhlar yuklanmoqda...</option>
+                    ) : (
+                      availableGroups.map((g) => (
+                        <option key={g.id} value={g.name} disabled={!g.active}>
+                          {g.name} {!g.active ? ' (Yakunlangan)' : ''}
+                        </option>
+                      ))
+                    )}
+                  </>
                 )}
               </select>
             </label>
           </div>
           <footer>
             <button type="button" className="secondary-button" onClick={close} disabled={pending}>Bekor</button>
-            <button className="primary-button" disabled={pending}>
+            <button className="primary-button" disabled={pending || (isTeacher && availableGroups.length === 0)}>
               {pending ? 'Saqlanmoqda...' : 'Saqlash'}
             </button>
           </footer>
         </form>
       </section>
     </div>
-
   );
 }
 
@@ -202,6 +247,8 @@ function TelegramTokenModal({ student, close }: { student: Student; close: () =>
 export function StudentsPage() {
   const navigate = useNavigate();
   const q = useStudents();
+  const user = getSession();
+  const isTeacher = user?.role === 'teacher';
   const saveM = useSaveStudent();
   const statusM = useSetStudentStatus();
   const deleteM = useDeleteStudent();
@@ -315,7 +362,7 @@ export function StudentsPage() {
       activeTriggerRef.current = e.currentTarget;
       const rect = e.currentTarget.getBoundingClientRect();
       const menuWidth = 180;
-      const menuHeight = 148;
+      const menuHeight = 180;
       const left = Math.min(Math.max(8, rect.right - menuWidth), window.innerWidth - menuWidth - 8);
       const top = window.innerHeight - rect.bottom >= menuHeight
         ? rect.bottom + 6
@@ -333,7 +380,7 @@ export function StudentsPage() {
       <div className="page-heading">
         <div>
           <h1>O‘quvchilar</h1>
-          <p>O‘quvchilar, guruhlar va balans holati</p>
+          <p>{isTeacher ? 'Faqat sizning guruhlaringizdagi o‘quvchilar' : 'O‘quvchilar, guruhlar va balans holati'}</p>
         </div>
         <div className="student-heading-actions">
           {/* Eksport Dropdown */}
@@ -611,13 +658,28 @@ export function StudentsPage() {
                   className="actions-dropdown-item"
                   role="menuitem"
                   onClick={() => {
-                    navigate(`/finance?studentId=${student.id}`);
+                    setProfileStudentId(student.id);
                     setActiveDropdown(null);
                     setDropdownCoords(null);
                   }}
                 >
-                  <Plus size={13} /> To‘lov qabul qilish
+                  <User size={13} /> O‘quvchi kartasi
                 </button>
+
+                {!isTeacher && (
+                  <button 
+                    type="button" 
+                    className="actions-dropdown-item"
+                    role="menuitem"
+                    onClick={() => {
+                      navigate(`/finance?studentId=${student.id}`);
+                      setActiveDropdown(null);
+                      setDropdownCoords(null);
+                    }}
+                  >
+                    <Plus size={13} /> To‘lov qabul qilish
+                  </button>
+                )}
                 <button 
                   type="button" 
                   className="actions-dropdown-item"
@@ -644,45 +706,48 @@ export function StudentsPage() {
                   <Copy size={13} /> Telegram uchun ID
                 </button>
 
-                {student.status === 'active' ? (
-                  <button 
-                    type="button" 
-                    className="actions-dropdown-item"
-                    role="menuitem"
-                    onClick={() => {
-                      setPendingFreeze(student);
-                      closeActionsMenu();
-                    }}
-                  >
-                    <Lock size={13} /> Muzlatish
-                  </button>
-                ) : (
-                  <button 
-                    type="button" 
-                    className="actions-dropdown-item"
-                    role="menuitem"
-                    onClick={() => {
-                      statusM.mutate({ id: student.id, status: 'active' });
-                      setActiveDropdown(null);
-                      setDropdownCoords(null);
-                    }}
-                  >
-                    <Unlock size={13} /> Faollashtirish
-                  </button>
+                {!isTeacher && (
+                  <>
+                    {student.status === 'active' ? (
+                      <button 
+                        type="button" 
+                        className="actions-dropdown-item"
+                        role="menuitem"
+                        onClick={() => {
+                          setPendingFreeze(student);
+                          closeActionsMenu();
+                        }}
+                      >
+                        <Lock size={13} /> Muzlatish
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        className="actions-dropdown-item"
+                        role="menuitem"
+                        onClick={() => {
+                          statusM.mutate({ id: student.id, status: 'active' });
+                          setActiveDropdown(null);
+                          setDropdownCoords(null);
+                        }}
+                      >
+                        <Unlock size={13} /> Faollashtirish
+                      </button>
+                    )}
+
+                    <button 
+                      type="button" 
+                      className="actions-dropdown-item danger"
+                      role="menuitem"
+                      onClick={() => {
+                        setPendingDelete(student);
+                        closeActionsMenu();
+                      }}
+                    >
+                      <Trash2 size={13} /> O‘chirish
+                    </button>
+                  </>
                 )}
-
-                <button 
-                  type="button" 
-                  className="actions-dropdown-item danger"
-                  role="menuitem"
-                  onClick={() => {
-                    setPendingDelete(student);
-                    closeActionsMenu();
-                  }}
-                >
-                  <Trash2 size={13} /> O‘chirish
-                </button>
-
               </>
             );
           })()}

@@ -8,5 +8,7 @@ export function useStudentProfile(studentId: string | null) {
     queryKey: studentProfileKey(studentId ?? ''),
     queryFn: () => studentProfileRepository.getById(studentId!),
     enabled: Boolean(studentId),
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }

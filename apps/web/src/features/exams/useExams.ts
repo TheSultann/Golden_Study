@@ -21,7 +21,10 @@ export function useSaveExam() {
         }
         return [saved, ...old]
       })
-      await client.invalidateQueries({ queryKey: key })
+      await Promise.all([
+        client.invalidateQueries({ queryKey: key }),
+        client.invalidateQueries({ queryKey: ['student-profile'] }),
+      ])
     },
   })
 }

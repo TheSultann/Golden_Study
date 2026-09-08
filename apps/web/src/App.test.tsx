@@ -54,6 +54,39 @@ vi.mock('./features/dashboard/dashboard.dependencies', () => ({
   }
 }))
 
+vi.mock('./features/teacher-salary/teacherSalary.dependencies', () => ({
+  teacherSalaryRepository: {
+    getOverview: vi.fn(async () => ({
+      teacherName: 'Alisher Karimov',
+      pendingBalanceUzs: 1200000,
+      totalPaidUzs: 3500000,
+      salaryType: 'percent',
+      salaryRate: 80,
+      lastPaidAt: '2026-08-01T10:00:00.000Z',
+      history: [
+        {
+          id: 'p1',
+          date: '2026-08-01T10:00:00.000Z',
+          amountUzs: 1500000,
+          type: 'payout',
+          status: 'paid',
+          title: 'To‘langan maosh',
+          comment: 'Avans to‘lovi',
+        },
+        {
+          id: 'pending-1',
+          date: '2026-08-15T10:00:00.000Z',
+          amountUzs: 1200000,
+          type: 'accrual',
+          status: 'pending',
+          title: 'Kutilayotgan maosh',
+          comment: 'To‘lov kutilmoqda',
+        },
+      ],
+    })),
+  },
+}))
+
 vi.mock('./features/student-profile/studentProfile.dependencies', () => ({
   studentProfileRepository: {
     getById: vi.fn(async (id: string) => ({
@@ -210,7 +243,7 @@ vi.mock('./features/students/student.dependencies', () => {
   ]
   return {
     studentRepository: {
-      list: vi.fn(async () => { await delay(); return students }),
+      list: vi.fn(async () => { await delay(); return [...students] }),
       save: vi.fn(async (s: any) => {
         await delay()
         const item = { id: `s-${Date.now()}`, code: `ST${Date.now()}`, studentCode: `ST${Date.now()}`, birthDate: '2010-01-01', phone: '+998 90 123 45 67', parentName: 'Parent', parentPhone: '+998 90 123 45 67', address: 'Toshkent', status: 'active', balance: 0, groups: [], ...s }
@@ -422,7 +455,11 @@ vi.mock('./features/teacher-dashboard/teacherDashboard.dependencies', () => ({
       upcomingLessons: [
         { id: 'l1', groupId: 'g1', groupName: 'IELTS-24-01', courseName: 'IELTS', time: '09:00 - 10:30', room: 'Room 1' },
         { id: 'l2', groupId: 'g2', groupName: 'ENG-24-03', courseName: 'English', time: '11:00 - 12:30', room: 'Room 2' },
-      ]
+      ],
+      kpiBalance: 1500000,
+      salaryType: 'percent',
+      salaryRate: 80,
+      lastSalaryPaidAt: null,
     }))
   }
 }))
@@ -943,7 +980,8 @@ describe('mock-авторизация', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Asosiy navigatsiya' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Moliya' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Sozlamalar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Xodimlar' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Sozlamalar' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Reyting' })).toBeInTheDocument()
   })
 
@@ -1512,5 +1550,44 @@ describe('mock-авторизация', () => {
     await user.click(screen.getByRole('button', { name: 'Saqlash' }))
     expect((await screen.findAllByText('Progress Test')).length).toBeGreaterThan(0)
     expect(screen.getAllByText('ENG-24-03').length).toBeGreaterThan(0)
+  })
+
+  it('lets teacher add student to own group and restricts admin actions', async () => {
+    const user = userEvent.setup()
+    renderApp()
+    await user.type(screen.getByLabelText('Login'), 'teacher')
+    await user.type(screen.getByLabelText('Parol'), 'teacher123')
+    await user.click(screen.getByRole('button', { name: 'Kirish' }))
+
+    const nav = await screen.findByRole('navigation', { name: 'Asosiy navigatsiya' })
+    expect(within(nav).getByRole('link', { name: 'O‘quvchilar' })).toBeInTheDocument()
+    await user.click(within(nav).getByRole('link', { name: 'O‘quvchilar' }))
+
+    expect(await screen.findByRole('heading', { name: 'O‘quvchilar' })).toBeInTheDocument()
+    expect(screen.getByText('Faqat sizning guruhlaringizdagi o‘quvchilar')).toBeInTheDocument()
+
+    // Actions restricted for teacher in table
+    await user.click(screen.getByRole('button', { name: 'ST101 amallari' }))
+    const menu = screen.getByRole('menu', { name: 'ST101 amallari' })
+    expect(within(menu).queryByRole('menuitem', { name: /To‘lov qabul qilish/i })).not.toBeInTheDocument()
+    expect(within(menu).queryByRole('menuitem', { name: /O‘chirish/i })).not.toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: /O‘quvchi kartasi/i })).toBeInTheDocument()
+    expect(within(menu).getByRole('menuitem', { name: /Tahrirlash/i })).toBeInTheDocument()
+
+    // Add student
+    await user.click(screen.getByRole('button', { name: 'O‘quvchi qo‘shish' }))
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText('O‘quvchi ma’lumotlari va guruhingizga biriktirish')).toBeInTheDocument()
+
+    const groupSelect = within(dialog).getByRole('combobox', { name: /Guruh/ })
+    expect(groupSelect).toBeRequired()
+    expect(within(groupSelect).queryByText('Guruhsiz')).not.toBeInTheDocument()
+    expect(within(groupSelect).getByText(/IELTS-24-01/)).toBeInTheDocument()
+
+    await user.type(within(dialog).getByLabelText('Ism familiya'), 'Sherzod Qodirov')
+    await user.type(within(dialog).getByLabelText('Telefon'), '901234567')
+    await user.click(within(dialog).getByRole('button', { name: 'Saqlash' }))
+
+    expect(await screen.findByText('Sherzod Qodirov')).toBeInTheDocument()
   })
 })

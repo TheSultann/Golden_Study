@@ -1,4 +1,4 @@
-import type { AttendanceSession, Exam, TeacherDashboard, TeacherRatingRow, TeacherScheduleLesson } from '@golden-study/contracts';
+import type { AttendanceSession, Exam, TeacherDashboard, TeacherRatingRow, TeacherScheduleLesson, TeacherSalaryOverview, TeacherSalaryHistoryItem } from '@golden-study/contracts';
 import type { PrismaClient } from '@prisma/client';
 import type { AuthUser } from '@golden-study/contracts';
 import { ApiError } from '../../common/errors/api-error.js';
@@ -77,6 +77,45 @@ export class TeacherPanelService {
       };
     });
 
+    const teacherEntries = teacherId
+      ? await this.prisma.ledgerEntry.findMany({
+          where: { accountType: 'TEACHER', teacherId },
+          select: { direction: true, amountUzs: true },
+        })
+      : [];
+    const creditsUzs = teacherEntries.reduce(
+      (sum, entry) => sum + (entry.direction === 'CREDIT' ? entry.amountUzs : 0),
+      0,
+    );
+    const debitsUzs = teacherEntries.reduce(
+      (sum, entry) => sum + (entry.direction === 'DEBIT' ? entry.amountUzs : 0),
+      0,
+    );
+    const kpiBalance = Math.max(0, creditsUzs - debitsUzs);
+
+    const dbUser = teacherId
+      ? await this.prisma.user.findFirst({
+          where: { teacherId },
+          select: { lastSalaryPaidAt: true },
+        })
+      : null;
+
+    let salaryType: 'fixed' | 'per_student' | 'percent' | undefined = undefined;
+    let salaryRate: number | undefined = undefined;
+
+    if (teacher) {
+      if (teacher.salaryType === 'FIXED') {
+        salaryType = 'fixed';
+        salaryRate = teacher.fixedSalaryUzs ?? 0;
+      } else if (teacher.salaryType === 'PER_STUDENT') {
+        salaryType = 'per_student';
+        salaryRate = teacher.perStudentRateUzs ?? 0;
+      } else if (teacher.salaryType === 'PERCENT') {
+        salaryType = 'percent';
+        salaryRate = (teacher.kpiRateBasisPoints ?? 0) / 100;
+      }
+    }
+
     return {
       teacherName,
       activeGroups: groups.length,
@@ -84,6 +123,10 @@ export class TeacherPanelService {
       todayLessons: groups.length,
       attendancePercent: 95,
       upcomingLessons,
+      kpiBalance,
+      salaryType,
+      salaryRate,
+      lastSalaryPaidAt: dbUser?.lastSalaryPaidAt ? dbUser.lastSalaryPaidAt.toISOString().slice(0, 10) : null,
     };
   }
 
@@ -436,5 +479,146 @@ export class TeacherPanelService {
       this.prisma.examResult.deleteMany({ where: { examId: id } }),
       this.prisma.exam.delete({ where: { id } }),
     ]);
+  }
+
+  public async getSalaryOverview(user: AuthUser): Promise<TeacherSalaryOverview> {
+    const teacherId = await this.resolveTeacherId(user);
+    if (!teacherId) {
+      return {
+        teacherName: 'O‘qituvchi',
+        pendingBalanceUzs: 0,
+        totalPaidUzs: 0,
+        salaryType: 'fixed',
+        salaryRate: 0,
+        lastPaidAt: null,
+        history: [],
+      };
+    }
+
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      include: {
+        user: {
+          select: { lastSalaryPaidAt: true },
+        },
+      },
+    });
+
+    if (!teacher) {
+      return {
+        teacherName: 'O‘qituvchi',
+        pendingBalanceUzs: 0,
+        totalPaidUzs: 0,
+        salaryType: 'fixed',
+        salaryRate: 0,
+        lastPaidAt: null,
+        history: [],
+      };
+    }
+
+    const teacherName = `${teacher.lastName} ${teacher.firstName}`;
+
+    const ledgerEntries = await this.prisma.ledgerEntry.findMany({
+      where: {
+        accountType: 'TEACHER',
+        teacherId,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let creditsUzs = 0;
+    let debitsUzs = 0;
+    let latestPayoutDate: string | null = null;
+
+    for (const entry of ledgerEntries) {
+      if (entry.direction === 'CREDIT') {
+        creditsUzs += entry.amountUzs;
+      } else if (entry.direction === 'DEBIT') {
+        debitsUzs += entry.amountUzs;
+        if (!latestPayoutDate) {
+          latestPayoutDate = entry.createdAt.toISOString();
+        }
+      }
+    }
+
+    let pendingBalanceUzs = Math.max(0, creditsUzs - debitsUzs);
+    const totalPaidUzs = debitsUzs;
+
+    let salaryType: 'fixed' | 'per_student' | 'percent' = 'fixed';
+    let salaryRate = 0;
+
+    if (teacher.salaryType === 'PERCENT') {
+      salaryType = 'percent';
+      salaryRate = (teacher.kpiRateBasisPoints ?? 0) / 100;
+    } else if (teacher.salaryType === 'PER_STUDENT') {
+      salaryType = 'per_student';
+      salaryRate = teacher.perStudentRateUzs ?? 0;
+    } else {
+      salaryType = 'fixed';
+      salaryRate = teacher.fixedSalaryUzs ?? 0;
+      if (pendingBalanceUzs === 0 && ledgerEntries.length === 0 && salaryRate > 0) {
+        pendingBalanceUzs = salaryRate;
+      }
+    }
+
+    const lastPaidAt = latestPayoutDate ?? teacher.user?.lastSalaryPaidAt?.toISOString() ?? null;
+
+    const history: TeacherSalaryHistoryItem[] = [];
+
+    if (pendingBalanceUzs > 0) {
+      history.push({
+        id: 'pending-current',
+        date: new Date().toISOString(),
+        amountUzs: pendingBalanceUzs,
+        type: 'accrual',
+        status: 'pending',
+        title: 'Kutilayotgan maosh',
+        comment: 'Hisoblangan maosh (to‘lov kutilmoqda)',
+      });
+    }
+
+    for (const entry of ledgerEntries) {
+      const isDebit = entry.direction === 'DEBIT';
+      let title = 'Maosh to‘lovi';
+      if (!isDebit) {
+        if (entry.category === 'KPI_FIXED_ACCRUAL') {
+          title = 'Oylik fiks maosh';
+        } else if (entry.category === 'KPI_PER_STUDENT_ACCRUAL') {
+          title = 'O‘quvchi boshiga hisoblangan';
+        } else if (entry.category === 'KPI_PERCENT_ACCRUAL') {
+          title = 'Darslar bo‘yicha foiz (KPI)';
+        } else if (entry.category === 'REVERSAL') {
+          title = 'Qaytarish / Korreksiya';
+        } else {
+          title = 'Hisoblangan rag‘batlantirish';
+        }
+      } else {
+        if (entry.category === 'TEACHER_PAYOUT') {
+          title = 'To‘langan maosh';
+        } else if (entry.category === 'REVERSAL') {
+          title = 'Ushlab qolish / Korreksiya';
+        }
+      }
+
+      history.push({
+        id: entry.id,
+        date: entry.createdAt.toISOString(),
+        amountUzs: entry.amountUzs,
+        type: isDebit ? 'payout' : 'accrual',
+        status: 'paid',
+        title,
+        comment: entry.comment || undefined,
+      });
+    }
+
+    return {
+      teacherName,
+      pendingBalanceUzs,
+      totalPaidUzs,
+      salaryType,
+      salaryRate,
+      lastPaidAt,
+      history,
+    };
   }
 }

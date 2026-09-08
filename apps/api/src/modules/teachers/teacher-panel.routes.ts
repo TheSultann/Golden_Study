@@ -28,6 +28,11 @@ export function createTeacherPanelRouter(
     response.json(successResponse(data));
   });
 
+  router.get('/me/salary', async (request, response) => {
+    const data = await service.getSalaryOverview(request.user!);
+    response.json(successResponse(data));
+  });
+
   router.get('/me/attendance/groups', async (request, response) => {
     const data = await service.getAttendanceGroups(request.user!);
     response.json(successResponse(data));
