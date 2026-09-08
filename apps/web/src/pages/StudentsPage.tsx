@@ -58,15 +58,20 @@ function Form({
     const d = new FormData(e.currentTarget);
     const { firstName, lastName } = splitFullName(String(d.get('fullName')));
     const phone = normalizePhoneWithPrefix(d.get('phone'));
-    const parentPhone = normalizePhoneWithPrefix(d.get('parentPhone'));
+    const rawParentPhone = String(d.get('parentPhone') || '').trim();
+    const parentPhoneDigits = rawParentPhone.replaceAll(/\D/g, '');
 
     if (phone.replaceAll(/\D/g, '').length !== 12) {
       setFormError('O‘quvchi telefon raqami 9 ta raqamdan iborat bo‘lishi kerak.');
       return;
     }
-    if (parentPhone.replaceAll(/\D/g, '').length !== 12) {
-      setFormError('Ota-ona telefon raqami 9 ta raqamdan iborat bo‘lishi kerak.');
-      return;
+    let parentPhone = '';
+    if (parentPhoneDigits.length > 0) {
+      if (parentPhoneDigits.length !== 9 && parentPhoneDigits.length !== 12) {
+        setFormError('Ota-ona telefon raqami 9 ta raqamdan iborat bo‘lishi kerak.');
+        return;
+      }
+      parentPhone = normalizePhoneWithPrefix(rawParentPhone);
     }
 
     try {
@@ -77,9 +82,9 @@ function Form({
         lastName,
         birthDate: displayToIsoDate(String(d.get('birthDate'))),
         phone,
-        parentName: String(d.get('parentName')),
+        parentName: String(d.get('parentName') || '').trim(),
         parentPhone,
-        address: String(d.get('address')),
+        address: String(d.get('address') || '').trim(),
         status: student?.status ?? 'active',
         balance: student?.balance ?? 0,
         groups: d.get('group') ? [String(d.get('group'))] : []
@@ -116,13 +121,13 @@ function Form({
               <PhoneInput name="phone" defaultValue={student?.phone} required />
             </label>
             <label className="parent-field-label">Ota-ona F.I.Sh.
-              <input name="parentName" required defaultValue={student?.parentName} placeholder="Masalan: Abdullayev Anvar" />
+              <input name="parentName" defaultValue={student?.parentName} placeholder="Masalan: Abdullayev Anvar" />
             </label>
             <label className="parent-field-label">Ota-ona telefoni
-              <PhoneInput name="parentPhone" defaultValue={student?.parentPhone} required />
+              <PhoneInput name="parentPhone" defaultValue={student?.parentPhone} />
             </label>
             <label className="form-wide">Manzil
-              <input name="address" required defaultValue={student?.address} placeholder="Toshkent sh., Yunusobod tumani" />
+              <input name="address" defaultValue={student?.address} placeholder="Toshkent sh., Yunusobod tumani" />
             </label>
             <label className="form-wide">Guruh
               <select name="group" defaultValue={student?.groups[0] ?? ''} disabled={groupsQuery.isPending}>
