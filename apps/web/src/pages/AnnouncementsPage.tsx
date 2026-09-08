@@ -98,7 +98,7 @@ function AnnouncementForm({ close, send }: { close: () => void; send: (announcem
 
 export function AnnouncementsPage() {
   const user = getSession()
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const query = useAnnouncements()
   const sendMutation = useSendAnnouncement()
   const [search, setSearch] = useState('')

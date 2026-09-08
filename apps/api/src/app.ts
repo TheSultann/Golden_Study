@@ -72,6 +72,7 @@ export function createApp(): Express {
   const app = express();
 
   app.disable('x-powered-by');
+  app.set('trust proxy', 1);
   app.use(helmet());
   const allowedOrigins = new Set([
     env.FRONTEND_URL,

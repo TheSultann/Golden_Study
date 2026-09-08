@@ -7,7 +7,7 @@ export const REFRESH_COOKIE_NAME = 'golden_refresh';
 const refreshCookieOptions: CookieOptions = {
   httpOnly: true,
   sameSite: 'lax',
-  secure: env.NODE_ENV === 'production',
+  secure: env.FRONTEND_URL.startsWith('https://'),
   path: '/api/v1/auth',
   maxAge: env.JWT_REFRESH_EXPIRES_IN_DAYS * 24 * 60 * 60 * 1_000,
 };

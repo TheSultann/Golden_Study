@@ -12,9 +12,9 @@ export function createAuthRouter(authService: AuthService): Router {
   const router = Router();
   const controller = createAuthController(authService);
   const authenticate = createAuthenticate(authService);
-  const authRateLimit = rateLimit({
+  const loginRateLimit = rateLimit({
     windowMs: 15 * 60 * 1_000,
-    limit: process.env.NODE_ENV === 'production' ? 10 : 10000,
+    limit: process.env.NODE_ENV === 'production' ? 15 : 10000,
     standardHeaders: 'draft-8',
     legacyHeaders: false,
     skipSuccessfulRequests: true,
@@ -29,13 +29,30 @@ export function createAuthRouter(authService: AuthService): Router {
     },
   });
 
+  const refreshRateLimit = rateLimit({
+    windowMs: 15 * 60 * 1_000,
+    limit: process.env.NODE_ENV === 'production' ? 120 : 10000,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    skipSuccessfulRequests: true,
+    handler: (_request, response) => {
+      response.status(429).json({
+        success: false,
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'Too many refresh attempts',
+        },
+      });
+    },
+  });
+
   router.post(
     '/login',
-    authRateLimit,
+    loginRateLimit,
     validateBody(loginRequestSchema),
     controller.login,
   );
-  router.post('/refresh', authRateLimit, controller.refresh);
+  router.post('/refresh', refreshRateLimit, controller.refresh);
   router.post('/logout', controller.logout);
   router.get('/me', authenticate, controller.me);
   router.get(

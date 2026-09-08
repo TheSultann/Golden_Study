@@ -19,11 +19,11 @@ vi.mock('./features/auth/auth.service', () => {
       if (credentials.login === 'wrong' || credentials.password === 'wrong') {
         throw new Error('Login yoki parol noto‘g‘ri')
       }
-      const role = credentials.login === 'teacher' ? 'teacher' : 'admin'
+      const role = credentials.login === 'teacher' ? 'teacher' : credentials.login === 'reception' ? 'admin' : 'superadmin'
       session = {
-        id: role === 'admin' ? 'a1' : 't1',
+        id: role === 'teacher' ? 't1' : 'a1',
         login: credentials.login,
-        name: role === 'admin' ? 'Administrator' : "O‘qituvchi",
+        name: role === 'teacher' ? "O‘qituvchi" : 'Administrator',
         role,
       }
       return session
@@ -943,7 +943,8 @@ describe('mock-авторизация', () => {
 
     expect(await screen.findByRole('navigation', { name: 'Asosiy navigatsiya' })).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Moliya' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Sozlamalar' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Sozlamalar' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Reyting' })).toBeInTheDocument()
   })
 
   it('показывает ошибку для неверных данных', async () => {
