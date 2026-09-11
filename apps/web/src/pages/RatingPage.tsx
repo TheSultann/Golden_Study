@@ -1,4 +1,4 @@
-import { Search, Star, Trophy, TrendingUp, UsersRound } from 'lucide-react'
+import { Search, Trophy, TrendingUp, UsersRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTeacherRating } from '../features/teacher-rating/useTeacherRating'
 import { CopyCodeButton } from '../shared/ui/CopyCodeButton'
@@ -55,15 +55,11 @@ export function RatingPage() {
         <header><h2>Leaderboard</h2><span>{filtered.length} ta o'quvchi</span></header>
         <div className="table-scroll">
           <table aria-label="O'quvchilar reytingi">
-            <thead><tr><th>Joy</th><th>O'quvchi</th><th>Guruh</th><th>Imtihon</th><th>Davomat</th><th>Uy vazifasi</th><th>Yulduz</th><th>Ball</th></tr></thead>
-            <tbody>{filtered.map((row, index) => <tr key={row.studentId} className={index === 0 ? 'place-1' : ''}><td data-label="Joy"><strong>#{index + 1}</strong></td><td data-label="O'quvchi"><div className="student-identity-cell"><strong>{row.studentName}</strong><CopyCodeButton code={row.studentCode} /></div></td><td data-label="Guruh">{row.groupName}</td><td data-label="Imtihon">{row.averagePercent}%<small>{row.examsCount} imtihon</small></td><td data-label="Davomat">{row.attendanceRate}%</td><td data-label="Uy vazifasi">{row.homeworkRate}%</td><td data-label="Yulduz"><Stars count={row.stars} /></td><td data-label="Ball"><b>{row.totalScore}</b></td></tr>)}</tbody>
+            <thead><tr><th>Joy</th><th>O'quvchi</th><th>Guruh</th><th>Imtihon</th><th>Davomat</th><th>Uy vazifasi</th><th>Baho</th><th>Ball</th></tr></thead>
+            <tbody>{filtered.map((row, index) => <tr key={row.studentId} className={index === 0 ? 'place-1' : ''}><td data-label="Joy"><strong>#{index + 1}</strong></td><td data-label="O'quvchi"><div className="student-identity-cell"><strong>{row.studentName}</strong><CopyCodeButton code={row.studentCode} /></div></td><td data-label="Guruh">{row.groupName}</td><td data-label="Imtihon">{row.averagePercent}%<small>{row.examsCount} imtihon</small></td><td data-label="Davomat">{row.attendanceRate}%</td><td data-label="Uy vazifasi">{row.homeworkRate}%</td><td data-label="Baho">{row.attendanceRating}%</td><td data-label="Ball"><b>{row.totalScore}</b></td></tr>)}</tbody>
           </table>
         </div>
       </section>
     </section>
   )
-}
-
-function Stars({ count }: { count: number }) {
-  return <span className="rating-stars" role="img" aria-label={`${count} yulduz`}>{Array.from({ length: 5 }, (_, index) => <Star key={index} size={13} className={index < count ? 'on' : ''} />)}</span>
 }

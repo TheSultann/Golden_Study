@@ -104,7 +104,7 @@ export class ApiAttendanceRepository implements AttendanceRepository {
         studentCode: row.studentCode || '',
         studentName: row.studentName || '',
         status: mapApiToUiStatus(row.status),
-        rating: row.rating ?? 5,
+        rating: row.rating ?? 100,
         homeworkDone: Boolean(row.homeworkDone),
         comment: row.comment || '',
         lockedByAdmin: Boolean(row.lockedByAdmin),
@@ -127,7 +127,7 @@ export class ApiAttendanceRepository implements AttendanceRepository {
         return {
           studentId: row.studentId,
           status: apiStatus,
-          rating: apiStatus === 'CAME' ? Math.min(5, Math.max(1, row.rating || 5)) : null,
+          rating: apiStatus === 'CAME' ? Math.min(100, Math.max(0, typeof row.rating === 'number' ? row.rating : 100)) : null,
           homeworkDone: Boolean(row.homeworkDone),
           comment: (row.comment || '').trim(),
         }
@@ -153,7 +153,7 @@ export class ApiAttendanceRepository implements AttendanceRepository {
         studentCode: row.studentCode || '',
         studentName: row.studentName || '',
         status: mapApiToUiStatus(row.status),
-        rating: row.rating ?? 5,
+        rating: row.rating ?? 100,
         homeworkDone: Boolean(row.homeworkDone),
         comment: row.comment || '',
         lockedByAdmin: Boolean(row.lockedByAdmin),

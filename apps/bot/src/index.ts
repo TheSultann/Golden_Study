@@ -132,7 +132,7 @@ async function getStudentRating(studentId: string) {
       hwDone: 0,
       totalHw: 0,
     };
-    if (att.rating) {
+    if (typeof att.rating === 'number' && !isNaN(att.rating)) {
       prev.totalRating += att.rating;
       prev.ratingCount += 1;
     }
@@ -146,8 +146,8 @@ async function getStudentRating(studentId: string) {
     if (row) {
       row.attendanceRating =
         attData.ratingCount > 0
-          ? Number((attData.totalRating / attData.ratingCount).toFixed(1))
-          : 5.0;
+          ? Math.round(attData.totalRating / attData.ratingCount)
+          : 100;
       row.homeworkRate =
         attData.totalHw > 0 ? Math.round((attData.hwDone / attData.totalHw) * 100) : 0;
     }
@@ -155,14 +155,14 @@ async function getStudentRating(studentId: string) {
 
   const leaderboard = Array.from(rowsMap.values()).map((row) => {
     const examPart = row.examsCount > 0 ? row.averagePercent * 0.7 : 0;
-    const attPart = row.attendanceRating ? row.attendanceRating * 4 : 0;
+    const attPart = row.attendanceRating ? (row.attendanceRating / 100) * 20 : 0;
     const hwPart = Math.round(row.homeworkRate * 0.1);
 
     let totalScore = 0;
     if (row.examsCount > 0) {
       totalScore = Math.min(100, Math.round(examPart + attPart + hwPart));
     } else if (row.attendanceRating > 0 || row.homeworkRate > 0) {
-      totalScore = Math.min(100, Math.round(row.attendanceRating * 16 + row.homeworkRate * 0.2));
+      totalScore = Math.min(100, Math.round((row.attendanceRating / 100) * 80 + row.homeworkRate * 0.2));
     } else {
       totalScore = 0;
     }
@@ -532,8 +532,6 @@ bot.hears('⭐ Reyting', async (ctx) => {
 
   const { rank, totalStudents, myRow, topList, groupName } = ratingInfo;
 
-  const starIcons = `${'⭐'.repeat(myRow.stars)}${'☆'.repeat(5 - myRow.stars)}`;
-
   const slides: InputRichBlock[] = [];
 
   slides.push({
@@ -542,7 +540,7 @@ bot.hears('⭐ Reyting', async (ctx) => {
       bold('⭐ Reyting'),
       '\n', bold(studentName),
       `\n🏆 O'rin: #${rank} / ${totalStudents}`,
-      `\n${starIcons}`,
+      `\n📈 Davomat bahosi: ${myRow.attendanceRating}%`,
       `\n📊 Umumiy ball: ${myRow.totalScore} / 100`,
       `\n📚 ${escapeHtml(groupName)}`,
     ],
@@ -553,7 +551,7 @@ bot.hears('⭐ Reyting', async (ctx) => {
     { type: 'table', is_bordered: true, is_striped: true, cells: [
       [{ text: "Ko'rsatkich", is_header: true }, { text: 'Natija', is_header: true }],
       [{ text: 'Imtihon %' }, { text: `${myRow.averagePercent}% (${myRow.examsCount} ta)` }],
-      [{ text: 'Davomat' }, { text: `${myRow.attendanceRating} / 5.0` }],
+      [{ text: 'Davomat' }, { text: `${myRow.attendanceRating}%` }],
       [{ text: 'Uy vazifasi' }, { text: `${myRow.homeworkRate}%` }],
     ] },
   );
@@ -561,30 +559,29 @@ bot.hears('⭐ Reyting', async (ctx) => {
   slides.push(
     { type: 'heading', text: '🏆 Leaderboard', size: 4 },
     { type: 'table', is_bordered: true, is_striped: true, cells: [
-      [{ text: '#', is_header: true }, { text: 'Ism', is_header: true }, { text: 'Ball', is_header: true }, { text: 'Yulduz', is_header: true }],
+      [{ text: '#', is_header: true }, { text: 'Ism', is_header: true }, { text: 'Ball', is_header: true }, { text: 'Baho', is_header: true }],
       ...topList.map((item, i) => {
         const isMe = item.studentId === link.studentId;
         return [
           { text: `#${i + 1}` },
           { text: isMe ? `${item.studentName} 👈` : item.studentName },
           { text: `${item.totalScore}` },
-          { text: `${'⭐'.repeat(item.stars)}${'☆'.repeat(5 - item.stars)}` },
+          { text: `${item.attendanceRating}%` },
         ];
       }),
     ] },
   );
 
-  const starIconsFallback = '⭐'.repeat(myRow.stars) + '☆'.repeat(5 - myRow.stars);
   let fallbackHtml = `<b>Akademik reyting</b>\n🎓 <b>O'quvchi:</b> ${escapeHtml(studentName)}\n\n`;
   fallbackHtml += `🏆 <b>Guruhdagi o'rni:</b> <b>#${rank}</b> / ${totalStudents} o'quvchi\n`;
   fallbackHtml += `📊 <b>Umumiy ball:</b> <b>${myRow.totalScore}</b> / 100 ball\n`;
-  fallbackHtml += `⭐️ <b>Yulduzlar:</b> ${starIconsFallback}\n`;
+  fallbackHtml += `📈 <b>Davomat bahosi:</b> ${myRow.attendanceRating}%\n`;
   fallbackHtml += `📚 <b>Guruh:</b> ${escapeHtml(groupName)}\n\n`;
   fallbackHtml += `<blockquote expandable><b>📜 Guruh Leaderboard (Top-5):</b>\n`;
   topList.forEach((item) => {
     const name = escapeHtml(item.studentName);
     const isMe = item.studentId === link.studentId ? ' 👈 (Siz)' : '';
-    fallbackHtml += `#${topList.indexOf(item) + 1} <b>${name}</b> — <b>${item.totalScore} ball</b>${isMe}\n`;
+    fallbackHtml += `#${topList.indexOf(item) + 1} <b>${name}</b> — <b>${item.totalScore} ball</b> (${item.attendanceRating}%)${isMe}\n`;
   });
   fallbackHtml += `</blockquote>`;
 

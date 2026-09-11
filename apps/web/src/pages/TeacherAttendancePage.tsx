@@ -1,5 +1,5 @@
 import type { AttendanceRow } from '@golden-study/contracts';
-import { LockKeyhole, Save, Star } from 'lucide-react';
+import { LockKeyhole, Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useSaveTeacherAttendance, useTeacherAttendance, useTeacherAttendanceGroups } from '../features/teacher-attendance/useTeacherAttendance';
@@ -20,9 +20,6 @@ export function TeacherAttendancePage() {
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [showSuccess, setShowSuccess] = useState(false);
   const [pendingFilter, setPendingFilter] = useState<{ groupId: string; date: string } | null>(null);
-  
-  // Yulduzchalar uchun hover holatini saqlash (kalit: studentId, qiymat: yulduzcha soni)
-  const [hoveredRatings, setHoveredRatings] = useState<Record<string, number>>({});
 
   const query = useTeacherAttendance(groupId, date);
   const save = useSaveTeacherAttendance();
@@ -144,30 +141,27 @@ export function TeacherAttendancePage() {
                       </div>
                     </td>
                     <td data-label="Reyting">
-                      <div className="rating">
-                        {[1, 2, 3, 4, 5].map((rating) => {
-                          const activeRating = !row.lockedByAdmin && hoveredRatings[row.studentId] !== undefined 
-                            ? hoveredRatings[row.studentId] 
-                            : row.rating;
-                          return (
-                            <button 
-                              type="button" 
-                              key={rating} 
-                              disabled={row.lockedByAdmin} 
-                              className={rating <= activeRating ? 'on' : ''} 
-                              aria-label={`${row.studentName}: ${rating} yulduz`} 
-                              onClick={() => patch(row.studentId, { rating })}
-                              onMouseEnter={() => !row.lockedByAdmin && setHoveredRatings(prev => ({ ...prev, [row.studentId]: rating }))}
-                              onMouseLeave={() => !row.lockedByAdmin && setHoveredRatings(prev => {
-                                const copy = { ...prev };
-                                delete copy[row.studentId];
-                                return copy;
-                              })}
-                            >
-                              <Star size={15} />
-                            </button>
-                          );
-                        })}
+                      <div className="attendance-rating-control">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          disabled={row.lockedByAdmin || row.status !== 'came'}
+                          value={row.status === 'came' ? (row.rating === 0 ? '' : row.rating) : ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              patch(row.studentId, { rating: 0 });
+                            } else {
+                              const num = parseInt(raw, 10);
+                              patch(row.studentId, { rating: Math.min(100, Math.max(0, isNaN(num) ? 0 : num)) });
+                            }
+                          }}
+                          placeholder={row.status === 'came' ? '0' : '—'}
+                          aria-label={`${row.studentName} bahosi`}
+                        />
+                        <span className="attendance-rating-unit">%</span>
                       </div>
                     </td>
                     <td data-label="Uy vazifasi">

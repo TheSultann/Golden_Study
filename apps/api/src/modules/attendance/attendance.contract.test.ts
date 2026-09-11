@@ -64,4 +64,66 @@ describe('attendance API contracts', () => {
       }).success,
     ).toBe(false);
   });
+
+  it('validates rating within 0 to 100 percent for CAME', () => {
+    const validZero = {
+      groupId,
+      date: '2026-07-08',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          rating: 0,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    expect(attendanceBulkSaveInputSchema.safeParse(validZero).success).toBe(true);
+
+    const validHundred = {
+      groupId,
+      date: '2026-07-08',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          rating: 100,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    expect(attendanceBulkSaveInputSchema.safeParse(validHundred).success).toBe(true);
+
+    const invalidTooHigh = {
+      groupId,
+      date: '2026-07-08',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          rating: 101,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    expect(attendanceBulkSaveInputSchema.safeParse(invalidTooHigh).success).toBe(false);
+
+    const invalidNegative = {
+      groupId,
+      date: '2026-07-08',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          rating: -1,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    expect(attendanceBulkSaveInputSchema.safeParse(invalidNegative).success).toBe(false);
+  });
 });

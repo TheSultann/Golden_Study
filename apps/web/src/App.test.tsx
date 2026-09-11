@@ -264,8 +264,8 @@ vi.mock('./features/attendance/attendance.dependencies', () => {
           groupName: 'IELTS-24-01',
           date,
           rows: [
-            { studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', status: 'came', comment: 'A’lo', rating: 5, homeworkDone: true, lockedByAdmin: false },
-            { studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', status: 'came', comment: 'Yaxshi', rating: 4, homeworkDone: true, lockedByAdmin: false }
+            { studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', status: 'came', comment: 'A’lo', rating: 95, homeworkDone: true, lockedByAdmin: false },
+            { studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', status: 'came', comment: 'Yaxshi', rating: 85, homeworkDone: true, lockedByAdmin: false }
           ]
         }
       }),
@@ -484,8 +484,8 @@ vi.mock('./features/teacher-attendance/teacherAttendance.dependencies', () => ({
       groupName: groupId === 'g2' ? 'ENG-24-03' : 'IELTS-24-01',
       date,
       rows: [
-        { studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', status: 'absent', rating: 5, homeworkDone: true, comment: 'Lokal', lockedByAdmin: true },
-        { studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', status: 'absent', rating: 4, homeworkDone: false, comment: '', lockedByAdmin: false }
+        { studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', status: 'absent', rating: 95, homeworkDone: true, comment: 'Lokal', lockedByAdmin: true },
+        { studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', status: 'absent', rating: 85, homeworkDone: false, comment: '', lockedByAdmin: false }
       ]
     })),
     save: vi.fn(async (s: any) => s)
@@ -529,9 +529,9 @@ vi.mock('./features/teacher-exams/teacherExams.dependencies', () => {
 vi.mock('./features/teacher-rating/teacherRating.dependencies', () => ({
   teacherRatingRepository: {
     list: vi.fn(async () => [
-      { id: 'r1', rank: 1, studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', groupName: 'IELTS-24-01', totalScore: 95, stars: 5, averagePercent: 95, examsCount: 2, attendanceRating: 5, homeworkRate: 100 },
-      { id: 'r2', rank: 2, studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', groupName: 'IELTS-24-01', totalScore: 88, stars: 4, averagePercent: 88, examsCount: 2, attendanceRating: 4, homeworkRate: 80 },
-      { id: 'r3', rank: 3, studentId: 's3', studentCode: 'ST103', studentName: 'Dilnoza Ergasheva', groupName: 'ENG-24-03', totalScore: 92, stars: 5, averagePercent: 92, examsCount: 2, attendanceRating: 5, homeworkRate: 90 },
+      { id: 'r1', rank: 1, studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', groupName: 'IELTS-24-01', totalScore: 95, stars: 5, averagePercent: 95, examsCount: 2, attendanceRating: 95, homeworkRate: 100 },
+      { id: 'r2', rank: 2, studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', groupName: 'IELTS-24-01', totalScore: 88, stars: 4, averagePercent: 88, examsCount: 2, attendanceRating: 85, homeworkRate: 80 },
+      { id: 'r3', rank: 3, studentId: 's3', studentCode: 'ST103', studentName: 'Dilnoza Ergasheva', groupName: 'ENG-24-03', totalScore: 92, stars: 5, averagePercent: 92, examsCount: 2, attendanceRating: 90, homeworkRate: 90 },
     ])
   }
 }))
@@ -859,6 +859,15 @@ describe('mock-авторизация', () => {
     expect(row.querySelector('.attendance-card-meta')).toBeInTheDocument()
     expect(row.querySelector('.attendance-card-comment')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Saqlash' })).not.toBeInTheDocument()
+
+    const ratingInput = screen.getByLabelText('Sardor Abdullayev bahosi')
+    expect(ratingInput).toBeInTheDocument()
+    expect(ratingInput).toHaveValue(95)
+    await user.clear(ratingInput)
+    expect(ratingInput).toHaveValue(null)
+    await user.type(ratingInput, '88')
+    expect(ratingInput).toHaveValue(88)
+    expect(screen.getByRole('button', { name: 'Saqlash' }).closest('.attendance-savebar')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sardor Abdullayev: Sababli' }))
     expect(screen.getByRole('button', { name: 'Saqlash' }).closest('.attendance-savebar')).toBeInTheDocument()
   })
@@ -1226,7 +1235,7 @@ describe('mock-авторизация', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('opens rating leaderboard with group filter and stars', async () => {
+  it('opens rating leaderboard with group filter and scores', async () => {
     const user = userEvent.setup()
     renderApp()
 
@@ -1239,10 +1248,10 @@ describe('mock-авторизация', () => {
     const table = await screen.findByRole('table', { name: "O'quvchilar reytingi" })
     expect(table).toBeInTheDocument()
     expect(await within(table).findByText('Sardor Abdullayev')).toBeInTheDocument()
-    expect(screen.getAllByLabelText(/yulduz/i).length).toBeGreaterThan(0)
+    expect(within(table).getAllByText('95%').length).toBeGreaterThan(0)
     const firstRowCells = within(within(table).getAllByRole('row')[1]).getAllByRole('cell')
     expect(firstRowCells.map((cell) => cell.getAttribute('data-label'))).toEqual([
-      'Joy', "O'quvchi", 'Guruh', 'Imtihon', 'Davomat', 'Uy vazifasi', 'Yulduz', 'Ball',
+      'Joy', "O'quvchi", 'Guruh', 'Imtihon', 'Davomat', 'Uy vazifasi', 'Baho', 'Ball',
     ])
 
     await user.selectOptions(screen.getByLabelText('Guruh reytingi'), 'ENG-24-03')

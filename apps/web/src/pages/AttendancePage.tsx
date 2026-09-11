@@ -1,5 +1,5 @@
 import type { AttendanceRow } from '@golden-study/contracts';
-import { Save, Star } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useAttendance, useSaveAttendance } from '../features/attendance/useAttendance';
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
@@ -26,9 +26,6 @@ export function AttendancePage() {
       setGroupId(groups[0].id);
     }
   }, [groups, groupId]);
-
-  // Yulduzchalar uchun hover holatini saqlash (kalit: studentId, qiymat: yulduzcha soni)
-  const [hoveredRatings, setHoveredRatings] = useState<Record<string, number>>({});
 
   const q = useAttendance(groupId, date);
   const save = useSaveAttendance();
@@ -142,30 +139,27 @@ export function AttendancePage() {
                     </td>
                     <td className="attendance-card-meta attendance-card-rating" data-label="Reyting">
                       <span className="attendance-mobile-label">Reyting</span>
-                      <div className="rating">
-                        {[1, 2, 3, 4, 5].map((n) => {
-                          const activeRating = hoveredRatings[r.studentId] !== undefined 
-                            ? hoveredRatings[r.studentId] 
-                            : r.rating;
-                          return (
-                            <button 
-                              type="button" 
-                              key={n} 
-                              className={n <= activeRating ? 'on' : ''} 
-                              onClick={() => patch(r.studentId, { rating: n })}
-                              onMouseEnter={() => setHoveredRatings(prev => ({ ...prev, [r.studentId]: n }))}
-                              onMouseLeave={() => setHoveredRatings(prev => {
-                                const copy = { ...prev };
-                                delete copy[r.studentId];
-                                return copy;
-                              })}
-                              aria-label={`${r.studentName}: ${n} yulduz`}
-                              aria-pressed={n <= r.rating}
-                            >
-                              <Star size={15} />
-                            </button>
-                          );
-                        })}
+                      <div className="attendance-rating-control">
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          disabled={r.status !== 'came'}
+                          value={r.status === 'came' ? (r.rating === 0 ? '' : r.rating) : ''}
+                          onFocus={(e) => e.target.select()}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === '') {
+                              patch(r.studentId, { rating: 0 });
+                            } else {
+                              const num = parseInt(raw, 10);
+                              patch(r.studentId, { rating: Math.min(100, Math.max(0, isNaN(num) ? 0 : num)) });
+                            }
+                          }}
+                          placeholder={r.status === 'came' ? '0' : '—'}
+                          aria-label={`${r.studentName} bahosi`}
+                        />
+                        <span className="attendance-rating-unit">%</span>
                       </div>
                     </td>
                     <td className="attendance-card-meta attendance-card-homework" data-label="Uy vazifasi">

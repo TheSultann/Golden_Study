@@ -327,7 +327,7 @@ export const attendanceApiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT'])
 const attendanceItemBaseSchema = z.object({
   studentId: z.string().uuid(),
   status: attendanceApiStatusSchema,
-  rating: z.number().int().min(1).max(5).nullable(),
+  rating: z.number().int().min(0).max(100).nullable(),
   homeworkDone: z.boolean(),
   comment: z.string().trim().max(1000).default(''),
 }).strict()
@@ -383,7 +383,7 @@ export const attendanceApiSchema = z.object({
   studentName: z.string(),
   date: dateOnlySchema,
   status: attendanceApiStatusSchema,
-  rating: z.number().int().min(1).max(5).nullable(),
+  rating: z.number().int().min(0).max(100).nullable(),
   homeworkDone: z.boolean(),
   comment: z.string(),
   lockedByAdmin: z.boolean(),

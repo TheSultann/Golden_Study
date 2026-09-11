@@ -188,11 +188,11 @@ export class TeacherPanelService {
         const attendanceRate = total > 0 ? Math.round((presentCount / total) * 100) : 0;
         const avgRating = cameCount > 0 ? cameRecords.reduce((sum, a) => sum + (a.rating ?? 0), 0) / cameCount : 0;
         const homeworkDone = total > 0 ? (attendance.filter((a) => a.status !== 'ABSENT' && a.homeworkDone).length / total) * 100 : 0;
-        const attendanceRating = avgRating;
+        const attendanceRating = Math.round(avgRating);
         const totalScore = total > 0
-          ? Math.round((attendanceRate / 100) * 40 + (attendanceRating / 5) * 30 + (homeworkDone / 100) * 30)
+          ? Math.round((attendanceRate / 100) * 40 + (attendanceRating / 100) * 30 + (homeworkDone / 100) * 30)
           : 0;
-        const stars = cameCount > 0 ? Math.min(5, Math.max(0, Math.round(avgRating))) : 0;
+        const stars = cameCount > 0 ? Math.min(5, Math.max(0, Math.round(avgRating / 20))) : 0;
 
         rows.push({
           studentId: s.id,

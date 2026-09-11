@@ -24,4 +24,27 @@ describe('teacherRatingResponseSchema', () => {
     const parsed = teacherRatingResponseSchema.parse(rawData)
     expect(parsed.data[0].stars).toBe(0)
   })
+
+  it('parses rows with percentage attendanceRating (0-100)', () => {
+    const rawData = {
+      data: [
+        {
+          studentId: 's1',
+          studentCode: 'ST101',
+          studentName: 'Ali Valiyev',
+          groupName: 'ENG-1',
+          examsCount: 2,
+          averagePercent: 88,
+          attendanceRate: 95,
+          attendanceRating: 92,
+          homeworkRate: 90,
+          totalScore: 91,
+          stars: 5,
+        },
+      ],
+    }
+
+    const parsed = teacherRatingResponseSchema.parse(rawData)
+    expect(parsed.data[0].attendanceRating).toBe(92)
+  })
 })
