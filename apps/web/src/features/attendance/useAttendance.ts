@@ -1,4 +1,4 @@
-import type { AttendanceSession } from '@golden-study/contracts';
+import type { AttendanceBroadcastInput, AttendanceSession } from '@golden-study/contracts';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { attendanceRepository } from './attendance.dependencies';
 
@@ -19,6 +19,18 @@ export function useSaveAttendance() {
         c.invalidateQueries({ queryKey: ['students'] }),
         c.invalidateQueries({ queryKey: ['rating'] }),
       ]);
+    },
+  });
+}
+
+export function useBroadcastAttendance() {
+  const c = useQueryClient();
+  return useMutation({
+    mutationFn: (input: AttendanceBroadcastInput) => attendanceRepository.broadcast(input),
+    onSuccess: async (_, variables) => {
+      if (variables.groupId) {
+        await c.invalidateQueries({ queryKey: ['attendance', variables.groupId] });
+      }
     },
   });
 }

@@ -1,5 +1,8 @@
-﻿import type {
+import { createHash } from 'node:crypto';
+import type {
   AttendanceApi,
+  AttendanceBroadcastInput,
+  AttendanceBroadcastResult,
   AttendanceBulkSaveInput,
   AttendanceListQuery,
   AttendanceUpdateInput,
@@ -9,6 +12,12 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 
 import { ApiError } from '../../common/errors/api-error.js';
 import { toPaginationMeta } from '../../common/http/pagination.js';
+import { calculateNextLesson } from '../groups/group-schedule.js';
+import {
+  buildGroupLessonBroadcastMessage,
+  type NotificationPayloadData,
+} from '../telegram/telegram-messages.js';
+import { sendTelegramMessage } from '../telegram/telegram-sender.js';
 import { attendanceOperationKey } from './attendance-policy.js';
 import type { BillingService } from '../billing/billing.service.js';
 import type { TelegramNotifier } from '../telegram/telegram.service.js';
@@ -66,6 +75,14 @@ export class AttendanceService {
       },
       orderBy: { student: { lastName: 'asc' } },
     });
+    const groupLesson = await this.prisma.groupLesson.findUnique({
+      where: {
+        groupId_date: {
+          groupId,
+          date: dayStart,
+        },
+      },
+    });
     const records = await this.prisma.attendance.findMany({
       where: { groupId, date: dayStart },
       include: attendanceInclude,
@@ -77,6 +94,7 @@ export class AttendanceService {
       groupId,
       groupName: group.name,
       date,
+      homeworkText: groupLesson?.homeworkText ?? '',
       rows: memberships.map(({ student }) => {
         const saved = byStudent.get(student.id);
         return (
@@ -91,6 +109,9 @@ export class AttendanceService {
             status: 'CAME' as const,
             rating: null,
             homeworkDone: false,
+            homeworkScore: null,
+            topicScore: null,
+            dictionaryScore: null,
             comment: '',
             lockedByAdmin: false,
             isReversed: false,
@@ -148,8 +169,53 @@ export class AttendanceService {
       ) {
         throw new ApiError(403, 'FORBIDDEN', 'Attendance locked by admin');
       }
+
+      await transaction.groupLesson.upsert({
+        where: {
+          groupId_date: {
+            groupId: input.groupId,
+            date: dayStart,
+          },
+        },
+        create: {
+          groupId: input.groupId,
+          date: dayStart,
+          homeworkText: input.homeworkText ?? '',
+        },
+        update: {
+          homeworkText: input.homeworkText ?? '',
+        },
+      });
+
       const rows = [];
       for (const item of input.items) {
+        const isCame = item.status === 'CAME';
+        const specificScores = [
+          item.homeworkScore,
+          item.topicScore,
+          item.dictionaryScore,
+        ].filter((s): s is number => typeof s === 'number' && !isNaN(s));
+
+        const homeworkScore = isCame && typeof item.homeworkScore === 'number'
+          ? item.homeworkScore
+          : null;
+        const topicScore = isCame && typeof item.topicScore === 'number'
+          ? item.topicScore
+          : null;
+        const dictionaryScore = isCame && typeof item.dictionaryScore === 'number'
+          ? item.dictionaryScore
+          : null;
+
+        const rating = isCame
+          ? (specificScores.length > 0
+              ? Math.round(specificScores.reduce((sum, s) => sum + s, 0) / specificScores.length)
+              : (typeof item.rating === 'number' ? item.rating : null))
+          : null;
+
+        const homeworkDone = isCame
+          ? (typeof homeworkScore === 'number' ? homeworkScore > 0 : Boolean(item.homeworkDone))
+          : false;
+
         const row = await transaction.attendance.upsert({
           where: {
             groupId_studentId_date: {
@@ -163,16 +229,22 @@ export class AttendanceService {
             studentId: item.studentId,
             date: dayStart,
             status: item.status,
-            rating: item.rating,
-            homeworkDone: item.homeworkDone,
+            rating,
+            homeworkScore,
+            topicScore,
+            dictionaryScore,
+            homeworkDone,
             comment: item.comment,
             lockedByAdmin: user.role !== 'TEACHER',
             createdByUserId: user.id,
           },
           update: {
             status: item.status,
-            rating: item.rating,
-            homeworkDone: item.homeworkDone,
+            rating,
+            homeworkScore,
+            topicScore,
+            dictionaryScore,
+            homeworkDone,
             comment: item.comment,
             ...(user.role === 'TEACHER' ? {} : { lockedByAdmin: true }),
           },
@@ -189,6 +261,7 @@ export class AttendanceService {
         groupId: input.groupId,
         groupName: group.name,
         date: input.date,
+        homeworkText: input.homeworkText ?? '',
         rows,
       };
     });
@@ -220,6 +293,200 @@ export class AttendanceService {
     }
   }
 
+  public async broadcastLesson(
+    groupId: string,
+    input: AttendanceBroadcastInput,
+    user: AuthUser,
+  ): Promise<AttendanceBroadcastResult> {
+    const topic = (input.topic ?? '').trim();
+    const homeworkText = (input.homeworkText ?? '').trim();
+
+    if (!topic && !homeworkText) {
+      throw new ApiError(
+        400,
+        'VALIDATION_ERROR',
+        'Mavzu yoki uyga vazifa kiritilishi shart',
+      );
+    }
+
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        course: true,
+        teacher: true,
+        room: true,
+      },
+    });
+
+    if (!group) {
+      throw new ApiError(404, 'NOT_FOUND', 'Group not found');
+    }
+
+    if (user.role === 'TEACHER' && group.teacherId !== user.teacherId) {
+      throw new ApiError(403, 'FORBIDDEN', 'Access denied');
+    }
+
+    const { dayStart } = dateBounds(input.date);
+
+    let combinedPlan = '';
+    if (topic && homeworkText) {
+      combinedPlan = `Mavzu: ${topic}\nVazifa: ${homeworkText}`;
+    } else if (topic) {
+      combinedPlan = `Mavzu: ${topic}`;
+    } else {
+      combinedPlan = homeworkText;
+    }
+
+    await this.prisma.groupLesson.upsert({
+      where: { groupId_date: { groupId, date: dayStart } },
+      create: { groupId, date: dayStart, homeworkText: combinedPlan },
+      update: { homeworkText: combinedPlan },
+    });
+
+    const nextLessonInfo = calculateNextLesson(
+      input.date,
+      group.weekdays,
+      group.lessonStartMinutes,
+      group.room?.name,
+    );
+
+    const formattedDate = formatDateUz(dayStart);
+
+    let groupChatSent = false;
+    let studentsSentCount = 0;
+
+    // 1. Broadcast to Telegram Group Chat (Strict Privacy Rule applied: NO student grades/status)
+    if (input.sendToGroupChat && group.telegramChatId) {
+      const groupMessage = buildGroupLessonBroadcastMessage({
+        groupName: group.name,
+        date: formattedDate,
+        topic: topic || undefined,
+        homeworkText: homeworkText || undefined,
+        nextLesson: nextLessonInfo?.displaySummary,
+      });
+
+      try {
+        await sendTelegramMessage(group.telegramChatId, groupMessage);
+        groupChatSent = true;
+      } catch (error) {
+        console.error('[telegram] group broadcast message failed:', error);
+      }
+    }
+
+    // 2. Broadcast to Individual Students/Parents (Personalized with attendance & rating)
+    const memberships = await this.prisma.groupStudent.findMany({
+      where: { groupId, status: 'ACTIVE' },
+      include: {
+        student: {
+          include: {
+            telegramLinks: {
+              where: { status: 'ACTIVE' },
+            },
+          },
+        },
+      },
+    });
+
+    const activeLinkedStudents = memberships.filter(
+      (m) => m.student.telegramLinks && m.student.telegramLinks.length > 0,
+    );
+
+    if (input.sendToStudents && activeLinkedStudents.length > 0) {
+      const records = await this.prisma.attendance.findMany({
+        where: { groupId, date: dayStart, isReversed: false },
+      });
+      const attMap = new Map(records.map((r) => [r.studentId, r]));
+
+      const broadcastSeq = Math.floor(Date.now() / 5000);
+
+      for (const m of activeLinkedStudents) {
+        const student = m.student;
+        const att = attMap.get(student.id);
+
+        const studentContent = [
+          topic,
+          homeworkText,
+          att?.status ?? '',
+          att?.rating ?? '',
+          att?.homeworkScore ?? '',
+          att?.topicScore ?? '',
+          att?.dictionaryScore ?? '',
+          att?.comment ?? '',
+        ].join(':::');
+
+        const studentContentHash = createHash('md5')
+          .update(studentContent)
+          .digest('hex')
+          .slice(0, 8);
+
+        const payload: NotificationPayloadData = {
+          studentName: `${student.lastName} ${student.firstName}`,
+          groupName: group.name,
+          date: formattedDate,
+          topic: topic || undefined,
+          homeworkText: homeworkText || undefined,
+          nextLesson: nextLessonInfo?.displaySummary,
+          status: att ? att.status : undefined,
+          rating: att?.rating ?? undefined,
+          homeworkScore: att?.homeworkScore ?? undefined,
+          topicScore: att?.topicScore ?? undefined,
+          dictionaryScore: att?.dictionaryScore ?? undefined,
+          comment: att?.comment || undefined,
+        };
+
+        let queuedForStudent = false;
+        for (const link of student.telegramLinks) {
+          if (this.notifier) {
+            try {
+              await this.notifier.enqueueToLink(
+                link.id,
+                'lesson_broadcast',
+                payload,
+                `lesson_broadcast:${groupId}:${student.id}:${input.date}:${link.id}:${studentContentHash}:${broadcastSeq}`,
+              );
+              queuedForStudent = true;
+            } catch (err) {
+              console.error('[telegram] student lesson broadcast failed:', err);
+            }
+          }
+        }
+        if (queuedForStudent) {
+          studentsSentCount++;
+        }
+      }
+    }
+
+    const totalActiveStudents = memberships.length;
+    const telegramLinkedStudents = activeLinkedStudents.length;
+
+    let message = '';
+    if (groupChatSent && studentsSentCount > 0) {
+      message = `Telegram guruhga va ${studentsSentCount} ta o‘quvchiga yuborildi`;
+    } else if (groupChatSent) {
+      message = 'Telegram guruhga muvaffaqiyatli yuborildi';
+    } else if (studentsSentCount > 0) {
+      message = `${studentsSentCount} ta o‘quvchi botiga muvaffaqiyatli yuborildi`;
+    } else if (input.sendToGroupChat && !group.telegramChatId) {
+      message = 'Guruh Telegram chatiga ulanmagan. Faqat o‘quvchilarga yuborildi.';
+    } else {
+      message = 'Hech qanday qabul qiluvchi tanlanmadi yoki topilmadi';
+    }
+
+    return {
+      success: groupChatSent || studentsSentCount > 0,
+      groupChatSent,
+      groupChatTitle: group.telegramChatTitle ?? null,
+      studentsSentCount,
+      totalActiveStudents,
+      telegramLinkedStudents,
+      nextLessonDate: nextLessonInfo?.dateIso,
+      nextLessonTime: nextLessonInfo?.timeFormatted,
+      nextLessonRoom: nextLessonInfo?.roomName,
+      nextLessonSummary: nextLessonInfo?.displaySummary ?? null,
+      message,
+    };
+  }
+
   public async update(
     id: string,
     input: AttendanceUpdateInput,
@@ -233,12 +500,42 @@ export class AttendanceService {
       throw new ApiError(422, 'BUSINESS_ERROR', 'Attendance is reversed');
     }
     const updated = await this.prisma.$transaction(async (transaction) => {
+      const isCame = input.status === 'CAME';
+      const specificScores = [
+        input.homeworkScore,
+        input.topicScore,
+        input.dictionaryScore,
+      ].filter((s): s is number => typeof s === 'number' && !isNaN(s));
+
+      const homeworkScore = isCame && typeof input.homeworkScore === 'number'
+        ? input.homeworkScore
+        : null;
+      const topicScore = isCame && typeof input.topicScore === 'number'
+        ? input.topicScore
+        : null;
+      const dictionaryScore = isCame && typeof input.dictionaryScore === 'number'
+        ? input.dictionaryScore
+        : null;
+
+      const rating = isCame
+        ? (specificScores.length > 0
+            ? Math.round(specificScores.reduce((sum, s) => sum + s, 0) / specificScores.length)
+            : (typeof input.rating === 'number' ? input.rating : null))
+        : null;
+
+      const homeworkDone = isCame
+        ? (typeof homeworkScore === 'number' ? homeworkScore > 0 : Boolean(input.homeworkDone))
+        : false;
+
       const row = await transaction.attendance.update({
         where: { id },
         data: {
           status: input.status,
-          rating: input.rating,
-          homeworkDone: input.homeworkDone,
+          rating,
+          homeworkScore,
+          topicScore,
+          dictionaryScore,
+          homeworkDone,
           comment: input.comment,
           lockedByAdmin: true,
         },
@@ -364,6 +661,15 @@ function toApi(
     date: row.date.toISOString().slice(0, 10),
     status: row.status,
     rating: row.rating,
+    homeworkScore: (row.homeworkScore !== null || row.topicScore !== null || row.dictionaryScore !== null)
+      ? row.homeworkScore
+      : (row.status === 'CAME' ? row.rating : null),
+    topicScore: (row.homeworkScore !== null || row.topicScore !== null || row.dictionaryScore !== null)
+      ? row.topicScore
+      : (row.status === 'CAME' ? row.rating : null),
+    dictionaryScore: (row.homeworkScore !== null || row.topicScore !== null || row.dictionaryScore !== null)
+      ? row.dictionaryScore
+      : (row.status === 'CAME' ? row.rating : null),
     homeworkDone: row.homeworkDone,
     comment: row.comment,
     lockedByAdmin: row.lockedByAdmin,
@@ -373,3 +679,15 @@ function toApi(
     updatedAt: row.updatedAt.toISOString(),
   };
 }
+
+function formatDateUz(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Asia/Tashkent',
+  }).formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
+  return `${get('day')}.${get('month')}.${get('year')}`;
+}
+

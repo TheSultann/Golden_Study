@@ -10,6 +10,7 @@ const triggerLabels: Record<TelegramTriggerType, string> = {
   payment_received: "To'lov qabul qilindi",
   debt_reminder: 'Qarz eslatmasi',
   announcement: "E'lon",
+  lesson_broadcast: 'Dars xulosasi',
 }
 
 const statusLabels: Record<TelegramLink['status'], string> = { pending: 'Kutilmoqda', active: 'Faol', rejected: 'Rad etilgan' }

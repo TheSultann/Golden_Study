@@ -164,7 +164,8 @@ export class TelegramService {
       | 'EXAM_RESULT'
       | 'PAYMENT_RECEIVED'
       | 'DEBT_REMINDER'
-      | 'ANNOUNCEMENT';
+      | 'ANNOUNCEMENT'
+      | 'LESSON_BROADCAST';
 
     const existing = operationKey
       ? await this.prisma.telegramNotificationLog.findUnique({

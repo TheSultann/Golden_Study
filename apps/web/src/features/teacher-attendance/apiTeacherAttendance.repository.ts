@@ -1,7 +1,20 @@
-import { attendanceResponseSchema, teacherAttendanceGroupsResponseSchema, type AttendanceSession } from '@golden-study/contracts'
+import {
+  type AttendanceBroadcastInput,
+  type AttendanceBroadcastResult,
+  attendanceBroadcastResultSchema,
+  attendanceResponseSchema,
+  teacherAttendanceGroupsResponseSchema,
+  type AttendanceSession,
+} from '@golden-study/contracts'
+import { z } from 'zod'
 
 import { apiRequest } from '../../shared/api/httpClient'
 import type { TeacherAttendanceRepository } from './teacherAttendance.repository'
+
+const broadcastApiResponseSchema = z.object({
+  success: z.literal(true),
+  data: attendanceBroadcastResultSchema,
+})
 
 export class ApiTeacherAttendanceRepository implements TeacherAttendanceRepository {
   async listGroups() {
@@ -23,6 +36,18 @@ export class ApiTeacherAttendanceRepository implements TeacherAttendanceReposito
       '/teachers/me/attendance',
       { method: 'PUT', body: JSON.stringify(session) },
       attendanceResponseSchema,
+    )
+    return response.data
+  }
+
+  async broadcast(input: AttendanceBroadcastInput): Promise<AttendanceBroadcastResult> {
+    const response = await apiRequest(
+      `/attendance/group/${input.groupId}/broadcast`,
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+      broadcastApiResponseSchema,
     )
     return response.data
   }

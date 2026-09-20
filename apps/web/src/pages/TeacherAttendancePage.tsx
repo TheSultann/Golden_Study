@@ -1,10 +1,24 @@
 import type { AttendanceRow } from '@golden-study/contracts';
-import { LockKeyhole, Save } from 'lucide-react';
+import { BookOpen, FileText, LockKeyhole, Save, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useSaveTeacherAttendance, useTeacherAttendance, useTeacherAttendanceGroups } from '../features/teacher-attendance/useTeacherAttendance';
+import {
+  useBroadcastTeacherAttendance,
+  useSaveTeacherAttendance,
+  useTeacherAttendance,
+  useTeacherAttendanceGroups,
+} from '../features/teacher-attendance/useTeacherAttendance';
+import { LessonBroadcastModal } from '../features/attendance/LessonBroadcastModal';
+import {
+  calculateAttendanceAverage,
+  formatLessonPlan,
+  normalizeAttendanceRow,
+  parseLessonPlan,
+  parseScoreInput,
+} from '../features/attendance/attendancePlan';
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 import { DateInput } from '../shared/ui/DateInput';
+import { Select } from '../shared/ui/Select';
 
 const statuses = {
   came: 'Keldi',
@@ -18,11 +32,17 @@ export function TeacherAttendancePage() {
   const [groupId, setGroupId] = useState(searchParams.get('group') ?? 'g1');
   const [date, setDate] = useState(() => new Date().toLocaleDateString('en-CA'));
   const [rows, setRows] = useState<AttendanceRow[]>([]);
+  const [lessonTitle, setLessonTitle] = useState('');
+  const [homeworkText, setHomeworkText] = useState('');
+  const [showTelegramPrompt, setShowTelegramPrompt] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [pendingFilter, setPendingFilter] = useState<{ groupId: string; date: string } | null>(null);
 
   const query = useTeacherAttendance(groupId, date);
   const save = useSaveTeacherAttendance();
+  const broadcastMutation = useBroadcastTeacherAttendance();
+  const selectedGroup = groupsQuery.data?.find((g) => g.id === groupId);
 
   useEffect(() => {
     if (groupsQuery.data && groupsQuery.data.length > 0) {
@@ -33,7 +53,12 @@ export function TeacherAttendancePage() {
   }, [groupsQuery.data, groupId]);
 
   useEffect(() => {
-    if (query.data) setRows(query.data.rows);
+    if (query.data) {
+      setRows(query.data.rows.map(normalizeAttendanceRow));
+      const parsed = parseLessonPlan(query.data.homeworkText || '');
+      setLessonTitle(query.data.lessonTitle || query.data.topic || parsed.topic);
+      setHomeworkText(parsed.topic ? parsed.homeworkText : (query.data.homeworkText || ''));
+    }
   }, [query.data]);
 
   useEffect(() => {
@@ -44,7 +69,13 @@ export function TeacherAttendancePage() {
     }
   }, [save.isSuccess]);
 
-  const isDirty = query.data ? JSON.stringify(rows) !== JSON.stringify(query.data.rows) : false;
+  const parsedPlan = parseLessonPlan(query.data?.homeworkText || '');
+  const initialTopic = query.data ? (query.data.lessonTitle || query.data.topic || parsedPlan.topic) : '';
+  const initialHw = query.data ? (parsedPlan.topic ? parsedPlan.homeworkText : (query.data.homeworkText || '')) : '';
+  const isLessonPlanChanged = lessonTitle !== initialTopic || homeworkText !== initialHw;
+  const isDirty = query.data
+    ? (JSON.stringify(rows) !== JSON.stringify(query.data.rows.map(normalizeAttendanceRow)) || isLessonPlanChanged)
+    : false;
 
   function applyFilter(next: { groupId: string; date: string }) {
     setGroupId(next.groupId);
@@ -68,6 +99,47 @@ export function TeacherAttendancePage() {
     );
   }
 
+  function updateScore(
+    studentId: string,
+    field: 'homeworkScore' | 'topicScore' | 'dictionaryScore',
+    value: number | null,
+  ) {
+    setRows((current) =>
+      current.map((row) => {
+        if (row.studentId !== studentId || row.lockedByAdmin) return row;
+        const nextScores = {
+          homeworkScore: field === 'homeworkScore' ? value : (row.homeworkScore ?? null),
+          topicScore: field === 'topicScore' ? value : (row.topicScore ?? null),
+          dictionaryScore: field === 'dictionaryScore' ? value : (row.dictionaryScore ?? null),
+        };
+        const nextRating = calculateAttendanceAverage(
+          nextScores.homeworkScore,
+          nextScores.topicScore,
+          nextScores.dictionaryScore,
+        );
+        return {
+          ...row,
+          ...nextScores,
+          rating: nextRating,
+          homeworkDone: (nextScores.homeworkScore ?? 0) > 0,
+        };
+      }),
+    );
+  }
+
+  async function handleSave() {
+    if (!query.data) return;
+    const formatted = formatLessonPlan(lessonTitle, homeworkText);
+    await save.mutateAsync({
+      ...query.data,
+      topic: lessonTitle,
+      lessonTitle,
+      homeworkText: formatted,
+      rows,
+    });
+    setShowTelegramPrompt(true);
+  }
+
   return (
     <section className="attendance-page teacher-attendance-page">
       <div className="page-heading">
@@ -78,11 +150,15 @@ export function TeacherAttendancePage() {
       </div>
       <div className="attendance-filters">
         <label>Guruh
-          <select aria-label="Guruh" value={groupId} onChange={(event) => requestFilterChange({ groupId: event.target.value, date })}>
-            {(groupsQuery.data ?? []).map((group) => (
-              <option key={group.id} value={group.id}>{group.name}</option>
-            ))}
-          </select>
+          <Select
+            aria-label="Guruh"
+            value={groupId}
+            onChange={(nextId) => requestFilterChange({ groupId: nextId, date })}
+            options={(groupsQuery.data ?? []).map((group) => ({
+              value: group.id,
+              label: group.name,
+            }))}
+          />
         </label>
         <label>Sana
           <DateInput aria-label="Sana" value={date} onChange={(nextDate) => nextDate && requestFilterChange({ groupId, date: nextDate })} />
@@ -93,112 +169,204 @@ export function TeacherAttendancePage() {
       {query.isError || groupsQuery.isError ? <div className="dashboard-state dashboard-error">Davomat yuklanmadi</div> : null}
 
       {query.data ? (
-        <div className="panel attendance-table">
+        <div className="panel attendance-register">
           <div className="attendance-summary">
             <span>Jami: {rows.length}ta o‘quvchi</span>
             <span className="came">Keldi: {rows.filter((row) => row.status === 'came').length}</span>
             <span className="excused">Sababli: {rows.filter((row) => row.status === 'excused').length}</span>
             <span className="absent">Sababsiz: {rows.filter((row) => row.status === 'absent').length}</span>
           </div>
+
+          <div className="attendance-lesson-bar" aria-label="Dars rejasi">
+            <div className="attendance-lesson-item">
+              <label htmlFor="teacher-attendance-lesson-topic" className="attendance-lesson-label">
+                <BookOpen size={14} className="lesson-bar-icon" />
+                <span>Dars mavzusi:</span>
+              </label>
+              <input
+                id="teacher-attendance-lesson-topic"
+                type="text"
+                className="attendance-lesson-input"
+                placeholder="Mavzu nomi (masalan: Present Simple)..."
+                value={lessonTitle}
+                onChange={(e) => setLessonTitle(e.target.value)}
+              />
+            </div>
+            <div className="attendance-lesson-item">
+              <label htmlFor="teacher-attendance-lesson-homework" className="attendance-lesson-label">
+                <FileText size={14} className="lesson-bar-icon" />
+                <span>Uyga vazifa:</span>
+              </label>
+              <input
+                id="teacher-attendance-lesson-homework"
+                type="text"
+                className="attendance-lesson-input"
+                placeholder="Keyingi darsga vazifa (masalan: 12-15 mashqlar)..."
+                value={homeworkText}
+                onChange={(e) => setHomeworkText(e.target.value)}
+              />
+            </div>
+          </div>
+
           <div className="table-scroll">
             <table aria-label="Davomat jurnali">
               <thead>
                 <tr>
-                  <th>O'quvchi</th>
+                  <th>O‘quvchi</th>
                   <th>Holat</th>
-                  <th>Reyting</th>
-                  <th>Uy vazifasi</th>
+                  <th>Vazifa %</th>
+                  <th>Dars %</th>
+                  <th>Lug'at / Test %</th>
+                  <th>Baho</th>
                   <th>Izoh</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
-                  <tr key={row.studentId} className={row.lockedByAdmin ? 'attendance-locked' : ''}>
-                    <td data-label="O'quvchi">
-                      <strong>{row.studentName}</strong>
-                      <small>{row.studentCode}</small>
-                      {row.lockedByAdmin ? (
-                        <em>
-                          <LockKeyhole size={11} style={{ marginRight: '3px' }} /> 
-                          Admin yopgan (Bloklangan)
-                        </em>
-                      ) : null}
-                    </td>
-                    <td data-label="Holat">
-                      <div className="status-choice">
-                        {Object.entries(statuses).map(([value, label]) => (
-                          <button 
-                            aria-label={`${row.studentName}: ${label}`} 
-                            type="button" 
-                            key={value} 
-                            disabled={row.lockedByAdmin} 
-                            className={row.status === value ? value : ''} 
-                            onClick={() => patch(row.studentId, { status: value as AttendanceRow['status'] })}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                    <td data-label="Reyting">
-                      <div className="attendance-rating-control">
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          disabled={row.lockedByAdmin || row.status !== 'came'}
-                          value={row.status === 'came' ? (row.rating === 0 ? '' : row.rating) : ''}
-                          onFocus={(e) => e.target.select()}
-                          onChange={(e) => {
-                            const raw = e.target.value;
-                            if (raw === '') {
-                              patch(row.studentId, { rating: 0 });
-                            } else {
-                              const num = parseInt(raw, 10);
-                              patch(row.studentId, { rating: Math.min(100, Math.max(0, isNaN(num) ? 0 : num)) });
-                            }
-                          }}
-                          placeholder={row.status === 'came' ? '0' : '—'}
-                          aria-label={`${row.studentName} bahosi`}
-                        />
-                        <span className="attendance-rating-unit">%</span>
-                      </div>
-                    </td>
-                    <td data-label="Uy vazifasi">
-                      <label className="custom-checkbox-container" style={{ cursor: row.lockedByAdmin ? 'not-allowed' : 'pointer' }}>
+                {rows.map((row) => {
+                  const isCame = row.status === 'came';
+                  const hwVal = typeof row.homeworkScore === 'number' ? row.homeworkScore : null;
+                  const topicVal = typeof row.topicScore === 'number' ? row.topicScore : null;
+                  const dictVal = typeof row.dictionaryScore === 'number' ? row.dictionaryScore : null;
+                  const avgVal = row.rating !== null && row.rating !== undefined ? row.rating : calculateAttendanceAverage(hwVal, topicVal, dictVal);
+                  const hasAnyScore = hwVal !== null || topicVal !== null || dictVal !== null;
+
+                  return (
+                    <tr key={row.studentId} className={row.lockedByAdmin ? 'attendance-locked' : ''}>
+                      <td className="attendance-card-head" data-label="O‘quvchi">
+                        <strong>{row.studentName}</strong>
+                        <small>{row.studentCode}</small>
+                        {row.lockedByAdmin ? (
+                          <em>
+                            <LockKeyhole size={11} style={{ marginRight: '3px' }} /> 
+                            Admin yopgan (Bloklangan)
+                          </em>
+                        ) : null}
+                      </td>
+                      <td className="attendance-card-status" data-label="Holat">
+                        <div className="status-choice">
+                          {Object.entries(statuses).map(([value, label]) => (
+                            <button 
+                              aria-label={`${row.studentName}: ${label}`} 
+                              type="button" 
+                              key={value} 
+                              disabled={row.lockedByAdmin} 
+                              className={row.status === value ? value : ''} 
+                              onClick={() => patch(row.studentId, { status: value as AttendanceRow['status'] })}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="attendance-card-meta attendance-card-rating attendance-card-vazifa" data-label="Vazifa %">
+                        <span className="attendance-mobile-label">Vazifa %</span>
+                        <div className="attendance-rating-control">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={100}
+                            disabled={row.lockedByAdmin || !isCame}
+                            value={isCame && typeof hwVal === 'number' ? hwVal : ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              updateScore(row.studentId, 'homeworkScore', parseScoreInput(e.target.value));
+                            }}
+                            placeholder="—"
+                            aria-label={`${row.studentName} vazifa bahosi`}
+                            title="Vazifa %"
+                          />
+                          <span className="attendance-rating-unit">%</span>
+                        </div>
+                      </td>
+                      <td className="attendance-card-meta attendance-card-rating attendance-card-dars" data-label="Dars %">
+                        <span className="attendance-mobile-label">Dars %</span>
+                        <div className="attendance-rating-control">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={100}
+                            disabled={row.lockedByAdmin || !isCame}
+                            value={isCame && typeof topicVal === 'number' ? topicVal : ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              updateScore(row.studentId, 'topicScore', parseScoreInput(e.target.value));
+                            }}
+                            placeholder="—"
+                            aria-label={`${row.studentName} dars bahosi`}
+                            title="Dars %"
+                          />
+                          <span className="attendance-rating-unit">%</span>
+                        </div>
+                      </td>
+                      <td className="attendance-card-meta attendance-card-rating attendance-card-lugat" data-label="Lug'at / Test %">
+                        <span className="attendance-mobile-label">Lug'at / Test %</span>
+                        <div className="attendance-rating-control">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            max={100}
+                            disabled={row.lockedByAdmin || !isCame}
+                            value={isCame && typeof dictVal === 'number' ? dictVal : ''}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              updateScore(row.studentId, 'dictionaryScore', parseScoreInput(e.target.value));
+                            }}
+                            placeholder="—"
+                            aria-label={`${row.studentName} lug'at / test bahosi`}
+                            title="Lug'at / Test %"
+                          />
+                          <span className="attendance-rating-unit">%</span>
+                        </div>
+                      </td>
+                      <td className="attendance-card-meta attendance-card-baho" data-label="Baho">
+                        <span className="attendance-mobile-label">Baho</span>
+                        {isCame && hasAnyScore && avgVal !== null ? (
+                          <span className={`attendance-avg-badge ${avgVal >= 85 ? 'high' : avgVal >= 60 ? 'mid' : 'low'}`}>
+                            {avgVal}%
+                          </span>
+                        ) : (
+                          <span className="attendance-avg-empty">—</span>
+                        )}
+                      </td>
+                      <td className="attendance-card-comment" data-label="Izoh">
+                        <span className="attendance-mobile-label">Izoh</span>
                         <input 
-                          type="checkbox" 
-                          disabled={row.lockedByAdmin} 
-                          className="custom-checkbox-input"
-                          aria-label={`${row.studentName} uy vazifasi`} 
-                          checked={row.homeworkDone} 
-                          onChange={(event) => patch(row.studentId, { homeworkDone: event.target.checked })} 
+                          value={row.comment} 
+                          disabled={row.lockedByAdmin}
+                          aria-label={`${row.studentName} izoh`}
+                          onChange={(e) => patch(row.studentId, { comment: e.target.value })} 
+                          placeholder="Izoh yozish..." 
                         />
-                        <span className="custom-checkbox-box" style={{ opacity: row.lockedByAdmin ? 0.6 : 1 }}></span>
-                      </label>
-                    </td>
-                    <td data-label="Izoh">
-                      <input 
-                        aria-label={`${row.studentName} izoh`} 
-                        disabled={row.lockedByAdmin} 
-                        value={row.comment} 
-                        onChange={(event) => patch(row.studentId, { comment: event.target.value })} 
-                        placeholder={row.lockedByAdmin ? "Tahrirlash yopiq" : "Izoh yozish..."} 
-                      />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           <div className="attendance-actions">
             {showSuccess && <span className="save-success-badge">Muvaffaqiyatli saqlandi!</span>}
             {isDirty && !showSuccess && <span className="unsaved-badge">Saqlanmagan o‘zgarishlar mavjud</span>}
+            {save.isError ? <span className="save-error-badge" role="alert">Davomat saqlanmadi. Qayta urinib ko‘ring.</span> : null}
+
+            <button
+              type="button"
+              className="secondary-button attendance-broadcast-btn"
+              onClick={() => setShowBroadcastModal(true)}
+              title="Telegram guruh va botga dars xulosasini yuborish"
+            >
+              <Send size={15} />
+              <span>Telegram'ga yuborish</span>
+            </button>
+
             <button 
               className="primary-button" 
               type="button" 
               disabled={!query.data || !isDirty || save.isPending} 
-              onClick={() => query.data && save.mutate({ ...query.data, rows })}
+              onClick={handleSave}
             >
               <Save size={16} />
               {save.isPending ? 'Saqlanmoqda...' : 'Saqlash'}
@@ -214,6 +382,57 @@ export function TeacherAttendancePage() {
           confirmLabel="O‘zgarishsiz davom etish"
           onCancel={() => setPendingFilter(null)}
           onConfirm={() => applyFilter(pendingFilter)}
+        />
+      ) : null}
+
+      {showTelegramPrompt && selectedGroup ? (
+        <ConfirmDialog
+          title="Davomat saqlandi!"
+          description="Dars xulosasi va uyga vazifani Telegram guruh hamda o‘quvchilar botiga ham yuborasizmi?"
+          confirmLabel="Ha, yuborish"
+          variant="primary"
+          onCancel={() => setShowTelegramPrompt(false)}
+          onConfirm={() => {
+            setShowTelegramPrompt(false);
+            setShowBroadcastModal(true);
+          }}
+        />
+      ) : null}
+
+      {showBroadcastModal && selectedGroup ? (
+        <LessonBroadcastModal
+          isOpen={showBroadcastModal}
+          onClose={() => setShowBroadcastModal(false)}
+          groupId={groupId}
+          groupName={selectedGroup.name}
+          date={date}
+          initialTopic={lessonTitle}
+          initialHomework={homeworkText}
+          telegramChatId={selectedGroup.telegramChatId}
+          telegramChatTitle={selectedGroup.telegramChatTitle}
+          isPending={broadcastMutation.isPending}
+          onBroadcast={async (params) => {
+            setLessonTitle(params.topic);
+            setHomeworkText(params.homeworkText);
+            if (query.data) {
+              const formatted = formatLessonPlan(params.topic, params.homeworkText);
+              await save.mutateAsync({
+                ...query.data,
+                topic: params.topic,
+                lessonTitle: params.topic,
+                homeworkText: formatted,
+                rows,
+              });
+            }
+            return await broadcastMutation.mutateAsync({
+              groupId,
+              date,
+              topic: params.topic,
+              homeworkText: params.homeworkText,
+              sendToGroupChat: params.sendToGroupChat,
+              sendToStudents: params.sendToStudents,
+            });
+          }}
         />
       ) : null}
     </section>

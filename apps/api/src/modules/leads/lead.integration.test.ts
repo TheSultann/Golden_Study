@@ -26,6 +26,10 @@ describe('Leads API', () => {
         role: 'SUPER_ADMIN',
       },
     });
+    await prisma.group.deleteMany({ where: { name: { startsWith: prefix } } });
+    await prisma.course.deleteMany({ where: { title: { startsWith: prefix } } });
+    await prisma.teacher.deleteMany({ where: { phone: '+998900004001' } });
+
     const course = await prisma.course.create({
       data: {
         title: `${prefix} Course`,

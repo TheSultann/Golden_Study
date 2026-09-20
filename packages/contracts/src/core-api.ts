@@ -174,6 +174,8 @@ export const groupCreateInputSchema = z.object({
   lessonStartMinutes: z.number().int().min(0).max(1439),
   lessonDurationMinutes: lessonDurationMinutesSchema.default(90),
   startDate: dateOnlySchema,
+  telegramChatId: z.string().nullable().optional(),
+  telegramChatTitle: z.string().nullable().optional(),
 }).strict().refine(
   (value) => value.lessonStartMinutes + value.lessonDurationMinutes <= 1440,
   { path: ['lessonDurationMinutes'], message: 'Lesson must end before midnight' },
@@ -191,6 +193,8 @@ export const groupUpdateInputSchema = z.object({
   lessonStartMinutes: z.number().int().min(0).max(1439).optional(),
   lessonDurationMinutes: lessonDurationMinutesSchema.optional(),
   startDate: dateOnlySchema.optional(),
+  telegramChatId: z.string().nullable().optional(),
+  telegramChatTitle: z.string().nullable().optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, {
   message: 'At least one field is required',
 })
@@ -223,6 +227,8 @@ export const groupApiSchema = z.object({
   endDate: dateOnlySchema,
   status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED']),
   studentsCount: z.number().int().nonnegative(),
+  telegramChatId: z.string().nullable(),
+  telegramChatTitle: z.string().nullable(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 })
@@ -327,20 +333,35 @@ export const attendanceApiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT'])
 const attendanceItemBaseSchema = z.object({
   studentId: z.string().uuid(),
   status: attendanceApiStatusSchema,
-  rating: z.number().int().min(0).max(100).nullable(),
+  rating: z.number().int().min(0).max(100).nullable().optional(),
+  homeworkScore: z.number().int().min(0).max(100).nullable().optional(),
+  topicScore: z.number().int().min(0).max(100).nullable().optional(),
+  dictionaryScore: z.number().int().min(0).max(100).nullable().optional(),
   homeworkDone: z.boolean(),
   comment: z.string().trim().max(1000).default(''),
 }).strict()
 const requireCameRating = (
-  value: { status: 'CAME' | 'EXCUSED' | 'ABSENT'; rating: number | null },
+  value: {
+    status: 'CAME' | 'EXCUSED' | 'ABSENT'
+    rating?: number | null | undefined
+    homeworkScore?: number | null | undefined
+    topicScore?: number | null | undefined
+    dictionaryScore?: number | null | undefined
+  },
   context: z.RefinementCtx,
 ) => {
-  if (value.status === 'CAME' && value.rating === null) {
-    context.addIssue({
-      code: 'custom',
-      path: ['rating'],
-      message: 'Rating is required for CAME',
-    })
+  if (value.status === 'CAME') {
+    const hasScores =
+      (value.homeworkScore !== undefined && value.homeworkScore !== null) ||
+      (value.topicScore !== undefined && value.topicScore !== null) ||
+      (value.dictionaryScore !== undefined && value.dictionaryScore !== null)
+    if (value.rating === null && !hasScores) {
+      context.addIssue({
+        code: 'custom',
+        path: ['rating'],
+        message: 'Rating is required for CAME',
+      })
+    }
   }
 }
 const attendanceItemInputSchema = attendanceItemBaseSchema
@@ -348,6 +369,7 @@ const attendanceItemInputSchema = attendanceItemBaseSchema
 export const attendanceBulkSaveInputSchema = z.object({
   groupId: z.string().uuid(),
   date: dateOnlySchema,
+  homeworkText: z.string().trim().max(5000).default(''),
   items: z.array(attendanceItemInputSchema).min(1).max(200),
 }).strict().refine(
   (value) =>
@@ -384,6 +406,9 @@ export const attendanceApiSchema = z.object({
   date: dateOnlySchema,
   status: attendanceApiStatusSchema,
   rating: z.number().int().min(0).max(100).nullable(),
+  homeworkScore: z.number().int().min(0).max(100).nullable().optional(),
+  topicScore: z.number().int().min(0).max(100).nullable().optional(),
+  dictionaryScore: z.number().int().min(0).max(100).nullable().optional(),
   homeworkDone: z.boolean(),
   comment: z.string(),
   lockedByAdmin: z.boolean(),

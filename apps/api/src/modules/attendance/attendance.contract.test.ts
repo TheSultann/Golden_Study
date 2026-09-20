@@ -126,4 +126,50 @@ describe('attendance API contracts', () => {
     };
     expect(attendanceBulkSaveInputSchema.safeParse(invalidNegative).success).toBe(false);
   });
+
+  it('validates homeworkText and score breakdown in attendanceBulkSaveInputSchema', () => {
+    const withBreakdown = {
+      groupId,
+      date: '2026-07-08',
+      homeworkText: 'Mashq 12-15, yangi lug‘at 20 ta so‘z',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          homeworkScore: 90,
+          topicScore: 85,
+          dictionaryScore: 95,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    const parsed = attendanceBulkSaveInputSchema.safeParse(withBreakdown);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.homeworkText).toBe('Mashq 12-15, yangi lug‘at 20 ta so‘z');
+      const item = parsed.data.items[0]!;
+      expect(item.homeworkScore).toBe(90);
+      expect(item.topicScore).toBe(85);
+      expect(item.dictionaryScore).toBe(95);
+    }
+
+    const invalidScore = {
+      groupId,
+      date: '2026-07-08',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          homeworkScore: 105,
+          topicScore: 85,
+          dictionaryScore: 95,
+          homeworkDone: true,
+          comment: '',
+        },
+      ],
+    };
+    expect(attendanceBulkSaveInputSchema.safeParse(invalidScore).success).toBe(false);
+  });
 });
+

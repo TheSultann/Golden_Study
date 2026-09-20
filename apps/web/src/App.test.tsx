@@ -857,10 +857,10 @@ describe('mock-авторизация', () => {
     expect(row.querySelector('.attendance-card-head')).toBeInTheDocument()
     expect(row.querySelector('.attendance-card-status')).toBeInTheDocument()
     expect(row.querySelector('.attendance-card-meta')).toBeInTheDocument()
-    expect(row.querySelector('.attendance-card-comment')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Saqlash' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Dars mavzusi:')).toBeInTheDocument()
+    expect(screen.getByLabelText('Uyga vazifa:')).toBeInTheDocument()
 
-    const ratingInput = screen.getByLabelText('Sardor Abdullayev bahosi')
+    const ratingInput = screen.getByLabelText('Sardor Abdullayev vazifa bahosi')
     expect(ratingInput).toBeInTheDocument()
     expect(ratingInput).toHaveValue(95)
     await user.clear(ratingInput)

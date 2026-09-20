@@ -211,7 +211,7 @@ button { cursor: pointer; }
 .danger-button:hover { color: #b91c1c; background: rgb(239 68 68 / 16%); border-color: rgb(239 68 68 / 35%); }
 .danger-button:active { transform: scale(0.97); }
 .modal-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; padding: 16px; background: rgb(11 18 32 / 60%); backdrop-filter: blur(3px); }
-.teacher-modal { width: min(100%, 540px); max-height: calc(100vh - 32px); display: flex; flex-direction: column; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 24px 70px rgb(11 18 32 / 25%); }
+.teacher-modal { width: min(100%, 540px); max-height: calc(100vh - 32px); display: flex; flex-direction: column; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 24px 70px rgb(11 18 32 / 25%); overflow: hidden; }
 .teacher-modal > header { display: flex; align-items: flex-start; justify-content: space-between; padding: 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
 .teacher-modal h2 { margin: 0; font-size: 16px; font-weight: 600; }
 .teacher-modal header p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
@@ -233,6 +233,85 @@ button { cursor: pointer; }
 }
 
 .form-grid textarea { min-height: 88px; padding: 10px; resize: vertical; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font: inherit; outline: none; }.form-grid textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 14%); }
+/* Modern Select Component */
+@keyframes modernSelectFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.modern-select-container,
+.modern-select-container * {
+  box-sizing: border-box;
+}
+.modern-select-container {
+  position: relative;
+  width: 100%;
+}
+.attendance-filters .modern-select-container,
+.attendance-toolbar .attendance-filters .modern-select-container,
+.teacher-attendance-page .attendance-filters .modern-select-container {
+  width: 240px;
+  min-width: 200px;
+}
+.attendance-filters label:has(.modern-select-container),
+.attendance-toolbar .attendance-filters label:has(.modern-select-container) {
+  min-width: 200px;
+}
+.modern-select-container span,
+.modern-select-trigger span,
+.modern-select-dropdown span,
+.attendance-filters label .modern-select-container span {
+  display: inline !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  line-height: inherit !important;
+}
+.modern-select-trigger span.modern-select-label,
+.modern-select-trigger div.modern-select-label {
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.modern-select-option span.modern-select-option-text,
+.modern-select-option div.modern-select-option-text {
+  display: block !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.modern-select-option {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.modern-select-trigger:hover:not(:disabled) {
+  border-color: var(--gold) !important;
+}
+.modern-select-trigger:focus-visible {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 14%) !important;
+}
+.modern-select-dropdown ul::-webkit-scrollbar {
+  width: 5px;
+}
+.modern-select-dropdown ul::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+.modern-select-dropdown ul::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
 .phone-input-wrapper { display: flex; align-items: center; width: 100%; height: 38px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
 .phone-input-wrapper:focus-within { border-color: var(--gold); box-shadow: 0 0 0 3px rgb(var(--accent-rgb) / 14%); }
 .phone-prefix-badge { display: inline-flex; align-items: center; height: 100%; padding: 0 10px; color: var(--muted); background: var(--surface-soft); border-right: 1px solid var(--border); font-size: 13px; font-weight: 500; user-select: none; flex-shrink: 0; }
@@ -478,82 +557,136 @@ button { cursor: pointer; }
 .attendance-overview .absent { color:#b91c1c; }
 .attendance-register { overflow:visible; }
 .attendance-register .table-scroll { overflow-x:auto; }
+@media (min-width:761px) {
+  .attendance-register .table-scroll { overflow-x:hidden; }
+}
 .attendance-register table { width:100%;border-collapse:collapse;table-layout:fixed;font-size:12px; }
 .attendance-register th,
-.attendance-register td { height:56px;padding:0 14px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle; }
+.attendance-register td { height:56px;padding:0 8px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle; }
 .attendance-register th { height:42px;color:var(--muted);background:var(--surface-soft);font-size:11px;font-weight:500; }
 .attendance-register th:nth-child(1) { width:17%; }
-.attendance-register th:nth-child(2) { width:25%; }
-.attendance-register th:nth-child(3) { width:20%; }
-.attendance-register th:nth-child(4) { width:10%;text-align:center; }
-.attendance-register th:nth-child(5) { width:28%; }
+.attendance-register th:nth-child(2) { width:22%; }
+.attendance-register th:nth-child(3) { width:9.5%; }
+.attendance-register th:nth-child(4) { width:9.5%; }
+.attendance-register th:nth-child(5) { width:11%; }
+.attendance-register th:nth-child(6) { width:8%;text-align:center; }
+.attendance-register th:nth-child(7) { width:23%; }
 .attendance-register td strong,
 .attendance-register td small { display:block; }
-.attendance-register td strong { font-size:12px;font-weight:600; }
+.attendance-register td strong { font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
 .attendance-register td small { margin-top:3px;color:var(--muted);font-size:10px; }
-.attendance-register .status-choice { display:flex;gap:5px;flex-wrap:nowrap; }
-.attendance-register .status-choice button { width:auto;min-width:68px;min-height:32px;height:32px;padding:0 10px;border-radius:7px;font-size:10px; }
+.attendance-register .status-choice { display:flex;gap:3px;flex-wrap:nowrap; }
+.attendance-register .status-choice button { flex:1;min-width:0;height:32px;padding:0 4px;border-radius:7px;font-size:10px;font-weight:500; }
 .attendance-register .rating { display:flex;align-items:center;gap:1px; }
 .attendance-register .rating button { width:32px;min-width:32px;height:32px;min-height:32px;padding:0;display:grid;place-items:center; }
-.attendance-rating-control { display:inline-flex;align-items:center;position:relative;width:76px; }
-.attendance-rating-control input { width:100%;height:34px;padding:0 20px 0 8px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:500;text-align:right;outline:none;transition:border-color .15s ease,box-shadow .15s ease; }
+.attendance-rating-control { display:inline-flex;align-items:center;position:relative;width:58px;max-width:100%; }
+.attendance-rating-control input { width:100%;height:32px;padding:0 16px 0 5px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:500;text-align:right;outline:none;transition:border-color .15s ease,box-shadow .15s ease; }
 .attendance-rating-control input:focus { border-color:var(--gold);box-shadow:0 0 0 3px rgb(var(--accent-rgb) / 14%); }
 .attendance-rating-control input:disabled { background:var(--surface-soft);color:var(--muted);cursor:not-allowed;opacity:.6; }
-.attendance-rating-control .attendance-rating-unit { position:absolute;right:7px;color:var(--muted);font-size:11px;font-weight:500;pointer-events:none; }
+.attendance-rating-control input:placeholder-shown { text-align:center;padding-right:5px; }
+.attendance-rating-control input:placeholder-shown ~ .attendance-rating-unit { display:none; }
+.attendance-rating-control input:disabled ~ .attendance-rating-unit { opacity:.45; }
+.attendance-rating-control .attendance-rating-unit { position:absolute;right:4px;color:var(--muted);font-size:10px;font-weight:500;pointer-events:none; }
 .attendance-rating-control input::-webkit-outer-spin-button,.attendance-rating-control input::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
 .attendance-rating-control input[type=number] { -moz-appearance:textfield; }
-.attendance-register .attendance-card-homework { text-align:center; }
-.attendance-register .custom-checkbox-container { width:40px;min-width:40px;height:40px;min-height:40px;margin:0 auto; }
-.attendance-register .attendance-card-comment > input { width:100%;height:34px;padding:0 10px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:11px;outline:none; }
+.attendance-card-baho { text-align:center; }
+.attendance-avg-badge { display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;min-width:36px;text-align:center; }
+.attendance-avg-badge.high { background:rgba(34,197,94,.12);color:#16a34a;border:1px solid rgba(34,197,94,.25); }
+.attendance-avg-badge.mid { background:rgba(234,179,8,.12);color:#ca8a04;border:1px solid rgba(234,179,8,.25); }
+.attendance-avg-badge.low { background:rgba(239,68,68,.12);color:#dc2626;border:1px solid rgba(239,68,68,.25); }
+.attendance-avg-empty { color:var(--muted);font-size:12px; }
+.attendance-register .attendance-card-comment > input { width:100%;height:32px;padding:0 10px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:11px;outline:none; }
 .attendance-register .attendance-card-comment > input:focus { border-color:var(--gold);box-shadow:0 0 0 3px rgb(var(--accent-rgb) / 14%); }
+.attendance-register .attendance-card-comment > input:disabled { background:var(--surface-soft);color:var(--muted);cursor:not-allowed;opacity:.6; }
 .attendance-mobile-label { display:none; }
+.attendance-lesson-bar { display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-soft);border-bottom:1px solid var(--border);border-radius:10px 10px 0 0;flex-wrap:wrap; }
+.attendance-lesson-item { display:flex;align-items:center;gap:8px;flex:1;min-width:200px; }
+.attendance-lesson-label { display:inline-flex;align-items:center;gap:6px;color:var(--text);font-size:12px;font-weight:600;white-space:nowrap; }
+.attendance-lesson-label .lesson-bar-icon { color:var(--gold-dark); }
+.attendance-lesson-input { flex:1;height:36px;padding:0 10px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:6px;font-size:12px;outline:none;transition:border-color .15s ease,box-shadow .15s ease; }
+.attendance-lesson-input:focus { border-color:var(--gold);box-shadow:0 0 0 3px rgb(var(--accent-rgb) / 14%); }
 .attendance-savebar { position:sticky;z-index:10;bottom:0;display:flex;min-height:56px;align-items:center;justify-content:flex-end;gap:10px;margin:0;padding:8px 14px;background:var(--surface);border-top:1px solid var(--border);border-radius:0 0 10px 10px; }
-.attendance-savebar button { display:inline-flex;min-width:124px;height:40px;align-items:center;justify-content:center;gap:7px; }
+.attendance-savebar button { display:inline-flex;min-width:112px;height:38px;align-items:center;justify-content:center;gap:7px; }
 .attendance-savebar button:disabled { cursor:not-allowed;opacity:.5; }
 .attendance-savebar .save-success-badge,
 .attendance-savebar .unsaved-badge,
 .attendance-savebar .save-error-badge { margin-right:auto; }
+.attendance-telegram-check { display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--text);cursor:pointer;user-select:none;margin-right:6px; }
+.attendance-telegram-check input { width:15px;height:15px;cursor:pointer;accent-color:var(--gold); }
+.attendance-broadcast-btn { border-color:#0088cc !important;color:#0088cc !important; }
+.attendance-broadcast-btn:hover { background:rgba(0,136,204,0.08) !important; }
 
 @media (max-width:760px) {
   .attendance-page { gap:12px; }
-  .attendance-toolbar { display:grid;gap:8px; }
-  .attendance-toolbar .attendance-filters { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px;width:100%; }
+  .attendance-toolbar { display:grid;gap:10px; }
+  .attendance-toolbar .attendance-filters,
+  .teacher-attendance-page .attendance-filters { display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px;width:100%; }
   .attendance-toolbar .attendance-filters select,
+  .attendance-toolbar .attendance-filters .modern-select-container,
   .attendance-toolbar .attendance-filters label > span,
-  .attendance-toolbar .attendance-filters label > span input { width:100%;min-width:0; }
-  .attendance-overview { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;width:100%; }
-  .attendance-overview span { min-height:30px;justify-content:center;padding:0 4px;font-size:9px; }
-  .attendance-register { padding-bottom:68px;background:transparent;border:0;box-shadow:none; }
+  .attendance-toolbar .attendance-filters label > span input,
+  .teacher-attendance-page .attendance-filters select,
+  .teacher-attendance-page .attendance-filters .modern-select-container,
+  .teacher-attendance-page .attendance-filters label > span,
+  .teacher-attendance-page .attendance-filters label > span input { width:100% !important;min-width:0 !important; }
+  .attendance-overview { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;width:100%; }
+  .attendance-overview span { min-height:32px;justify-content:center;padding:0 6px;font-size:10px;font-weight:500; }
+  .attendance-lesson-bar { flex-direction:column;align-items:stretch;gap:10px;margin:0 0 12px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,0.03); }
+  .attendance-lesson-item { flex-direction:column;align-items:flex-start;gap:5px;width:100%;min-width:0; }
+  .attendance-lesson-label { display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text); }
+  .attendance-lesson-input { width:100%;height:38px;padding:0 10px;font-size:12.5px;border:1px solid var(--border);border-radius:7px;box-sizing:border-box; }
+  .attendance-register { padding-bottom:72px;background:transparent;border:0;box-shadow:none; }
   .attendance-register .table-scroll { overflow:visible; }
   .attendance-register table,
   .attendance-register tbody { display:block; }
   .attendance-register thead { display:none; }
-  .attendance-register tbody { display:grid;gap:10px; }
-  .attendance-register tr { display:grid;grid-template-columns:minmax(0,2fr) minmax(82px,.8fr);grid-template-areas:"head head" "status status" "rating homework" "comment comment";overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:10px; }
-  .attendance-register td { display:block;width:auto;height:auto;min-height:0;padding:0;border:0; }
-  .attendance-register .attendance-card-head { grid-area:head;padding:11px 12px 10px;background:var(--surface-soft);border-bottom:1px solid var(--border); }
-  .attendance-register .attendance-card-head strong { font-size:13px;line-height:1.3; }
-  .attendance-register .attendance-card-head small { font-size:10px; }
+  .attendance-register tbody { display:grid;gap:12px; }
+  .attendance-register tr { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"head head" "status status" "vazifa dars" "lugat baho" "comment comment";overflow:hidden;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.04); }
+  .attendance-register td { display:block;width:auto;height:auto;min-height:0;padding:0;border:0;box-sizing:border-box; }
+  .attendance-register td::before { content:none !important;display:none !important; }
+  .attendance-register .attendance-card-head { grid-area:head;padding:12px 14px;background:var(--surface-soft);border-bottom:1px solid var(--border); }
+  .attendance-register .attendance-card-head strong { font-size:13.5px;font-weight:600;line-height:1.3;color:var(--text); }
+  .attendance-register .attendance-card-head small { display:block;margin-top:2px;font-size:11px;color:var(--muted); }
   .attendance-register .attendance-card-status { grid-area:status;padding:10px 12px;border-bottom:1px solid var(--border); }
   .attendance-register .status-choice { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px; }
-  .attendance-register .status-choice button { width:100%;min-width:0;height:40px;min-height:40px;padding:0 4px;font-size:11px; }
-  .attendance-register .attendance-card-meta { display:grid;align-content:start;gap:7px;padding:10px 12px; }
-  .attendance-register .attendance-card-rating { grid-area:rating;border-right:1px solid var(--border);border-bottom:1px solid var(--border); }
-  .attendance-register .attendance-card-homework { grid-area:homework;justify-items:start;text-align:left;border-bottom:1px solid var(--border); }
-  .attendance-register .attendance-card-comment { grid-area:comment;display:grid;gap:7px;padding:10px 12px; }
-  .attendance-register .attendance-card-comment > input { height:40px;font-size:12px; }
-  .attendance-mobile-label { display:block;color:var(--muted);font-size:10px;font-weight:500; }
-  .attendance-register .rating { gap:0; }
-  .attendance-register .rating button { width:36px;min-width:36px;height:38px;min-height:38px; }
-  .attendance-rating-control { width:80px; }
-  .attendance-rating-control input { height:38px;font-size:13px; }
-  .attendance-register .custom-checkbox-container { width:40px;height:40px;margin:0; }
-  .attendance-savebar { position:sticky;bottom:8px;display:grid;grid-template-columns:minmax(0,1fr) auto;min-height:54px;margin:8px 0 0;padding:6px 7px 6px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgb(15 23 42 / 14%);backdrop-filter:blur(10px); }
-  .attendance-savebar button { min-width:112px;height:40px; }
-  .attendance-savebar button { grid-column:2; }
+  .attendance-register .status-choice button { width:100%;min-width:0;height:38px;min-height:38px;padding:0 4px;border-radius:7px;font-size:11.5px;font-weight:500; }
+  .attendance-register .attendance-card-meta { display:flex;flex-direction:column;justify-content:flex-start;gap:6px;padding:9px 10px;box-sizing:border-box; }
+  .attendance-register .attendance-card-vazifa,
+  .attendance-register td:nth-child(3) { grid-area:vazifa;border-right:1px solid var(--border);border-bottom:1px solid var(--border); }
+  .attendance-register .attendance-card-dars,
+  .attendance-register td:nth-child(4) { grid-area:dars;border-bottom:1px solid var(--border); }
+  .attendance-register .attendance-card-lugat,
+  .attendance-register td:nth-child(5) { grid-area:lugat;border-right:1px solid var(--border);border-bottom:1px solid var(--border); }
+  .attendance-register .attendance-card-baho,
+  .attendance-register td:nth-child(6) { grid-area:baho;border-bottom:1px solid var(--border);text-align:left;background:color-mix(in srgb,var(--surface-soft) 45%,var(--surface)); }
+  .attendance-register .attendance-card-baho .attendance-avg-badge,
+  .attendance-register .attendance-card-baho .attendance-avg-empty { display:flex;align-items:center;justify-content:center;width:100%;height:38px;box-sizing:border-box;border-radius:7px;font-size:13px;font-weight:700; }
+  .attendance-register .attendance-card-baho .attendance-avg-empty { background:var(--surface-soft);border:1px dashed var(--border);color:var(--muted);font-weight:500; }
+  .attendance-register .attendance-card-comment { grid-area:comment;display:flex;flex-direction:column;gap:6px;padding:10px 12px; }
+  .attendance-register .attendance-card-comment > input { width:100%;height:38px;padding:0 10px;font-size:12px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;outline:none;box-sizing:border-box;transition:border-color .15s ease,box-shadow .15s ease; }
+  .attendance-register .attendance-card-comment > input:focus { border-color:var(--gold);box-shadow:0 0 0 3px rgb(var(--accent-rgb) / 14%); }
+  .attendance-register .attendance-card-comment > input:disabled { background:var(--surface-soft);color:var(--muted);cursor:not-allowed;opacity:.6; }
+  .attendance-mobile-label { display:block;color:var(--muted);font-size:10.5px;font-weight:500;line-height:1.2;letter-spacing:-0.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .attendance-rating-control { display:inline-flex;align-items:center;position:relative;width:100%;max-width:100%; }
+  .attendance-rating-control input { width:100%;height:38px;padding:0 20px 0 8px;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:7px;font-size:13px;font-weight:600;text-align:right;box-sizing:border-box;outline:none;transition:border-color .15s ease,box-shadow .15s ease; }
+  .attendance-rating-control input:focus { border-color:var(--gold);box-shadow:0 0 0 3px rgb(var(--accent-rgb) / 14%); }
+  .attendance-rating-control input:disabled { background:var(--surface-soft);color:var(--muted);cursor:not-allowed;opacity:.6; }
+  .attendance-rating-control input:placeholder-shown { text-align:center;padding-right:8px; }
+  .attendance-rating-control input:placeholder-shown ~ .attendance-rating-unit { display:none; }
+  .attendance-rating-control input:disabled ~ .attendance-rating-unit { opacity:.45; }
+  .attendance-rating-control .attendance-rating-unit { position:absolute;right:8px;color:var(--muted);font-size:11px;font-weight:500;pointer-events:none; }
+  .attendance-savebar { position:sticky;bottom:8px;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;min-height:54px;margin:8px 0 0;padding:8px 10px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgb(15 23 42 / 14%);backdrop-filter:blur(10px); }
+  .attendance-savebar button { flex:1;min-width:108px;height:40px; }
   .attendance-savebar .save-success-badge,
   .attendance-savebar .unsaved-badge,
-  .attendance-savebar .save-error-badge { grid-column:1;grid-row:1;min-width:0;margin:0;padding:5px 7px;font-size:9px; }
+  .attendance-savebar .save-error-badge { width:100%;min-width:0;margin:0 0 2px;padding:5px 7px;font-size:9px; }
+  .attendance-savebar .attendance-telegram-check { width:100%;margin:2px 0 4px;font-size:11px; }
+}
+
+@media (min-width:520px) and (max-width:760px) {
+  .attendance-register tr { display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 88px;grid-template-areas:"head head head head" "status status status status" "vazifa dars lugat baho" "comment comment comment comment"; }
+  .attendance-register .attendance-card-dars,
+  .attendance-register td:nth-child(4) { border-right:1px solid var(--border); }
 }
 /* Final responsive overrides: Students and Attendance */
 .attendance-workbar {
@@ -1571,7 +1704,6 @@ button:disabled { cursor: not-allowed; opacity: .58; }
     letter-spacing: .04em;
   }
   .groups-table td:first-child,
-  .groups-table td:nth-child(6),
   .groups-table td:last-child { grid-column: 1 / -1; }
   .groups-table td:first-child { background: var(--surface-soft); position: relative; }
   .groups-table td:first-child .status-badge { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
@@ -3135,21 +3267,58 @@ body:has(.student-profile-backdrop) {
 }
 
 @media (max-width: 760px) {
+  .teacher-attendance-page .attendance-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 0;
+    border: 0;
+  }
+  .teacher-attendance-page .attendance-summary span {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
   .teacher-attendance-page .attendance-actions {
     position: sticky;
     bottom: 8px;
-    flex-direction: row;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
     margin: 8px;
-    padding: 8px;
+    padding: 8px 10px;
     background: color-mix(in srgb, var(--surface) 94%, transparent);
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 8px 24px rgb(15 23 42 / 10%);
     backdrop-filter: blur(10px);
   }
+  .teacher-attendance-page .attendance-actions :is(.save-success-badge, .unsaved-badge, .save-error-badge) {
+    width: 100%;
+    min-width: 0;
+    margin: 0 0 2px;
+    padding: 5px 7px;
+    font-size: 9.5px;
+  }
+  .teacher-attendance-page .attendance-actions .attendance-telegram-check {
+    width: 100%;
+    margin: 2px 0 4px;
+    font-size: 11px;
+  }
   .teacher-attendance-page .attendance-actions button {
-    width: auto;
+    flex: 1;
     min-width: 108px;
     height: 40px;
   }

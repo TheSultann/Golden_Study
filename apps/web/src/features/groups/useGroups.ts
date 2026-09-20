@@ -28,4 +28,12 @@ export function useSetGroupActive() {
   })
 }
 
+export function useUnlinkGroupTelegram() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => groupRepository.unlinkTelegram(id),
+    onSuccess: async () => client.invalidateQueries({ queryKey: key }),
+  })
+}
+
 

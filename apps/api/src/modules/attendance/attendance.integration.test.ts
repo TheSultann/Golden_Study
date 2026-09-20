@@ -6,6 +6,25 @@ import { prisma } from '../../config/prisma.js';
 import { hashPassword } from '../auth/password.service.js';
 import { createAccessToken } from '../auth/token.service.js';
 
+interface AttendanceRowPayload {
+  studentId: string;
+  rating?: number | null;
+  homeworkScore?: number | null;
+  topicScore?: number | null;
+  dictionaryScore?: number | null;
+  homeworkDone?: boolean;
+}
+
+interface AttendanceSessionPayload {
+  homeworkText: string;
+  rows: AttendanceRowPayload[];
+}
+
+interface ApiDataResponse<T> {
+  success: boolean;
+  data: T;
+}
+
 const prefix = 'Attendance Integration';
 const adminId = '74000000-0000-4000-8000-000000000001';
 let adminToken = '';
@@ -173,6 +192,209 @@ describe('Attendance API', () => {
     );
     expect(history.status).toBe(200);
     expect((history.body as { meta: { total: number } }).meta.total).toBe(1);
+  });
+
+  it('saves and returns GroupLesson homeworkText and computes rating from scores', async () => {
+    const saveRes = await admin(
+      request(createApp()).post('/api/v1/attendance'),
+    ).send({
+      groupId,
+      date: '2026-07-09',
+      homeworkText: 'Unit 5 mashqlari va yangi 20 ta so‘z',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          homeworkScore: 80,
+          topicScore: 90,
+          dictionaryScore: 100,
+          homeworkDone: true,
+          comment: 'Yaxshi qatnashdi',
+        },
+      ],
+    });
+    expect(saveRes.status).toBe(200);
+    const saveBody = saveRes.body as ApiDataResponse<AttendanceSessionPayload>;
+    expect(saveBody.data.homeworkText).toBe('Unit 5 mashqlari va yangi 20 ta so‘z');
+    const savedRow = saveBody.data.rows[0];
+    expect(savedRow?.rating).toBe(90); // Math.round((80 + 90 + 100) / 3)
+    expect(savedRow?.homeworkScore).toBe(80);
+    expect(savedRow?.topicScore).toBe(90);
+    expect(savedRow?.dictionaryScore).toBe(100);
+    expect(savedRow?.homeworkDone).toBe(true);
+
+    // Get session verifies homeworkText and scores
+    const sessionRes = await admin(
+      request(createApp()).get(`/api/v1/attendance/group/${groupId}/date/2026-07-09`),
+    );
+    expect(sessionRes.status).toBe(200);
+    const sessionBody = sessionRes.body as ApiDataResponse<AttendanceSessionPayload>;
+    expect(sessionBody.data.homeworkText).toBe('Unit 5 mashqlari va yangi 20 ta so‘z');
+    const sessionRow = sessionBody.data.rows.find((r) => r.studentId === studentId);
+    expect(sessionRow?.rating).toBe(90);
+    expect(sessionRow?.homeworkScore).toBe(80);
+    expect(sessionRow?.topicScore).toBe(90);
+    expect(sessionRow?.dictionaryScore).toBe(100);
+  });
+
+  it('allows teacher to save attendance via PUT /teachers/me/attendance and returns computed rating', async () => {
+    const putRes = await teacher(
+      request(createApp()).put('/api/v1/teachers/me/attendance'),
+    ).send({
+      groupId,
+      groupName: `${prefix} Group`,
+      date: '2026-07-15',
+      homeworkText: 'Keyingi darsga 5 ta yangi mavzu',
+      rows: [
+        {
+          studentId,
+          studentCode: 'ST1',
+          studentName: `${prefix} Student One`,
+          status: 'came',
+          rating: 0,
+          homeworkScore: 70,
+          topicScore: 80,
+          dictionaryScore: 90,
+          homeworkDone: false,
+          comment: 'Faol',
+          lockedByAdmin: false,
+        },
+      ],
+    });
+    expect(putRes.status).toBe(200);
+    const body = (putRes.body as ApiDataResponse<AttendanceSessionPayload>).data;
+    expect(body.homeworkText).toBe('Keyingi darsga 5 ta yangi mavzu');
+    const firstRow = body.rows[0];
+    expect(firstRow?.rating).toBe(80); // Math.round((70 + 80 + 90) / 3)
+    expect(firstRow?.homeworkScore).toBe(70);
+    expect(firstRow?.topicScore).toBe(80);
+    expect(firstRow?.dictionaryScore).toBe(90);
+    expect(firstRow?.homeworkDone).toBe(true);
+
+    // Verify GET /teachers/me/attendance returns the same computed scores and homeworkText
+    const getRes = await teacher(
+      request(createApp()).get(`/api/v1/teachers/me/attendance?groupId=${groupId}&date=2026-07-15`),
+    );
+    expect(getRes.status).toBe(200);
+    const getData = (getRes.body as ApiDataResponse<AttendanceSessionPayload>).data;
+    expect(getData.homeworkText).toBe('Keyingi darsga 5 ta yangi mavzu');
+    const getFirstRow = getData.rows[0];
+    expect(getFirstRow?.rating).toBe(80);
+    expect(getFirstRow?.homeworkScore).toBe(70);
+    expect(getFirstRow?.topicScore).toBe(80);
+    expect(getFirstRow?.dictionaryScore).toBe(90);
+  });
+
+  it('computes smart average rating skipping null scores on both admin and teacher endpoints', async () => {
+    // 1. Admin saves attendance with only topicScore = 95
+    const adminSave = await admin(
+      request(createApp()).post('/api/v1/attendance'),
+    ).send({
+      groupId,
+      date: '2026-07-17',
+      homeworkText: 'Yangi mavzu vazifalari',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          topicScore: 95,
+          homeworkScore: null,
+          dictionaryScore: null,
+          homeworkDone: false,
+          comment: 'Faqat dars baholandi',
+        },
+      ],
+    });
+    expect(adminSave.status).toBe(200);
+    const adminRow = (adminSave.body as ApiDataResponse<AttendanceSessionPayload>).data.rows[0];
+    expect(adminRow?.rating).toBe(95); // Must be 95, NOT Math.round((0 + 95 + 0) / 3) = 32
+    expect(adminRow?.topicScore).toBe(95);
+    expect(adminRow?.homeworkScore).toBeNull();
+    expect(adminRow?.dictionaryScore).toBeNull();
+
+    // 2. Teacher saves attendance with homeworkScore = 80 and topicScore = 90 (dictionary null)
+    const teacherPut = await teacher(
+      request(createApp()).put('/api/v1/teachers/me/attendance'),
+    ).send({
+      groupId,
+      groupName: `${prefix} Group`,
+      date: '2026-07-18',
+      homeworkText: '',
+      rows: [
+        {
+          studentId,
+          studentCode: 'ST1',
+          studentName: `${prefix} Student One`,
+          status: 'came',
+          homeworkScore: 80,
+          topicScore: 90,
+          dictionaryScore: null,
+          homeworkDone: true,
+          comment: 'Lug‘at berilmadi',
+          lockedByAdmin: false,
+        },
+      ],
+    });
+    expect(teacherPut.status).toBe(200);
+    const teacherRow = (teacherPut.body as ApiDataResponse<AttendanceSessionPayload>).data.rows[0];
+    expect(teacherRow?.rating).toBe(85); // Math.round((80 + 90) / 2) = 85, NOT 57
+    expect(teacherRow?.homeworkScore).toBe(80);
+    expect(teacherRow?.topicScore).toBe(90);
+    expect(teacherRow?.dictionaryScore).toBeNull();
+  });
+
+  it('preserves historical rating across score fields when homeworkScore is null in DB', async () => {
+    // Manually create a legacy record with rating but null specific scores
+    await prisma.attendance.upsert({
+      where: {
+        groupId_studentId_date: {
+          groupId,
+          studentId,
+          date: new Date('2026-07-16T00:00:00.000Z'),
+        },
+      },
+      create: {
+        groupId,
+        studentId,
+        date: new Date('2026-07-16T00:00:00.000Z'),
+        status: 'CAME',
+        rating: 88,
+        homeworkScore: null,
+        topicScore: null,
+        dictionaryScore: null,
+        homeworkDone: true,
+        createdByUserId: adminId,
+      },
+      update: {
+        status: 'CAME',
+        rating: 88,
+        homeworkScore: null,
+        topicScore: null,
+        dictionaryScore: null,
+      },
+    });
+
+    const sessionRes = await admin(
+      request(createApp()).get(`/api/v1/attendance/group/${groupId}/date/2026-07-16`),
+    );
+    expect(sessionRes.status).toBe(200);
+    const sessionData = (sessionRes.body as ApiDataResponse<AttendanceSessionPayload>).data;
+    const row = sessionData.rows.find((r) => r.studentId === studentId);
+    expect(row?.rating).toBe(88);
+    expect(row?.homeworkScore).toBe(88);
+    expect(row?.topicScore).toBe(88);
+    expect(row?.dictionaryScore).toBe(88);
+
+    const teacherRes = await teacher(
+      request(createApp()).get(`/api/v1/teachers/me/attendance?groupId=${groupId}&date=2026-07-16`),
+    );
+    expect(teacherRes.status).toBe(200);
+    const teacherData = (teacherRes.body as ApiDataResponse<AttendanceSessionPayload>).data;
+    const teacherRow = teacherData.rows.find((r) => r.studentId === studentId);
+    expect(teacherRow?.rating).toBe(88);
+    expect(teacherRow?.homeworkScore).toBe(88);
+    expect(teacherRow?.topicScore).toBe(88);
+    expect(teacherRow?.dictionaryScore).toBe(88);
   });
 });
 

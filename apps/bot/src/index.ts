@@ -5,15 +5,17 @@ import path from 'node:path';
 import type { InputRichBlock, RichText } from './rich-message.js';
 import { bold } from './rich-message.js';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '../.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 
 const botToken = process.env.TELEGRAM_BOT_TOKEN;
-if (!botToken) {
+if (!botToken && process.env.NODE_ENV !== 'test') {
   console.error('TELEGRAM_BOT_TOKEN is not set. Add it to the root .env file.');
   process.exit(1);
 }
-const prisma = new PrismaClient();
-const bot = new Telegraf(botToken);
+export const prisma = new PrismaClient();
+export const bot = new Telegraf(botToken || '000000000:TEST_TOKEN_FOR_TESTS');
 
 const mainMenu = Markup.keyboard([
   ['📊 Davomat', '💳 To\'lovlar'],
@@ -42,6 +44,33 @@ function formatDateUz(date: Date): string {
   }).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? '';
   return `${get('day')}.${get('month')}.${get('year')}`;
+}
+
+export function computeSmartAverage(...scores: (number | null | undefined)[]): number | null {
+  const valid = scores.filter((s): s is number => typeof s === 'number' && !isNaN(s));
+  if (valid.length === 0) return null;
+  return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length);
+}
+
+export function formatScoresBreakdown(hw: number | null | undefined, topic: number | null | undefined, dict: number | null | undefined): string {
+  const parts: string[] = [];
+  if (typeof hw === 'number') parts.push(`Uyga vazifa: ${hw}%`);
+  if (typeof topic === 'number') parts.push(`Mavzu: ${topic}%`);
+  if (typeof dict === 'number') parts.push(`Lug‘at: ${dict}%`);
+  return parts.length > 0 ? `(${parts.join(', ')})` : '';
+}
+
+export function parseLessonPlan(raw: string): { topic: string; homeworkText: string } {
+  if (!raw) return { topic: '', homeworkText: '' };
+  const trimmed = raw.trim();
+  const match = trimmed.match(/^Mavzu:\s*([^\n]+)(?:\n+(?:Vazifa:\s*)?([\s\S]*))?$/i);
+  if (match) {
+    return {
+      topic: match[1]?.trim() ?? '',
+      homeworkText: match[2]?.trim() ?? '',
+    };
+  }
+  return { topic: '', homeworkText: trimmed };
 }
 
 type StudentRatingRow = {
@@ -229,8 +258,185 @@ async function sendRichSafe(
   }
 }
 
-bot.start(async (ctx) => {
+export function extractCleanGroupId(query: string): string {
+  return query
+    .trim()
+    .replace(/^<|>$/g, '')
+    .replace(/^https?:\/\/[^\s]+startgroup=/i, '')
+    .replace(/^.*startgroup=/i, '')
+    .replace(/^start=/i, '')
+    .replace(/^\/(?:startgroup|start|connect|link)(?:@\w+)?(?:\s+|=)?/i, '')
+    .replace(/^group_/, '')
+    .replace(/^g_/, '')
+    .replace(/^<|>$/g, '')
+    .trim();
+}
+
+export async function connectGroupToChat(chatId: string, chatTitle: string, query: string) {
+  const cleanId = extractCleanGroupId(query);
+  if (!cleanId) {
+    return { ok: false, error: 'Guruh ID yoki nomi kiritilmadi' };
+  }
+
+  let group = await prisma.group.findUnique({
+    where: { id: cleanId },
+    include: { course: true, teacher: true },
+  }).catch(() => null);
+
+  if (!group) {
+    group = await prisma.group.findFirst({
+      where: { name: { equals: cleanId, mode: 'insensitive' } },
+      include: { course: true, teacher: true },
+    });
+  }
+
+  if (!group) {
+    const candidates = await prisma.group.findMany({
+      where: { name: { contains: cleanId, mode: 'insensitive' } },
+      include: { course: true, teacher: true },
+      take: 3,
+    });
+    if (candidates.length === 1) {
+      group = candidates[0];
+    } else if (candidates.length > 1) {
+      return {
+        ok: false,
+        error: `Bir nechta mos guruh topildi: ${candidates.map((c) => `“${c.name}”`).join(', ')}. Iltimos, aniq nomini yoki ID sini kiriting.`,
+      };
+    }
+  }
+
+  if (!group) {
+    return { ok: false, error: `“${cleanId}” bo‘yicha guruh topilmadi` };
+  }
+
+  // Database integrity: disassociate this chatId from any other groups first
+  await prisma.group.updateMany({
+    where: { telegramChatId: chatId, id: { not: group.id } },
+    data: { telegramChatId: null, telegramChatTitle: null },
+  });
+
+  const updated = await prisma.group.update({
+    where: { id: group.id },
+    data: {
+      telegramChatId: chatId,
+      telegramChatTitle: chatTitle || 'Telegram Guruh',
+    },
+    include: { course: true, teacher: true },
+  });
+
+  return { ok: true, group: updated };
+}
+
+export async function disconnectGroupFromChat(chatId: string) {
+  const linked = await prisma.group.findFirst({
+    where: { telegramChatId: chatId },
+  });
+  if (!linked) {
+    return { ok: false, error: 'Ushbu chat hech qanday guruhga bog‘lanmagan' };
+  }
+  const updated = await prisma.group.update({
+    where: { id: linked.id },
+    data: {
+      telegramChatId: null,
+      telegramChatTitle: null,
+    },
+  });
+  await prisma.group.updateMany({
+    where: { telegramChatId: chatId, id: { not: linked.id } },
+    data: {
+      telegramChatId: null,
+      telegramChatTitle: null,
+    },
+  });
+  return { ok: true, group: updated };
+}
+
+export async function getLinkedGroupForChat(chatId: string) {
+  return prisma.group.findFirst({
+    where: { telegramChatId: chatId },
+    include: { course: true, teacher: true },
+  });
+}
+
+async function handleStartOrGroupStart(ctx: any) {
   const chatId = String(ctx.chat.id);
+  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+
+  if (isGroup) {
+    const rawText = ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
+    const payload =
+      (ctx as any).startPayload ||
+      (rawText.includes(' ') ? rawText.split(/\s+/).slice(1).join(' ') : '') ||
+      (rawText.startsWith('/startgroup=') ? rawText.replace(/^\/startgroup=/, '') : '');
+
+    if (payload) {
+      const result = await connectGroupToChat(chatId, ctx.chat.title || 'Telegram Guruh', payload);
+      if (result.ok && result.group) {
+        return ctx.replyWithHTML(
+          `✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n\n` +
+          `📚 <b>Guruh:</b> ${escapeHtml(result.group.name)}\n` +
+          `📖 <b>Kurs:</b> ${escapeHtml(result.group.course?.title ?? '—')}\n` +
+          `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
+          `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
+          `Endi dars rejasi, uy vazifalari va dars xulosalari ushbu guruhga yuboriladi.\n` +
+          `<i>(Aloqani uzish uchun: /disconnect yoki /unlink)</i>`,
+        );
+      } else {
+        return ctx.replyWithHTML(
+          `❌ <b>Bog'lashda xatolik:</b> ${escapeHtml(result.error ?? 'Guruh topilmadi')}\n\n` +
+          `Guruhni ulash uchun quyidagicha yuboring:\n` +
+          `📌 <code>/connect &lt;guruh_id_yoki_nomi&gt;</code>`,
+        );
+      }
+    }
+    const current = await getLinkedGroupForChat(chatId);
+    if (current) {
+      return ctx.replyWithHTML(
+        `ℹ️ <b>Ushbu chat allaqachon bog'langan!</b>\n\n` +
+        `📚 <b>Guruh:</b> ${escapeHtml(current.name)}\n` +
+        `📖 <b>Kurs:</b> ${escapeHtml(current.course?.title ?? '—')}\n` +
+        `🔌 Aloqani uzish uchun: /disconnect`,
+      );
+    }
+    return ctx.replyWithHTML(
+      `👋 <b>Assalomu alaykum!</b>\n\n` +
+      `Ushbu Telegram guruhini Golden Study CRM guruhi bilan bog'lash uchun:\n` +
+      `📌 <code>/connect &lt;Guruh_ID yoki nomi&gt;</code> buyrug'ini yuboring.`,
+    );
+  }
+
+  // Private chat: check if user passed a group deep-link parameter, e.g. /start group_<id>
+  const privateText = ctx.message && 'text' in ctx.message ? ctx.message.text.trim() : '';
+  const privatePayload =
+    (ctx as any).startPayload ||
+    (privateText.includes(' ') ? privateText.split(/\s+/).slice(1).join(' ') : '') ||
+    (privateText.startsWith('/start=') ? privateText.replace(/^\/start=/, '') : '');
+
+  const cleanGroupQuery = privatePayload ? extractCleanGroupId(privatePayload) : '';
+  if (cleanGroupQuery) {
+    let targetGroup = await prisma.group.findUnique({ where: { id: cleanGroupQuery } }).catch(() => null);
+    if (!targetGroup) {
+      targetGroup = await prisma.group.findFirst({
+        where: { name: { equals: cleanGroupQuery, mode: 'insensitive' } },
+      });
+    }
+    const groupLabel = targetGroup ? `“${targetGroup.name}”` : 'o‘quv guruhi';
+    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'golden_study_bot';
+    const targetId = targetGroup ? targetGroup.id : cleanGroupQuery;
+    return ctx.replyWithHTML(
+      `ℹ️ <b>Guruhni ulash bo‘yicha ko‘rsatma</b>\n\n` +
+      `Siz ${escapeHtml(groupLabel)}ni Telegram guruhiga ulamoqchisiz.\n\n` +
+      `Guruhni ulash tartibi:\n` +
+      `1️⃣ Botni o‘quv guruhingizga qo‘shing.\n` +
+      `2️⃣ Guruh ichida <code>/connect ${escapeHtml(targetId)}</code> buyrug‘ini yuboring.\n\n` +
+      `<i>Quyidagi tugma orqali botni bevosita guruhga qo‘shishingiz mumkin:</i>`,
+      Markup.inlineKeyboard([
+        [Markup.button.url('👥 Guruhga qo‘shish', `https://t.me/${botUser}?startgroup=group_${targetId}`)],
+      ]),
+    );
+  }
+
   const activeLink = await getActiveLink(chatId);
 
   if (activeLink) {
@@ -287,6 +493,118 @@ bot.start(async (ctx) => {
     { type: 'paragraph', text: '🔑 Davom etish uchun farzandingizning o\'quvchi kodini kiriting:' },
     { type: 'footer', text: 'Masalan: ST101' },
   ], `<b>Assalomu alaykum!</b>\n<b>Golden Study</b> o'quv markazining rasmiy botiga xush kelibsiz!\n\n• 📱 <b>Bu bot orqali farzandingizning:</b>\n• 📊 Davomatini kuzatishingiz\n• 💳 To'lovlar va balansingizni ko'rishingiz\n• 📝 Uy vazifalari bajarilganini bilishingiz\n• 🎯 Imtihon natijalari va reytingni kuzatishingiz mumkin.\n\n🔑 <b>Davom etish uchun farzandingizning o'quvchi kodini kiriting:</b>\n📌 <i>Masalan:</i> <code>ST101</code>`);
+}
+
+bot.start(handleStartOrGroupStart);
+bot.command('startgroup', handleStartOrGroupStart);
+
+bot.command(['connect', 'link'], async (ctx) => {
+  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+  const chatId = String(ctx.chat.id);
+  const text = ctx.message.text.trim();
+  const query = text.split(/\s+/).slice(1).join(' ').trim();
+
+  if (!isGroup) {
+    const cleanId = query ? extractCleanGroupId(query) : '';
+    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'golden_study_bot';
+    const connectCmd = cleanId ? `/connect ${cleanId}` : '/connect <guruh_id>';
+    return ctx.replyWithHTML(
+      `⚠️ <b>Guruh chatida ishlatiladi!</b>\n\n` +
+      `Ushbu buyruqni Telegram guruh chatida ishga tushiring:\n` +
+      `1. Botni o'quv guruhingizga qo'shing\n` +
+      `2. Guruhda <code>${connectCmd}</code> buyrug'ini yuboring.`,
+      cleanId
+        ? Markup.inlineKeyboard([
+            [Markup.button.url('👥 Guruhga qo‘shish', `https://t.me/${botUser}?startgroup=group_${cleanId}`)],
+          ])
+        : undefined,
+    );
+  }
+
+  if (!query) {
+    return ctx.replyWithHTML(
+      `⚠️ <b>Guruh ID yoki nomini kiriting!</b>\n\n` +
+      `Masalan: <code>/connect 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d</code> yoki <code>/connect IELTS Intensive</code>`,
+    );
+  }
+
+  const result = await connectGroupToChat(chatId, ctx.chat.title || 'Telegram Guruh', query);
+  if (result.ok && result.group) {
+    return ctx.replyWithHTML(
+      `✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n\n` +
+      `📚 <b>Guruh:</b> ${escapeHtml(result.group.name)}\n` +
+      `📖 <b>Kurs:</b> ${escapeHtml(result.group.course?.title ?? '—')}\n` +
+      `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
+      `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
+      `Endi dars xulosalari va uy vazifalari ushbu guruhga yuboriladi.\n` +
+      `<i>(Aloqani uzish: /disconnect)</i>`,
+    );
+  }
+
+  return ctx.replyWithHTML(
+    `❌ <b>Guruh topilmadi</b>\n\n` +
+    `${escapeHtml(result.error ?? 'Guruh topilmadi')}.\n\n` +
+    `💡 <i>Kodni qayta tekshirib ko‘ring yoki CRM dan to‘g‘ri guruh ID sini oling.</i>`,
+  );
+});
+
+bot.command(['disconnect', 'unlink'], async (ctx) => {
+  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+  const chatId = String(ctx.chat.id);
+
+  if (!isGroup) {
+    return ctx.replyWithHTML('⚠️ Ushbu buyruq faqat guruh chatlarida ishlatiladi.');
+  }
+
+  const result = await disconnectGroupFromChat(chatId);
+  if (result.ok && result.group) {
+    return ctx.replyWithHTML(
+      `🔌 <b>Guruh aloqasi uzildi</b>\n\n` +
+      `“<b>${escapeHtml(result.group.name)}</b>” guruhi ushbu Telegram chatidan muvaffaqiyatli ajratildi.`,
+    );
+  }
+
+  return ctx.replyWithHTML(`ℹ️ ${escapeHtml(result.error ?? 'Guruh topilmadi')}`);
+});
+
+bot.command(['group_status', 'gstatus'], async (ctx) => {
+  const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
+  const chatId = String(ctx.chat.id);
+
+  if (!isGroup) {
+    return ctx.replyWithHTML('⚠️ Ushbu buyruq faqat guruh chatlarida ishlatiladi.');
+  }
+
+  const linked = await getLinkedGroupForChat(chatId);
+  if (!linked) {
+    return ctx.replyWithHTML(
+      `ℹ️ <b>Ushbu chat tizimga ulanmagan</b>\n\n` +
+      `Guruhni ulash uchun: <code>/connect &lt;guruh_id&gt;</code>`,
+    );
+  }
+
+  return ctx.replyWithHTML(
+    `📋 <b>Bog'langan guruh:</b>\n\n` +
+    `📚 <b>Nomi:</b> ${escapeHtml(linked.name)}\n` +
+    `📖 <b>Kurs:</b> ${escapeHtml(linked.course?.title ?? '—')}\n` +
+    `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${linked.teacher?.firstName ?? ''} ${linked.teacher?.lastName ?? ''}`.trim())}\n` +
+    `🆔 <b>ID:</b> <code>${escapeHtml(linked.id)}</code>\n\n` +
+    `🔌 Aloqani uzish uchun: /disconnect`,
+  );
+});
+
+bot.on('new_chat_members', async (ctx, next) => {
+  const addedMe = ctx.message.new_chat_members.some((m) => m.is_bot && m.id === ctx.botInfo?.id);
+  if (addedMe) {
+    return ctx.replyWithHTML(
+      `👋 <b>Assalomu alaykum!</b>\n\n` +
+      `Golden Study o'quv markazining rasmiy botini guruhga qo'shganingiz uchun rahmat!\n\n` +
+      `Ushbu Telegram guruhini CRM tizimidagi guruh bilan bog'lash uchun quyidagi buyruqni yuboring:\n` +
+      `📌 <code>/connect &lt;guruh_id&gt;</code>\n\n` +
+      `Masalan: <code>/connect IELTS Intensive</code>`,
+    );
+  }
+  return next();
 });
 
 // Menu: Davomat
@@ -324,18 +642,21 @@ bot.hears('📊 Davomat', async (ctx) => {
   ];
 
   if (attendanceList.length > 0) {
-    const rows = attendanceList.map(a => [
-      { text: formatDateUz(a.date) },
-      { text: a.status === 'CAME' ? '✅' : a.status === 'EXCUSED' ? '🟡' : '❌' },
-      { text: a.homeworkDone ? '✅ Bajarilgan' : '❌ Bajarilmagan' },
-    ]);
+    const rows = attendanceList.map((a) => {
+      const rating = a.rating ?? computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore);
+      return [
+        { text: formatDateUz(a.date) },
+        { text: a.status === 'CAME' ? '✅' : a.status === 'EXCUSED' ? '🟡' : '❌' },
+        { text: a.status === 'CAME' ? (typeof rating === 'number' ? `${rating}%` : '—') : '—' },
+      ];
+    });
 
     blocks.push({
       type: 'table',
       is_bordered: true,
       is_striped: true,
       cells: [
-        [{ text: 'Sana', is_header: true }, { text: 'Holat', is_header: true }, { text: 'DZ', is_header: true }],
+        [{ text: 'Sana', is_header: true }, { text: 'Holat', is_header: true }, { text: 'Baho', is_header: true }],
         ...rows,
       ],
     });
@@ -343,10 +664,21 @@ bot.hears('📊 Davomat', async (ctx) => {
     blocks.push({
       type: 'details',
       summary: '📅 Oxirgi darslar',
-      blocks: attendanceList.map(a => ({
-        type: 'paragraph',
-        text: `${a.status === 'CAME' ? '✅' : a.status === 'EXCUSED' ? '🟡' : '❌'} ${formatDateUz(a.date)} — ${a.homeworkDone ? '✅ Bajarilgan' : '❌ Bajarilmagan'}`,
-      })),
+      blocks: attendanceList.map((a) => {
+        if (a.status === 'CAME') {
+          const rating = a.rating ?? computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore);
+          const ratingStr = typeof rating === 'number' ? `Baho: ${rating}%` : 'Baholanmagan';
+          const breakdown = formatScoresBreakdown(a.homeworkScore, a.topicScore, a.dictionaryScore);
+          return {
+            type: 'paragraph' as const,
+            text: `✅ ${formatDateUz(a.date)} — ${ratingStr}${breakdown ? ` ${breakdown}` : ''}`,
+          };
+        }
+        return {
+          type: 'paragraph' as const,
+          text: `${a.status === 'EXCUSED' ? '🟡 Sababli' : '❌ Sababsiz'} ${formatDateUz(a.date)}`,
+        };
+      }),
     });
   }
 
@@ -357,7 +689,14 @@ bot.hears('📊 Davomat', async (ctx) => {
   if (attendanceList.length > 0) {
     fallbackHtml += `<blockquote expandable><b>📅 Oxirgi darslar:</b>\n`;
     attendanceList.forEach((a) => {
-      fallbackHtml += `${a.status === 'CAME' ? '✅' : a.status === 'EXCUSED' ? '🟡' : '❌'} <b>${formatDateUz(a.date)}</b> — ${a.homeworkDone ? '✅ Bajarilgan' : '❌ Bajarilmagan'}\n`;
+      if (a.status === 'CAME') {
+        const rating = a.rating ?? computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore);
+        const ratingStr = typeof rating === 'number' ? `<b>${rating}%</b>` : 'Baholanmagan';
+        const breakdown = formatScoresBreakdown(a.homeworkScore, a.topicScore, a.dictionaryScore);
+        fallbackHtml += `✅ <b>${formatDateUz(a.date)}</b> — ${ratingStr}${breakdown ? ` ${escapeHtml(breakdown)}` : ''}\n`;
+      } else {
+        fallbackHtml += `${a.status === 'EXCUSED' ? '🟡' : '❌'} <b>${formatDateUz(a.date)}</b> — ${a.status === 'EXCUSED' ? 'Sababli' : 'Sababsiz'}\n`;
+      }
     });
     fallbackHtml += `</blockquote>`;
   }
@@ -462,6 +801,37 @@ bot.hears('📝 Uy vazifalari', async (ctx) => {
   const link = await getActiveLink(chatId);
   if (!link) return ctx.reply("⚠️ Hisobingiz hali tasdiqlanmagan.");
 
+  const student = await prisma.student.findUnique({
+    where: { id: link.studentId },
+    include: {
+      groups: {
+        where: {
+          status: 'ACTIVE',
+          group: { status: 'ACTIVE' },
+        },
+        include: {
+          group: true,
+        },
+      },
+    },
+  });
+
+  const activeGroups = student?.groups ?? [];
+  const upcomingLessons = (
+    await Promise.all(
+      activeGroups.map(async (ag) => {
+        return prisma.groupLesson.findFirst({
+          where: {
+            groupId: ag.groupId,
+            homeworkText: { not: '' },
+          },
+          orderBy: { date: 'desc' },
+          include: { group: true },
+        });
+      }),
+    )
+  ).filter((l): l is NonNullable<typeof l> => Boolean(l));
+
   const attendanceList = await prisma.attendance.findMany({
     where: { studentId: link.studentId, isReversed: false },
     orderBy: { date: 'desc' },
@@ -474,40 +844,127 @@ bot.hears('📝 Uy vazifalari', async (ctx) => {
     { type: 'paragraph', text: [{ type: 'bold', text: studentName }] },
   ];
 
+  if (upcomingLessons.length > 0) {
+    blocks.push({ type: 'heading', text: '📌 Keyingi darsga vazifa', size: 4 });
+    upcomingLessons.forEach((l) => {
+      const plan = parseLessonPlan(l.homeworkText);
+      const textParts: RichText[] = [
+        bold(`📚 Guruh: ${l.group.name} (${formatDateUz(l.date)})`),
+      ];
+      if (plan.topic) {
+        textParts.push(`\n📘 Mavzu: ${plan.topic}`);
+      }
+      if (plan.homeworkText) {
+        textParts.push(`\n📝 Vazifa: ${plan.homeworkText}`);
+      }
+      blocks.push({
+        type: 'paragraph',
+        text: textParts,
+      });
+    });
+    blocks.push({ type: 'divider' });
+  } else {
+    blocks.push({ type: 'heading', text: '📌 Keyingi darsga vazifa', size: 4 });
+    blocks.push({ type: 'paragraph', text: 'Hozircha yangi uy vazifasi kiritilmagan.' });
+    blocks.push({ type: 'divider' });
+  }
+
   if (attendanceList.length > 0) {
+    blocks.push({ type: 'heading', text: '📊 Oxirgi darslardagi baholar', size: 4 });
     blocks.push({
       type: 'list',
-      items: attendanceList.map(a => ({
-        has_checkbox: true,
-        is_checked: a.homeworkDone,
-        blocks: [{
-          type: 'paragraph',
-          text: `${formatDateUz(a.date)} — ${a.homeworkDone ? 'Bajarilgan' : 'Bajarilmagan'}`,
-        }],
-      })),
+      items: attendanceList.map((a) => {
+        if (a.status === 'CAME') {
+          const rating = a.rating ?? computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore) ?? 0;
+          const breakdown = formatScoresBreakdown(a.homeworkScore, a.topicScore, a.dictionaryScore);
+          return {
+            has_checkbox: true,
+            is_checked: (a.homeworkScore ?? 0) > 0,
+            blocks: [{
+              type: 'paragraph',
+              text: `${formatDateUz(a.date)} — Baho: ${rating}%${breakdown ? `\n${breakdown}` : ''}`,
+            }],
+          };
+        }
+        return {
+          has_checkbox: false,
+          blocks: [{
+            type: 'paragraph',
+            text: `${formatDateUz(a.date)} — ${a.status === 'EXCUSED' ? '🟡 Sababli' : '❌ Sababsiz'}`,
+          }],
+        };
+      }),
     });
 
-    const doneCount = attendanceList.filter(a => a.homeworkDone).length;
-    const pct = Math.round((doneCount / attendanceList.length) * 100);
+    const cameList = attendanceList.filter((a) => a.status === 'CAME');
+    const avgRating = cameList.length > 0
+      ? Math.round(
+          cameList.reduce(
+            (s, a) =>
+              s +
+              (a.rating ??
+                computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore) ??
+                0),
+            0,
+          ) / cameList.length,
+        )
+      : 0;
 
     blocks.push(
       { type: 'divider' },
-      { type: 'paragraph', text: `Bajarilgan: ${doneCount} / ${attendanceList.length} (${pct}%)` },
+      { type: 'paragraph', text: `O‘rtacha baho: ${avgRating}% (${cameList.length} ta dars)` },
     );
-  } else {
+  } else if (upcomingLessons.length === 0) {
     blocks.push({ type: 'paragraph', text: "Ma'lumotlar topilmadi." });
   }
 
-  let fallbackHtml = `<b>Uy vazifalari ijrosi</b>\n🎓 <b>O'quvchi:</b> ${escapeHtml(studentName)}\n\n`;
+  let fallbackHtml = `<b>Uy vazifalari va baholar</b>\n🎓 <b>O'quvchi:</b> ${escapeHtml(studentName)}\n\n`;
+  if (upcomingLessons.length > 0) {
+    fallbackHtml += `<b>📌 Keyingi darsga vazifa:</b>\n`;
+    upcomingLessons.forEach((l) => {
+      const plan = parseLessonPlan(l.homeworkText);
+      fallbackHtml += `📚 <b>Guruh:</b> ${escapeHtml(l.group.name)} (<i>${formatDateUz(l.date)}</i>)\n`;
+      if (plan.topic) {
+        fallbackHtml += `📘 <b>Mavzu:</b> ${escapeHtml(plan.topic)}\n`;
+      }
+      if (plan.homeworkText) {
+        fallbackHtml += `📝 <b>Vazifa:</b> ${escapeHtml(plan.homeworkText)}\n`;
+      }
+      fallbackHtml += `\n`;
+    });
+  } else {
+    fallbackHtml += `<b>📌 Keyingi darsga vazifa:</b>\n<i>Hozircha yangi uy vazifasi kiritilmagan.</i>\n\n`;
+  }
+
   if (attendanceList.length > 0) {
-    fallbackHtml += `<blockquote expandable><b>📌 Oxirgi topshirilgan vazifalar:</b>\n`;
+    fallbackHtml += `<blockquote expandable><b>📊 Oxirgi darslardagi baholar:</b>\n`;
     attendanceList.forEach((a) => {
-      fallbackHtml += `${a.homeworkDone ? '✅' : '❌'} <b>${formatDateUz(a.date)}</b>: ${a.homeworkDone ? 'Bajarilgan' : 'Bajarilmagan'}\n`;
+      if (a.status === 'CAME') {
+        const rating = a.rating ?? computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore) ?? 0;
+        const breakdown = formatScoresBreakdown(a.homeworkScore, a.topicScore, a.dictionaryScore);
+        fallbackHtml += `✅ <b>${formatDateUz(a.date)}</b> — <b>Baho: ${rating}%</b> ${breakdown ? `${escapeHtml(breakdown)}` : ''}\n`;
+      } else if (a.status === 'EXCUSED') {
+        fallbackHtml += `🟡 <b>${formatDateUz(a.date)}</b> — Sababli\n`;
+      } else {
+        fallbackHtml += `❌ <b>${formatDateUz(a.date)}</b> — Sababsiz\n`;
+      }
     });
     fallbackHtml += `</blockquote>`;
-    const doneCount = attendanceList.filter(a => a.homeworkDone).length;
-    fallbackHtml += `\nBajarilgan: ${doneCount} / ${attendanceList.length}`;
-  } else {
+    const cameList = attendanceList.filter((a) => a.status === 'CAME');
+    const avgRating = cameList.length > 0
+      ? Math.round(
+          cameList.reduce(
+            (s, a) =>
+              s +
+              (a.rating ??
+                computeSmartAverage(a.homeworkScore, a.topicScore, a.dictionaryScore) ??
+                0),
+            0,
+          ) / cameList.length,
+        )
+      : 0;
+    fallbackHtml += `\n📈 <b>O‘rtacha baho:</b> ${avgRating}% (${cameList.length} ta dars)\n`;
+  } else if (upcomingLessons.length === 0) {
     fallbackHtml += `<i>Ma'lumotlar topilmadi.</i>`;
   }
 
@@ -645,6 +1102,7 @@ bot.hears('🎯 Imtihonlar', async (ctx) => {
 
 // Text listener for Student Code submission
 bot.on('text', async (ctx, next) => {
+  if (ctx.chat.type === 'group' || ctx.chat.type === 'supergroup') return next();
   const text = ctx.message.text.trim();
   if (text.startsWith('/')) return next();
 
@@ -728,9 +1186,13 @@ bot.command('test_rich', async (ctx) => {
     `❌ Failed (${failed.length}/${tests.length}):\n${failed.join('\n')}`);
 });
 
-bot.launch().then(() => {
-  console.log('🤖 Golden Study Telegram Bot successfully started!');
-});
+if (process.env.NODE_ENV !== 'test') {
+  bot.launch(() => {
+    console.log('🤖 Golden Study Telegram Bot successfully started!');
+  }).catch((err) => {
+    console.error('❌ Failed to launch Telegram Bot:', err);
+  });
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+  process.once('SIGINT', () => bot.stop('SIGINT'));
+  process.once('SIGTERM', () => bot.stop('SIGTERM'));
+}

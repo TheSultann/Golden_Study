@@ -182,6 +182,8 @@ function toFrontendGroup(apiGroup: GroupApi): Group {
     activeStudents: apiGroup.studentsCount,
     graduateStudents: 0,
     active: apiGroup.status === 'ACTIVE',
+    telegramChatId: apiGroup.telegramChatId ?? null,
+    telegramChatTitle: apiGroup.telegramChatTitle ?? null,
   }
 }
 
@@ -234,6 +236,15 @@ export class ApiGroupRepository implements GroupRepository {
     const response = await apiRequest(
       `/groups/${id}/status`,
       { method: 'PATCH', body: JSON.stringify({ status }) },
+      groupApiResponseSchema,
+    )
+    return toFrontendGroup(response.data)
+  }
+
+  async unlinkTelegram(id: string): Promise<Group> {
+    const response = await apiRequest(
+      `/groups/${id}/unlink-telegram`,
+      { method: 'POST' },
       groupApiResponseSchema,
     )
     return toFrontendGroup(response.data)

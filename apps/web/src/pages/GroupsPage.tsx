@@ -1,9 +1,10 @@
 import type { Group } from '@golden-study/contracts'
-import { CalendarDays, Clock3, MapPin, Plus, Search, UsersRound, X } from 'lucide-react'
+import { CalendarDays, Clock3, MapPin, Plus, Search, Send, UsersRound, X } from 'lucide-react'
 import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useCourses } from '../features/courses/useCourses'
 import { useGroups, useSaveGroup, useSetGroupActive } from '../features/groups/useGroups'
+import { TelegramGroupConnectModal } from '../features/groups/TelegramGroupConnectModal'
 import { useRooms } from '../features/rooms/useRooms'
 import { useTeachers } from '../features/teachers/useTeachers'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
@@ -153,6 +154,7 @@ export function GroupsPage() {
   const [status, setStatus] = useState('active')
   const [editing, setEditing] = useState<Group | 'new' | null>(() => searchParams.get('action') === 'new' ? 'new' : null)
   const [pendingStatus, setPendingStatus] = useState<Group | null>(null)
+  const [connectingTelegramGroup, setConnectingTelegramGroup] = useState<Group | null>(null)
 
   const handleSearchChange = (val: string) => { setSearch(val); setPage(1) }
   const handleStatusChange = (val: string) => { setStatus(val); setPage(1) }
@@ -224,7 +226,7 @@ export function GroupsPage() {
       {filtered.length > 0 ? <div className="groups-table panel">
         <div className="table-scroll">
           <table aria-label="Guruhlar ro‘yxati">
-            <thead><tr><th>Guruh</th><th>Kurs / O‘qituvchi</th><th>Jadval</th><th>Auditoriya</th><th>O‘quvchilar</th><th>Muddat</th><th /></tr></thead>
+            <thead><tr><th>Guruh</th><th>Kurs / O‘qituvchi</th><th>Jadval</th><th>Auditoriya</th><th>O‘quvchilar</th><th>Telegram</th><th>Muddat</th><th /></tr></thead>
             <tbody>
               {paginatedGroups.map((group) => (
                 <tr
@@ -239,6 +241,59 @@ export function GroupsPage() {
                   <td data-label="Jadval"><span><CalendarDays size={13} />{group.weekdays.join(', ')}</span><small><Clock3 size={12} />{group.time}</small></td>
                   <td data-label="Auditoriya"><span><MapPin size={13} />{group.room}</span></td>
                   <td data-label="O‘quvchilar"><span><UsersRound size={13} />{group.activeStudents} faol</span><small>{group.graduateStudents} bitirgan</small></td>
+                  <td data-label="Telegram" onClick={(e) => e.stopPropagation()}>
+                    {group.telegramChatId ? (
+                      <button
+                        type="button"
+                        translate="no"
+                        className="notranslate"
+                        onClick={() => setConnectingTelegramGroup(group)}
+                        title="Telegram sozlamalarini ko‘rish"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          padding: '3px 8px',
+                          borderRadius: 12,
+                          fontSize: 12,
+                          background: '#e0f2fe',
+                          color: '#0284c7',
+                          border: '1px solid #bae6fd',
+                          cursor: 'pointer',
+                          fontWeight: 500,
+                          maxWidth: 130,
+                        }}
+                      >
+                        <Send size={11} />
+                        <span translate="no" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {group.telegramChatTitle || 'Bog‘langan'}
+                        </span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        translate="no"
+                        className="notranslate"
+                        onClick={() => setConnectingTelegramGroup(group)}
+                        title="Telegram guruhni ulash"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          padding: '3px 8px',
+                          borderRadius: 12,
+                          fontSize: 11,
+                          background: 'rgba(0,0,0,0.03)',
+                          color: 'var(--muted)',
+                          border: '1px solid var(--border)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <Send size={11} />
+                        <span translate="no">Ulash</span>
+                      </button>
+                    )}
+                  </td>
                   <td data-label="Muddat">{formatDate(group.startDate)}<small>{formatDate(group.endDate)}</small></td>
 
 
@@ -284,6 +339,12 @@ export function GroupsPage() {
             activeMutation.reset()
           }}
           onConfirm={() => void changeStatus(pendingStatus)}
+        />
+      ) : null}
+      {connectingTelegramGroup ? (
+        <TelegramGroupConnectModal
+          group={query.data?.find((g) => g.id === connectingTelegramGroup.id) ?? connectingTelegramGroup}
+          onClose={() => setConnectingTelegramGroup(null)}
         />
       ) : null}
     </section>

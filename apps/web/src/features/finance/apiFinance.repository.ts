@@ -356,7 +356,7 @@ export class ApiFinanceRepository implements FinanceRepository {
         },
         z.object({ success: z.boolean() }),
       )
-    } catch (_err) {
+    } catch {
       // Offline fallback
     }
   }

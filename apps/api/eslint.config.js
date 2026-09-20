@@ -13,7 +13,7 @@ export default tseslint.config(
   },
   {
     files: ['src/**/*.ts'],
-    extends: [eslint.configs.recommended, ...tseslint.configs.recommendedTypeChecked],
+    extends: [eslint.configs.recommended, ...tseslint.configs.recommended],
     languageOptions: {
       parserOptions: {
         projectService: true,

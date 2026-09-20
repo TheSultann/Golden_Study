@@ -228,6 +228,8 @@ model Group {
   startDate             DateTime    @db.Date
   endDate               DateTime?   @db.Date
   status                GroupStatus @default(ACTIVE)
+  telegramChatId        String?
+  telegramChatTitle     String?
   createdAt             DateTime    @default(now())
   updatedAt             DateTime    @updatedAt
 
@@ -238,10 +240,12 @@ model Group {
   attendance Attendance[]
   payments   Payment[]
   exams      Exam[]
+  lessons    GroupLesson[]
 
   @@index([teacherId, status])
   @@index([courseId, status])
   @@index([roomId])
+  @@index([telegramChatId])
 }
 
 model Student {
@@ -350,6 +354,9 @@ model Attendance {
   date             DateTime         @db.Date
   status           AttendanceStatus
   rating           Int?
+  homeworkScore    Int?
+  topicScore       Int?
+  dictionaryScore  Int?
   homeworkDone     Boolean          @default(false)
   comment          String           @default("")
   lockedByAdmin    Boolean          @default(false)
@@ -368,6 +375,20 @@ model Attendance {
   @@unique([groupId, studentId, date])
   @@index([studentId, date])
   @@index([groupId, date, isReversed])
+}
+
+model GroupLesson {
+  id           String   @id @default(uuid())
+  groupId      String
+  date         DateTime @db.Date
+  homeworkText String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  group        Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, date])
+  @@index([groupId, date])
 }
 
 model Exam {
@@ -508,6 +529,7 @@ enum TelegramTriggerType {
   PAYMENT_RECEIVED
   DEBT_REMINDER
   ANNOUNCEMENT
+  LESSON_BROADCAST
 }
 
 enum NotificationStatus {

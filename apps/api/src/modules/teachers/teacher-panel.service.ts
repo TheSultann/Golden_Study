@@ -1,5 +1,5 @@
 import type { AttendanceSession, Exam, TeacherDashboard, TeacherRatingRow, TeacherScheduleLesson, TeacherSalaryOverview, TeacherSalaryHistoryItem } from '@golden-study/contracts';
-import type { PrismaClient } from '@prisma/client';
+import type { AttendanceStatus, Prisma, PrismaClient } from '@prisma/client';
 import type { AuthUser } from '@golden-study/contracts';
 import { ApiError } from '../../common/errors/api-error.js';
 
@@ -223,16 +223,18 @@ export class TeacherPanelService {
     return groups.map((g) => ({
       id: g.id,
       name: g.name,
+      telegramChatId: g.telegramChatId ?? null,
+      telegramChatTitle: g.telegramChatTitle ?? null,
     }));
   }
 
   public async getAttendance(user: AuthUser, groupId: string, date: string): Promise<AttendanceSession> {
     const teacherId = await this.resolveTeacherId(user);
-    const groupWhere: Record<string, unknown> = { id: groupId, status: 'ACTIVE' };
+    const groupWhere: Prisma.GroupWhereInput = { id: groupId, status: 'ACTIVE' };
     if (teacherId) groupWhere.teacherId = teacherId;
-    const group = await this.prisma.group.findFirst({ where: groupWhere as any });
+    const group = await this.prisma.group.findFirst({ where: groupWhere });
     if (!group) {
-      return { groupId, groupName: 'Guruh', date, rows: [] };
+      return { groupId, groupName: 'Guruh', date, homeworkText: '', rows: [] };
     }
     const dayStart = new Date(`${date}T00:00:00.000Z`);
     const nextDay = new Date(dayStart);
@@ -251,6 +253,9 @@ export class TeacherPanelService {
     });
 
     const students = memberships.map((m) => m.student);
+    const groupLesson = await this.prisma.groupLesson.findUnique({
+      where: { groupId_date: { groupId, date: dayStart } },
+    });
     const attendanceRecords = await this.prisma.attendance.findMany({
       where: { groupId, date: dayStart, isReversed: false },
     });
@@ -259,15 +264,26 @@ export class TeacherPanelService {
       groupId,
       groupName: group.name,
       date,
+      homeworkText: groupLesson?.homeworkText ?? '',
       rows: students.map((s) => {
         const existing = attendanceMap.get(s.id);
+        const hasSpecificScores =
+          existing?.homeworkScore !== null && existing?.homeworkScore !== undefined ||
+          existing?.topicScore !== null && existing?.topicScore !== undefined ||
+          existing?.dictionaryScore !== null && existing?.dictionaryScore !== undefined;
+
+        const legacyRating = typeof existing?.rating === 'number' ? existing.rating : null;
+
         return {
           studentId: s.id,
           studentCode: s.studentCode,
           studentName: `${s.lastName} ${s.firstName}`,
           status: existing ? existing.status.toLowerCase() as AttendanceSession['rows'][number]['status'] : 'came',
-          rating: existing?.rating ?? 0,
+          rating: typeof existing?.rating === 'number' ? existing.rating : null,
           homeworkDone: existing?.homeworkDone ?? false,
+          homeworkScore: hasSpecificScores ? (existing?.homeworkScore ?? null) : legacyRating,
+          topicScore: hasSpecificScores ? (existing?.topicScore ?? null) : legacyRating,
+          dictionaryScore: hasSpecificScores ? (existing?.dictionaryScore ?? null) : legacyRating,
           comment: existing?.comment ?? '',
           lockedByAdmin: existing?.lockedByAdmin ?? false,
         };
@@ -277,37 +293,103 @@ export class TeacherPanelService {
 
   public async saveAttendance(user: AuthUser, session: AttendanceSession): Promise<AttendanceSession> {
     const teacherId = await this.resolveTeacherId(user);
-    const groupWhere: Record<string, unknown> = { id: session.groupId, status: 'ACTIVE' };
+    const groupWhere: Prisma.GroupWhereInput = { id: session.groupId, status: 'ACTIVE' };
     if (teacherId) groupWhere.teacherId = teacherId;
-    const group = await this.prisma.group.findFirst({ where: groupWhere as any });
+    const group = await this.prisma.group.findFirst({ where: groupWhere });
     if (!group) throw new ApiError(403, 'FORBIDDEN', 'Access denied');
     const date = new Date(`${session.date}T00:00:00.000Z`);
+
+    await this.prisma.groupLesson.upsert({
+      where: { groupId_date: { groupId: session.groupId, date } },
+      create: { groupId: session.groupId, date, homeworkText: session.homeworkText ?? '' },
+      update: { homeworkText: session.homeworkText ?? '' },
+    });
+
+    const computedRows = session.rows.map((row) => {
+      const isCame = row.status.toLowerCase() === 'came';
+      const specificScores = [
+        row.homeworkScore,
+        row.topicScore,
+        row.dictionaryScore,
+      ].filter((s): s is number => typeof s === 'number' && !isNaN(s));
+
+      const homeworkScore = isCame && typeof row.homeworkScore === 'number'
+        ? row.homeworkScore
+        : null;
+      const topicScore = isCame && typeof row.topicScore === 'number'
+        ? row.topicScore
+        : null;
+      const dictionaryScore = isCame && typeof row.dictionaryScore === 'number'
+        ? row.dictionaryScore
+        : null;
+
+      const rating = isCame
+        ? (specificScores.length > 0
+            ? Math.round(specificScores.reduce((sum, s) => sum + s, 0) / specificScores.length)
+            : (typeof row.rating === 'number' ? row.rating : null))
+        : null;
+
+      const homeworkDone = isCame
+        ? (typeof homeworkScore === 'number' ? homeworkScore > 0 : Boolean(row.homeworkDone))
+        : false;
+
+      return {
+        row,
+        isCame,
+        homeworkScore,
+        topicScore,
+        dictionaryScore,
+        rating,
+        homeworkDone,
+      };
+    });
+
     await this.prisma.$transaction(
-      session.rows.map((row) =>
-        this.prisma.attendance.upsert({
+      computedRows.map(({ row, rating, homeworkScore, topicScore, dictionaryScore, homeworkDone }) => {
+        return this.prisma.attendance.upsert({
           where: { groupId_studentId_date: { groupId: session.groupId, studentId: row.studentId, date } },
           create: {
             groupId: session.groupId,
             studentId: row.studentId,
             date,
-            status: row.status.toUpperCase() as import('@prisma/client').AttendanceStatus,
-            rating: row.rating,
-            homeworkDone: row.homeworkDone,
+            status: row.status.toUpperCase() as AttendanceStatus,
+            rating,
+            homeworkScore,
+            topicScore,
+            dictionaryScore,
+            homeworkDone,
             comment: row.comment,
             lockedByAdmin: row.lockedByAdmin,
             createdByUserId: user.id,
           },
           update: {
-            status: row.status.toUpperCase() as import('@prisma/client').AttendanceStatus,
-            rating: row.rating,
-            homeworkDone: row.homeworkDone,
+            status: row.status.toUpperCase() as AttendanceStatus,
+            rating,
+            homeworkScore,
+            topicScore,
+            dictionaryScore,
+            homeworkDone,
             comment: row.comment,
             lockedByAdmin: row.lockedByAdmin,
           },
-        }),
-      ),
+        });
+      }),
     );
-    return session;
+
+    return {
+      groupId: session.groupId,
+      groupName: group.name,
+      date: session.date,
+      homeworkText: session.homeworkText ?? '',
+      rows: computedRows.map(({ row, rating, homeworkScore, topicScore, dictionaryScore, homeworkDone }) => ({
+        ...row,
+        rating: rating ?? null,
+        homeworkScore: homeworkScore ?? null,
+        topicScore: topicScore ?? null,
+        dictionaryScore: dictionaryScore ?? null,
+        homeworkDone,
+      })),
+    };
   }
 
   public async getExams(user: AuthUser): Promise<Exam[]> {
@@ -368,9 +450,9 @@ export class TeacherPanelService {
 
   public async saveExam(user: AuthUser, exam: Exam): Promise<Exam> {
     const teacherId = await this.resolveTeacherId(user);
-    const groupWhere: Record<string, unknown> = { id: exam.groupId, status: 'ACTIVE' };
+    const groupWhere: Prisma.GroupWhereInput = { id: exam.groupId, status: 'ACTIVE' };
     if (teacherId) groupWhere.teacherId = teacherId;
-    const group = await this.prisma.group.findFirst({ where: groupWhere as any });
+    const group = await this.prisma.group.findFirst({ where: groupWhere });
     if (!group) throw new ApiError(403, 'FORBIDDEN', 'Access denied');
 
     const existingExam = exam.id ? await this.prisma.exam.findUnique({ where: { id: exam.id } }) : null;

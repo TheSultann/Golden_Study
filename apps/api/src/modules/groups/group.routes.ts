@@ -65,5 +65,9 @@ export function createGroupRouter(
     await groupService.archive(id);
     response.status(204).send();
   });
+  router.post('/:id/unlink-telegram', canWrite, async (request, response) => {
+    const { id } = uuidParamSchema.parse(request.params);
+    response.json(successResponse(await groupService.unlinkTelegram(id)));
+  });
   return router;
 }

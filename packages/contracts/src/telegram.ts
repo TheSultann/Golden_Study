@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const telegramLinkStatusSchema = z.enum(['pending', 'active', 'rejected'])
-export const telegramTriggerTypeSchema = z.enum(['attendance_absent', 'homework_missing', 'exam_result', 'payment_received', 'debt_reminder', 'announcement'])
+export const telegramTriggerTypeSchema = z.enum(['attendance_absent', 'homework_missing', 'exam_result', 'payment_received', 'debt_reminder', 'announcement', 'lesson_broadcast'])
 
 export const telegramLinkSchema = z.object({
   id: z.string(),

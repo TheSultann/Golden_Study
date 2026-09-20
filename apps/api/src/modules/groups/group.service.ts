@@ -92,6 +92,8 @@ export class GroupService {
             data: {
               ...input,
               roomId: input.roomId ?? null,
+              telegramChatId: input.telegramChatId ?? null,
+              telegramChatTitle: input.telegramChatTitle ?? null,
               startDate: new Date(`${input.startDate}T00:00:00.000Z`),
               endDate: new Date(
                 `${calculateGroupEndDate(input.startDate, dependencies.durationMonths)}T00:00:00.000Z`,
@@ -151,6 +153,8 @@ export class GroupService {
             where: { id },
             data: {
               ...(input.name === undefined ? {} : { name: input.name }),
+              ...(input.telegramChatId === undefined ? {} : { telegramChatId: input.telegramChatId }),
+              ...(input.telegramChatTitle === undefined ? {} : { telegramChatTitle: input.telegramChatTitle }),
               courseId: merged.courseId,
               teacherId: merged.teacherId,
               roomId: merged.roomId,
@@ -175,6 +179,18 @@ export class GroupService {
 
   public async archive(id: string): Promise<void> {
     await this.setStatus(id, 'ARCHIVED');
+  }
+
+  public async unlinkTelegram(id: string): Promise<GroupApi> {
+    const row = await this.prisma.group.update({
+      where: { id },
+      data: {
+        telegramChatId: null,
+        telegramChatTitle: null,
+      },
+      include: groupInclude,
+    });
+    return toApi(row);
   }
 
   public async setStatus(id: string, status: GroupStatus): Promise<GroupApi> {
@@ -368,6 +384,8 @@ function toApi(
     endDate: formatDate(row.endDate ?? row.startDate),
     status: row.status,
     studentsCount: row._count.students,
+    telegramChatId: row.telegramChatId ?? null,
+    telegramChatTitle: row.telegramChatTitle ?? null,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

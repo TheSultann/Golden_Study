@@ -26,7 +26,7 @@ export function ConfirmDialog({ title, description, confirmLabel, pending = fals
         {errorMessage ? (
           <div className="confirm-dialog-error" role="alert">
             <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-            <span>{errorMessage.replace(/^[⛔⚠️]\s*/, '')}</span>
+            <span>{errorMessage.replace(/^[\u{26D4}\u{26A0}]\u{FE0F}?\s*/u, '')}</span>
           </div>
         ) : null}
         <footer>

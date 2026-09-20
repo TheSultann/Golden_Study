@@ -2,20 +2,31 @@ import type { TelegramTriggerType } from '@golden-study/contracts';
 
 export interface NotificationPayloadData {
   [key: string]: unknown;
-  studentName?: string;
-  date?: string;
-  amountUzs?: number;
-  method?: string;
-  examName?: string;
-  score?: number;
-  maxScore?: number;
-  balanceUzs?: number;
-  title?: string;
-  body?: string;
+  studentName?: string | undefined;
+  groupName?: string | undefined;
+  date?: string | undefined;
+  topic?: string | undefined;
+  homeworkText?: string | undefined;
+  nextLesson?: string | undefined;
+  status?: string | undefined;
+  rating?: number | null | undefined;
+  homeworkScore?: number | null | undefined;
+  topicScore?: number | null | undefined;
+  dictionaryScore?: number | null | undefined;
+  comment?: string | undefined;
+  amountUzs?: number | undefined;
+  method?: string | undefined;
+  examName?: string | undefined;
+  score?: number | undefined;
+  maxScore?: number | undefined;
+  balanceUzs?: number | undefined;
+  title?: string | undefined;
+  body?: string | undefined;
 }
 
-export function escapeHtml(text: string): string {
-  return text
+export function escapeHtml(text: unknown): string {
+  if (text === null || text === undefined) return '';
+  return String(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -102,7 +113,80 @@ export function buildNotificationMessage(
         ...(data.title ? ['', `<b>${escapeHtml(data.title)}</b>`] : []),
         ...(data.body ? ['', escapeHtml(data.body)] : []),
       ].join('\n');
+    case 'lesson_broadcast': {
+      const lines: string[] = [
+        `📚 <b>Dars xulosasi${data.groupName ? `: ${escapeHtml(data.groupName)}` : ''}</b>`,
+        ...(data.date ? [`📅 Sana: <b>${escapeHtml(data.date)}</b>`] : []),
+        '',
+        ...(data.topic ? [`📘 <b>Bugungi mavzu:</b> ${escapeHtml(data.topic)}`] : []),
+        ...(data.homeworkText ? [`📝 <b>Keyingi darsga vazifa:</b> ${escapeHtml(data.homeworkText)}`] : []),
+        ...(data.nextLesson ? [`⏰ <b>Keyingi dars:</b> ${escapeHtml(data.nextLesson)}`] : []),
+        '',
+        '━━━━━━━━━━━━━━━━━━━━',
+        `👤 <b>O‘quvchi:</b> ${name}`,
+      ];
+
+      if (data.status) {
+        const statusUpper = String(data.status).toUpperCase();
+        const statusText =
+          statusUpper === 'CAME'
+            ? '✅ Keldi'
+            : statusUpper === 'EXCUSED'
+              ? '🟡 Sababli'
+              : '❌ Sababsiz';
+        lines.push(`📊 <b>Davomat:</b> ${statusText}`);
+
+        if (typeof data.rating === 'number') {
+          lines.push(`⭐️ <b>Umumiy baho:</b> <b>${data.rating}%</b>`);
+        }
+        const breakdownParts: string[] = [];
+        if (typeof data.homeworkScore === 'number') {
+          breakdownParts.push(`   ▫️ Uy vazifasi: <b>${data.homeworkScore}%</b>`);
+        }
+        if (typeof data.topicScore === 'number') {
+          breakdownParts.push(`   ▫️ Darsdagi faollik: <b>${data.topicScore}%</b>`);
+        }
+        if (typeof data.dictionaryScore === 'number') {
+          breakdownParts.push(`   ▫️ Lug‘at / Test: <b>${data.dictionaryScore}%</b>`);
+        }
+        if (breakdownParts.length > 0) {
+          lines.push(breakdownParts.join('\n'));
+        }
+
+        if (data.comment) {
+          lines.push(`💬 <b>O‘qituvchi izohi:</b> <i>${escapeHtml(data.comment)}</i>`);
+        }
+      } else {
+        lines.push('📊 <b>Davomat:</b> <i>(Hozircha baholanmagan)</i>');
+      }
+
+      return lines.filter((l) => l !== undefined).join('\n');
+    }
     default:
       return `📢 <b>Bildirishnoma</b>\n\n🎓 <b>O'quvchi:</b> ${name}`;
   }
 }
+
+/**
+ * Public broadcast message for Telegram Group Chat.
+ * STRICT PRIVACY REQUIREMENT: Contains ONLY public lesson info (topic, homework, next lesson).
+ * Contains ZERO individual student names, statuses, scores, or debts!
+ */
+export function buildGroupLessonBroadcastMessage(data: {
+  groupName: string;
+  date?: string | undefined;
+  topic?: string | undefined;
+  homeworkText?: string | undefined;
+  nextLesson?: string | undefined;
+}): string {
+  const lines: string[] = [
+    `📚 <b>Dars xulosasi: ${escapeHtml(data.groupName)}</b>`,
+    ...(data.date ? [`📅 Sana: <b>${escapeHtml(data.date)}</b>`] : []),
+    '',
+    ...(data.topic ? [`📘 <b>Bugungi mavzu:</b> ${escapeHtml(data.topic)}`] : []),
+    ...(data.homeworkText ? [`📝 <b>Keyingi darsga vazifa:</b> ${escapeHtml(data.homeworkText)}`] : []),
+    ...(data.nextLesson ? [`⏰ <b>Keyingi dars:</b> ${escapeHtml(data.nextLesson)}`] : []),
+  ];
+  return lines.filter((l) => l !== undefined).join('\n');
+}
+

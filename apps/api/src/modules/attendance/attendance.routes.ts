@@ -1,4 +1,5 @@
 import {
+  attendanceBroadcastInputSchema,
   attendanceBulkSaveInputSchema,
   attendanceListQuerySchema,
   attendanceSessionParamsSchema,
@@ -6,6 +7,9 @@ import {
   uuidParamSchema,
 } from '@golden-study/contracts';
 import { Router } from 'express';
+import { z } from 'zod';
+
+const groupIdParamSchema = z.object({ groupId: z.string().uuid() });
 
 import {
   paginatedResponse,
@@ -39,6 +43,16 @@ export function createAttendanceRouter(
     response.json(
       successResponse(await service.getSession(groupId, date, request.user!)),
     );
+  });
+  router.post('/group/:groupId/broadcast', async (request, response) => {
+    const { groupId } = groupIdParamSchema.parse(request.params);
+    const bodyObj = typeof request.body === 'object' && request.body !== null ? request.body : {};
+    const input = attendanceBroadcastInputSchema.parse({
+      ...bodyObj,
+      groupId,
+    });
+    const result = await service.broadcastLesson(groupId, input, request.user!);
+    response.json(successResponse(result));
   });
   router.post('/', async (request, response) => {
     response.json(

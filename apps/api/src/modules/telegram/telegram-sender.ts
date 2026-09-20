@@ -21,6 +21,22 @@ export async function sendTelegramMessage(
 
   if (!response.ok) {
     const details = await response.text().catch(() => '');
+    if (details.includes("can't parse entities") || details.includes('entity')) {
+      const plainText = html.replace(/<[^>]*>/g, '');
+      const retryResponse = await fetch(
+        `https://api.telegram.org/bot${token}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: plainText,
+            ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
+          }),
+        },
+      );
+      if (retryResponse.ok) return;
+    }
     throw new Error(
       `Telegram API error ${response.status}: ${details.slice(0, 300)}`,
     );
