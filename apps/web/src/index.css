@@ -3553,10 +3553,10 @@ body:has(.student-profile-backdrop) {
 }
 
 .confirm-dialog p {
-  margin: 9px 0 14px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.55;
+  margin: 10px 0 16px;
+  color: var(--text-secondary, #334155);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .confirm-dialog-error {

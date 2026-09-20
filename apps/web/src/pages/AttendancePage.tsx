@@ -378,8 +378,9 @@ export function AttendancePage() {
       {showTelegramPrompt && selectedGroup ? (
         <ConfirmDialog
           title="Davomat saqlandi!"
-          description="Dars xulosasi va uyga vazifani Telegram guruh hamda o‘quvchilar botiga ham yuborasizmi?"
-          confirmLabel="Ha, yuborish"
+          description="Dars hisoboti Telegram guruhga ham yuborilsinmi?"
+          confirmLabel="Telegramga yuborish"
+          cancelLabel="Shart emas"
           variant="primary"
           onCancel={() => setShowTelegramPrompt(false)}
           onConfirm={() => {

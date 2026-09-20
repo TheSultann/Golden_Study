@@ -1,9 +1,10 @@
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 type ConfirmDialogProps = {
   title: string
   description: string
   confirmLabel: string
+  cancelLabel?: string
   pending?: boolean
   errorMessage?: string | null
   variant?: 'danger' | 'primary'
@@ -11,7 +12,7 @@ type ConfirmDialogProps = {
   onCancel: () => void
 }
 
-export function ConfirmDialog({ title, description, confirmLabel, pending = false, errorMessage, variant = 'danger', onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, description, confirmLabel, cancelLabel, pending = false, errorMessage, variant = 'danger', onConfirm, onCancel }: ConfirmDialogProps) {
   return (
     <div className="modal-backdrop">
       <section
@@ -21,7 +22,12 @@ export function ConfirmDialog({ title, description, confirmLabel, pending = fals
         aria-labelledby="confirm-dialog-title"
         aria-describedby="confirm-dialog-description"
       >
-        <h2 id="confirm-dialog-title">{title}</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {variant === 'primary' ? (
+            <CheckCircle2 size={20} style={{ color: '#10b981', flexShrink: 0 }} />
+          ) : null}
+          <h2 id="confirm-dialog-title" style={{ margin: 0 }}>{title}</h2>
+        </div>
         <p id="confirm-dialog-description">{description}</p>
         {errorMessage ? (
           <div className="confirm-dialog-error" role="alert">
@@ -39,7 +45,7 @@ export function ConfirmDialog({ title, description, confirmLabel, pending = fals
               onCancel()
             }}
           >
-            Bekor qilish
+            {cancelLabel ?? 'Bekor qilish'}
           </button>
           <button
             type="button"

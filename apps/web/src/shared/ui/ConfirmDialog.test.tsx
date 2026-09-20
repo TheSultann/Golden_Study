@@ -43,4 +43,19 @@ describe('ConfirmDialog', () => {
     expect(screen.getByRole('button', { name: 'Bekor qilish' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Saqlanmoqda...' })).toBeDisabled()
   })
+
+  it('поддерживает кастомный cancelLabel', () => {
+    render(
+      <ConfirmDialog
+        title="Davomat saqlandi!"
+        description="Telegramga yuborasizmi?"
+        confirmLabel="Telegramga yuborish"
+        cancelLabel="Shart emas"
+        onCancel={vi.fn()}
+        onConfirm={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Shart emas' })).toBeInTheDocument()
+  })
 })
