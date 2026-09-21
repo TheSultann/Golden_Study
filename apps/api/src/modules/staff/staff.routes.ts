@@ -12,35 +12,36 @@ export function createStaffRouter(
 ): Router {
   const router = Router();
   router.use(createAuthenticate(authService));
-  router.use(requireRoles('SUPER_ADMIN'));
 
-  router.get('/', async (_request, response) => {
+  router.get('/', requireRoles('SUPER_ADMIN', 'ADMIN'), async (_request, response) => {
     const data = await staffService.list();
     response.json(successResponse(data));
   });
 
-  router.post('/', async (request, response) => {
+  router.post('/', requireRoles('SUPER_ADMIN'), async (request, response) => {
     const input = staffCreateInputSchema.parse(request.body);
     const data = await staffService.create(input);
     response.status(201).json(successResponse(data));
   });
 
-  router.patch('/:id', async (request, response) => {
+  router.patch('/:id', requireRoles('SUPER_ADMIN'), async (request, response) => {
     const input = staffMemberSchema.parse(request.body);
     const data = await staffService.update(input);
     response.json(successResponse(data));
   });
 
-  router.patch('/:id/status', async (request, response) => {
+  router.patch('/:id/status', requireRoles('SUPER_ADMIN'), async (request, response) => {
     const { status } = request.body as { status: 'active' | 'blocked' | 'archived' };
-    const data = await staffService.setStatus(request.params.id, status);
+    const id = request.params.id as string;
+    const data = await staffService.setStatus(id, status);
     response.json(successResponse(data));
   });
 
-  router.post('/:id/payout', async (request, response) => {
+  router.post('/:id/payout', requireRoles('SUPER_ADMIN', 'ADMIN'), async (request, response) => {
     const { amount, comment } = staffPayoutInputSchema.parse(request.body);
+    const id = request.params.id as string;
     const actorUserId = request.user?.id ?? 'system';
-    const data = await staffService.payout(request.params.id, amount, comment, actorUserId);
+    const data = await staffService.payout(id, amount, comment, actorUserId);
     response.json(successResponse(data));
   });
 

@@ -17,7 +17,7 @@ export function createFinanceQueryRouter(
   const router = Router();
   router.use(createAuthenticate(authService));
   router.use(requireRoles('SUPER_ADMIN', 'ADMIN'));
-  router.get('/summary', requireRoles('SUPER_ADMIN'), async (_request, response) => {
+  router.get('/summary', async (_request, response) => {
     response.json(successResponse(await finance.summary()));
   });
   router.get('/debtors', async (request, response) => {

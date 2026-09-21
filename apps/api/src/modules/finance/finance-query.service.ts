@@ -41,6 +41,7 @@ export class FinanceQueryService {
       if (
         row.direction === 'DEBIT' &&
         (row.category === 'TEACHER_PAYOUT' ||
+          row.category === 'STAFF_PAYOUT' ||
           row.category === 'MANUAL_EXPENSE')
       ) {
         expenseUzs += amount;

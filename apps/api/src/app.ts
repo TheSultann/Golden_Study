@@ -206,7 +206,7 @@ export function createApp(): Express {
   );
   app.use(
     '/api/v1/teachers',
-    createTeacherPanelRouter(authService, new TeacherPanelService(prisma)),
+    createTeacherPanelRouter(authService, new TeacherPanelService(prisma, kpiService)),
   );
   const telegramRouter = createTelegramRouter(authService, telegramService);
   app.use('/api/v1/telegram-bot', telegramRouter);

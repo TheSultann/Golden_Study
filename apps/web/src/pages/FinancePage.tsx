@@ -1,4 +1,4 @@
-import { Banknote, Check, ChevronDown, CircleDollarSign, Plus, ReceiptText, Search, WalletCards, X } from 'lucide-react'
+import { Banknote, Check, CheckCircle2, ChevronDown, CircleDollarSign, Plus, ReceiptText, Search, WalletCards, X } from 'lucide-react'
 import { type FormEvent, type KeyboardEvent, useEffect, useMemo, useState } from 'react'
 import type { FinancePayment, FinanceTeacherSalary, FinanceTransaction, Group, Student } from '@golden-study/contracts'
 import { useFinance, usePayTeacherSalary, useSaveExpense, useSaveStudentPayment } from '../features/finance/useFinance'
@@ -139,6 +139,14 @@ export function FinancePage() {
   const urlStudentId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('studentId') : null
   const [form, setForm] = useState<FormKind | null>(urlStudentId ? 'payment' : null)
   const [pendingSalaryId, setPendingSalaryId] = useState<string | null>(null)
+  const [salaryError, setSalaryError] = useState<string | null>(null)
+  const [toast, setToast] = useState<string | null>(null)
+
+  function showToast(msg: string) {
+    setToast(msg)
+    window.setTimeout(() => setToast(null), 3500)
+  }
+
   const data = query.data, q = search.toLowerCase()
 
   const handleTabChange = (newTab: FinanceTab) => { setTab(newTab); setPage(1) }
@@ -165,7 +173,31 @@ export function FinancePage() {
   const paginatedTransactions = useMemo(() => transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [transactions, page])
 
   const pendingSalary = data?.salaries.find((salary: FinanceTeacherSalary) => salary.id === pendingSalaryId)
-  async function submit(fd: FormData) { const amount = Number(fd.get('amount')), comment = String(fd.get('comment')); if (form === 'payment') await paymentMutation.mutateAsync({ studentId: String(fd.get('studentId')), groupId: String(fd.get('groupId')), studentCode: String(fd.get('studentCode')), studentName: String(fd.get('studentName')), group: String(fd.get('groupLabel')), method: String(fd.get('method')), amount, comment, paidAt: displayToIsoDate(String(fd.get('paidAt'))) }); else await expenseMutation.mutateAsync({ category: String(fd.get('category')), subject: String(fd.get('subject')), amount, comment }) }
+  async function submit(fd: FormData) {
+    const amount = Number(fd.get('amount')), comment = String(fd.get('comment'))
+    if (form === 'payment') {
+      await paymentMutation.mutateAsync({
+        studentId: String(fd.get('studentId')),
+        groupId: String(fd.get('groupId')),
+        studentCode: String(fd.get('studentCode')),
+        studentName: String(fd.get('studentName')),
+        group: String(fd.get('groupLabel')),
+        method: String(fd.get('method')),
+        amount,
+        comment,
+        paidAt: displayToIsoDate(String(fd.get('paidAt'))),
+      })
+      showToast('To‘lov muvaffaqiyatli qabul qilindi!')
+    } else {
+      await expenseMutation.mutateAsync({
+        category: String(fd.get('category')),
+        subject: String(fd.get('subject')),
+        amount,
+        comment,
+      })
+      showToast('Xarajat muvaffaqiyatli saqlandi!')
+    }
+  }
   if (query.isPending) return <section className="finance-page"><div className="page-heading"><h1>Moliya</h1></div><div className="dashboard-state">Moliya yuklanmoqda...</div></section>
   if (query.isError || !data) return <section className="finance-page"><div className="page-heading"><h1>Moliya</h1></div><div className="dashboard-state dashboard-error">Moliya ma’lumotlari yuklanmadi</div></section>
   const rawGroups = groupsQuery.data
@@ -218,7 +250,10 @@ export function FinancePage() {
                           type="button"
                           className="finance-pay-button"
                           disabled={paySalary.isPending}
-                          onClick={() => setPendingSalaryId(x.id)}
+                          onClick={() => {
+                            setSalaryError(null)
+                            setPendingSalaryId(x.id)
+                          }}
                         >
                           {alreadyPaid ? 'Takroriy to‘lov' : 'Oylik berish'}
                         </button>
@@ -247,16 +282,60 @@ export function FinancePage() {
             }
             confirmLabel={alreadyPaid ? 'Ha, qayta berish' : 'Oylikni berish'}
             pending={paySalary.isPending}
-            onCancel={() => setPendingSalaryId(null)}
-            onConfirm={() =>
+            errorMessage={salaryError}
+            onCancel={() => {
+              setPendingSalaryId(null)
+              setSalaryError(null)
+            }}
+            onConfirm={() => {
+              setSalaryError(null)
+              const recipientName = pendingSalary.teacherName
+              const paidAmount = money(pendingSalary.kpiBalance)
               paySalary.mutate(
                 { id: pendingSalary.id, recipientType: pendingSalary.recipientType, amount: pendingSalary.kpiBalance },
-                { onSuccess: () => setPendingSalaryId(null) },
+                {
+                  onSuccess: () => {
+                    setPendingSalaryId(null)
+                    setSalaryError(null)
+                    showToast(`${recipientName} uchun ${paidAmount} oylik muvaffaqiyatli to‘landi!`)
+                  },
+                  onError: (err: any) => {
+                    const msg = err?.message || 'Oylik to‘lashda xatolik yuz berdi'
+                    setSalaryError(msg)
+                  },
+                },
               )
-            }
+            }}
           />
         )
       })()}
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 20px',
+            color: '#15803d',
+            background: '#f0fdf4',
+            border: '1px solid rgb(34 197 94 / 30%)',
+            borderRadius: '9999px',
+            boxShadow: '0 8px 24px rgb(0 0 0 / 12%)',
+            fontSize: '14px',
+            fontWeight: 500,
+            pointerEvents: 'none',
+          }}
+        >
+          <CheckCircle2 size={18} />
+          <span>{toast}</span>
+        </div>
+      )}
     </section>
   )
 }

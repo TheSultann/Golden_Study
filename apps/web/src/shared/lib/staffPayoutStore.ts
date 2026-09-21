@@ -1,3 +1,7 @@
+/**
+ * @deprecated Legacy localStorage hack. All staff payouts are now recorded and loaded
+ * directly via backend ledger entries (POST /api/v1/staff/:id/payout and GET /api/v1/transactions).
+ */
 export interface StaffPayoutRecord {
   id: string
   staffId: string

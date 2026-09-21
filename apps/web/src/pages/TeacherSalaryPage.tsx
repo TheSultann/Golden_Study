@@ -1,6 +1,4 @@
 import {
-  ArrowDownRight,
-  ArrowUpRight,
   CalendarCheck,
   CheckCircle2,
   CircleDollarSign,
@@ -243,15 +241,15 @@ export function TeacherSalaryPage() {
                           </td>
                           <td data-label="Turi">
                             <span className={`salary-type-tag ${isPayout ? 'type-payout' : 'type-accrual'}`}>
-                              {isPayout ? <ArrowDownRight size={13} /> : <ArrowUpRight size={13} />}
-                              {isPayout ? 'To‘lov (Kassadan)' : 'Hisoblangan'}
+                              {isPayout ? <CheckCircle2 size={13} /> : <Clock3 size={13} />}
+                              {isPayout ? 'To‘langan' : 'Kutilmoqda'}
                             </span>
                           </td>
                           <td data-label="Summa">
                             <span
-                              className={`salary-amount ${isPending ? 'amount-pending' : isPayout ? 'amount-payout' : 'amount-accrual'}`}
+                              className={`salary-amount ${isPending ? 'amount-pending' : 'amount-accrual'}`}
                             >
-                              {isPayout && !isPending ? `- ${money(item.amountUzs)}` : `+ ${money(item.amountUzs)}`}
+                              {money(item.amountUzs)}
                             </span>
                           </td>
                           <td data-label="Holati">

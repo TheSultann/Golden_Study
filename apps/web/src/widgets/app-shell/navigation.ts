@@ -16,7 +16,7 @@ export const navigationItems = [
   { label: 'Dars jadvali', path: '/schedule', icon: CalendarDays, roles: ['superadmin', 'admin', 'teacher'] },
   { label: 'Reyting', path: '/rating', icon: Trophy, roles: ['superadmin', 'admin', 'teacher'] },
   { label: 'Lidlar', path: '/leads', icon: UserRoundSearch, roles: ['superadmin', 'admin'] },
-  { label: 'Moliya', path: '/finance', icon: WalletCards, roles: ['superadmin'] },
+  { label: 'Moliya', path: '/finance', icon: WalletCards, roles: ['superadmin', 'admin'] },
   { label: 'Xodimlar', path: '/staff', icon: UsersRound, roles: ['superadmin'] },
   { label: 'Imtihonlar', path: '/exams', icon: ClipboardCheck, roles: ['superadmin', 'admin', 'teacher'] },
   { label: 'Maoshim', path: '/my-salary', icon: WalletCards, roles: ['teacher'] },

@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { getSession } from '../auth/auth.service'
 import { teacherScheduleRepository } from './teacherSchedule.dependencies'
 
 export function useTeacherSchedule() {
-  return useQuery({ queryKey: ['teacher-schedule'], queryFn: () => teacherScheduleRepository.list() })
+  const session = getSession()
+  return useQuery({ queryKey: ['teacher-schedule', session?.id ?? 'me'], queryFn: () => teacherScheduleRepository.list() })
 }

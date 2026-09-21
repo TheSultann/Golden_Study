@@ -8,7 +8,6 @@ import {
 import { z } from 'zod'
 
 import { apiRequest } from '../../shared/api/httpClient'
-import { getLocalStaffPayouts } from '../../shared/lib/staffPayoutStore'
 import type {
   FinanceRepository,
   SaveExpenseInput,
@@ -17,10 +16,11 @@ import type {
 } from './finance.repository'
 
 const summarySchema = z.object({
-  totalIncomeUzs: z.number().default(0),
-  totalExpenseUzs: z.number().default(0),
-  totalPendingSalaryUzs: z.number().default(0),
-  netProfitUzs: z.number().default(0),
+  incomeUzs: z.number().default(0),
+  expenseUzs: z.number().default(0),
+  netCashflowUzs: z.number().default(0),
+  studentDebtUzs: z.number().default(0),
+  teacherPayableUzs: z.number().default(0),
 })
 
 const summaryResponseSchema = z.object({
@@ -119,7 +119,7 @@ export class ApiFinanceRepository implements FinanceRepository {
   async overview(staffMembers?: StaffMember[]): Promise<FinanceOverview> {
     const [summaryRes, transactionsRes, teachersRes, studentsRes, groupsRes] = await Promise.all([
       apiRequest('/finance/summary', { method: 'GET' }, summaryResponseSchema).catch(() => ({
-        data: { totalIncomeUzs: 0, totalExpenseUzs: 0, totalPendingSalaryUzs: 0, netProfitUzs: 0 },
+        data: { incomeUzs: 0, expenseUzs: 0, netCashflowUzs: 0, studentDebtUzs: 0, teacherPayableUzs: 0 },
       })),
       apiRequest('/transactions?limit=100', { method: 'GET' }, transactionListResponseSchema).catch(() => ({
         data: [],
@@ -177,21 +177,51 @@ export class ApiFinanceRepository implements FinanceRepository {
     const staffByTeacherIdMap = new Map(rawStaff.filter((s: any) => s.linkedTeacherId).map((s: any) => [s.linkedTeacherId, s]))
     const staffByNameMap = new Map(rawStaff.map((s: any) => [(s.fullName || s.login || '').trim().toLowerCase(), s]))
 
-    const teacherSalaries = rawTeachers.filter((t: any) => t.isActive !== false).map((teacher) => {
+    const activeTeachers = rawTeachers.filter((t: any) => t.isActive !== false)
+
+    const kpiSummaries = await Promise.all(
+      activeTeachers.map((t: any) =>
+        apiRequest(`/teachers/${t.id}/kpi`, { method: 'GET' }, z.object({
+          success: z.literal(true),
+          data: z.object({
+            teacherId: z.string(),
+            payableUzs: z.number(),
+          }),
+        }))
+          .then((r) => ({ teacherId: t.id, payableUzs: r.data.payableUzs }))
+          .catch(() => ({ teacherId: t.id, payableUzs: 0 })),
+      ),
+    )
+    const kpiMap = new Map(kpiSummaries.map((k) => [k.teacherId, k.payableUzs]))
+
+    const teacherSalaries = activeTeachers.map((teacher: any) => {
       const linkedStaff = staffByTeacherIdMap.get(teacher.id) || staffByNameMap.get(`${teacher.firstName || ''} ${teacher.lastName || ''}`.trim().toLowerCase())
-      let rate = teacher.fixedSalaryUzs || teacher.perStudentRateUzs || teacher.kpiRateBasisPoints || 0
-      if (linkedStaff && linkedStaff.salaryUzs !== undefined && linkedStaff.salaryUzs !== null && linkedStaff.salaryUzs > 0) {
-        const sType = String(teacher.salaryType || '').toUpperCase()
-        if (!teacher.salaryType || sType === 'FIXED') {
-          rate = linkedStaff.salaryUzs
-        }
+      let rate = 0
+      const sType = String(teacher.salaryType || '').toUpperCase()
+      if (sType === 'PERCENT') {
+        rate = (teacher.kpiRateBasisPoints ?? 0) / 100
+      } else if (sType === 'PER_STUDENT') {
+        rate = teacher.perStudentRateUzs ?? 0
+      } else {
+        rate = teacher.fixedSalaryUzs || (linkedStaff?.salaryUzs ?? 0)
       }
+
+      const realKpiPayable = kpiMap.get(teacher.id) ?? 0
+      let kpiBalance = rate
+      if (sType === 'PERCENT') {
+        kpiBalance = Math.max(0, realKpiPayable)
+      } else if (sType === 'PER_STUDENT') {
+        kpiBalance = realKpiPayable > 0 ? realKpiPayable : rate
+      } else {
+        kpiBalance = rate
+      }
+
       return {
         id: teacher.id,
         teacherName: `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || 'O‘qituvchi',
         salaryType: (teacher.salaryType?.toLowerCase() as 'fixed' | 'per_student' | 'percent') || 'fixed',
         rate,
-        kpiBalance: rate,
+        kpiBalance,
         groups: Array.isArray(teacher.groups) ? teacher.groups : [],
         role: "O'qituvchi",
         recipientType: 'TEACHER' as const,
@@ -226,49 +256,26 @@ export class ApiFinanceRepository implements FinanceRepository {
 
     const salaries = [...teacherSalaries, ...staffSalaries]
 
-    const localPayouts = getLocalStaffPayouts()
-    const localTransactions: FinanceTransaction[] = localPayouts.map((p) => ({
-      id: p.id,
-      type: 'expense',
-      category: 'Xodimlar ish haqi',
-      amount: p.amount,
-      subject: `${p.staffName} (@${p.staffLogin})`,
-      comment: p.comment,
-      createdAt: p.paidAt,
-    }))
+    const unpaidStaffSalary = staffSalaries
+      .filter((s) => !s.isPaidThisMonth)
+      .reduce((acc, s) => acc + s.kpiBalance, 0)
+    const totalSalaryDebt = (summaryData.teacherPayableUzs || 0) + unpaidStaffSalary
 
-    const existingIds = new Set(transactions.map((t) => t.id))
-    const mergedTransactions = [...transactions]
-    for (const lt of localTransactions) {
-      if (existingIds.has(lt.id)) continue
-      const isAlreadyOnServer = transactions.some((st) => {
-        if (st.category !== 'Xodimlar ish haqi' || st.amount !== lt.amount) return false
-        const diffMs = Math.abs(new Date(st.createdAt).getTime() - new Date(lt.createdAt).getTime())
-        return diffMs < 120_000
-      })
-      if (!isAlreadyOnServer) {
-        mergedTransactions.unshift(lt)
-      }
-    }
-
-    mergedTransactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     payments.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
-
-    const totalIncome = summaryData.totalIncomeUzs || mergedTransactions.filter((t) => t.type === 'income').reduce((acc, t) => acc + t.amount, 0)
-    const totalExpense = summaryData.totalExpenseUzs || mergedTransactions.filter((t) => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0)
 
     return {
       summary: {
-        income: totalIncome,
-        expense: totalExpense,
-        salaryDebt: summaryData.totalPendingSalaryUzs || 0,
-        profit: summaryData.netProfitUzs || (totalIncome - totalExpense),
-        debt: 0,
+        income: summaryData.incomeUzs,
+        expense: summaryData.expenseUzs,
+        salaryDebt: totalSalaryDebt,
+        profit: summaryData.netCashflowUzs,
+        debt: summaryData.studentDebtUzs,
       },
       payments,
       debts: [],
       salaries,
-      transactions: mergedTransactions,
+      transactions,
     }
   }
 

@@ -131,36 +131,124 @@ export class KpiService {
     });
   }
 
-  public async applyMonthlyFixed(
-    transaction: Prisma.TransactionClient,
+  public async ensureTeacherMonthlyAccrual(
     teacher: Teacher,
-    period: string,
-    actorUserId: string,
+    period?: string,
+    actorUserId?: string,
+    client: Prisma.TransactionClient | PrismaClient = this.prisma,
   ): Promise<void> {
-    if (teacher.salaryType !== 'FIXED' || !teacher.fixedSalaryUzs) return;
-    await transaction.ledgerEntry.upsert({
-      where: { operationKey: `kpi:${period}:teacher:${teacher.id}:fixed:v1` },
+    if (teacher.salaryType !== 'FIXED' || !teacher.fixedSalaryUzs || teacher.fixedSalaryUzs <= 0) {
+      return;
+    }
+    const currentPeriod = period ?? new Date().toISOString().slice(0, 7);
+    const operationKey = `kpi:${currentPeriod}:teacher:${teacher.id}:fixed:v1`;
+
+    const [year, month] = currentPeriod.split('-').map(Number);
+    const monthStart = new Date(Date.UTC(year!, month! - 1, 1));
+    const nextMonth = new Date(Date.UTC(year!, month!, 1));
+
+    const existingAccrual = await client.ledgerEntry.findFirst({
+      where: {
+        accountType: 'TEACHER',
+        teacherId: teacher.id,
+        category: 'KPI_FIXED_ACCRUAL',
+        direction: 'CREDIT',
+        reversedBy: null,
+        OR: [
+          { operationKey },
+          {
+            createdAt: {
+              gte: monthStart,
+              lt: nextMonth,
+            },
+          },
+        ],
+      },
+    });
+    if (existingAccrual) {
+      return;
+    }
+
+    let effectiveActorId = actorUserId;
+    if (!effectiveActorId) {
+      const user = await client.user.findFirst({
+        where: {
+          OR: [
+            { teacherId: teacher.id },
+            { role: 'SUPER_ADMIN' },
+          ],
+        },
+        select: { id: true },
+      });
+      effectiveActorId = user?.id;
+    }
+    if (!effectiveActorId) {
+      const anyUser = await client.user.findFirst({ select: { id: true } });
+      effectiveActorId = anyUser?.id;
+    }
+    if (!effectiveActorId) return;
+
+    await client.ledgerEntry.upsert({
+      where: { operationKey },
       create: {
         accountType: 'TEACHER',
         teacherId: teacher.id,
         direction: 'CREDIT',
         category: 'KPI_FIXED_ACCRUAL',
         amountUzs: teacher.fixedSalaryUzs,
-        operationKey: `kpi:${period}:teacher:${teacher.id}:fixed:v1`,
+        operationKey,
         sourceType: 'KPI',
         sourceId: teacher.id,
-        comment: `Fixed KPI ${period}`,
-        createdByUserId: actorUserId,
+        comment: `Fixed KPI ${currentPeriod}`,
+        createdByUserId: effectiveActorId,
       },
       update: {},
     });
   }
 
-  public async summary(teacherId: string): Promise<TeacherKpiSummaryApi> {
-    const teacher = await this.prisma.teacher.findUnique({ where: { id: teacherId } });
+  public async applyMonthlyFixed(
+    transaction: Prisma.TransactionClient,
+    teacher: Teacher,
+    period: string,
+    actorUserId: string,
+  ): Promise<void> {
+    await this.ensureTeacherMonthlyAccrual(teacher, period, actorUserId, transaction);
+  }
+
+  public async ensureAllTeachersMonthlyAccrual(
+    period?: string,
+    actorUserId?: string,
+  ): Promise<void> {
+    const fixedTeachers = await this.prisma.teacher.findMany({
+      where: {
+        salaryType: 'FIXED',
+        isActive: true,
+        fixedSalaryUzs: { gt: 0 },
+      },
+    });
+    for (const teacher of fixedTeachers) {
+      await this.ensureTeacherMonthlyAccrual(teacher, period, actorUserId, this.prisma);
+    }
+  }
+
+  public async summary(teacherId: string, actorUserId?: string): Promise<TeacherKpiSummaryApi> {
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      include: { user: { select: { id: true } } },
+    });
     if (!teacher) throw new ApiError(404, 'NOT_FOUND', 'Teacher not found');
+    await this.ensureTeacherMonthlyAccrual(teacher, undefined, actorUserId, this.prisma);
+    const whereConditions: Prisma.LedgerEntryWhereInput[] = [
+      { accountType: 'TEACHER', teacherId },
+    ];
+    if (teacher.user?.id) {
+      whereConditions.push({
+        category: 'STAFF_PAYOUT',
+        sourceId: teacher.user.id,
+      });
+    }
     const entries = await this.prisma.ledgerEntry.findMany({
-      where: { accountType: 'TEACHER', teacherId },
+      where: { OR: whereConditions },
       select: { direction: true, amountUzs: true },
     });
     return summarize(teacherId, entries);
@@ -175,13 +263,27 @@ export class KpiService {
     return this.prisma.$transaction(async (transaction) => {
       const existing = await transaction.ledgerEntry.findUnique({ where: { operationKey } });
       if (existing) return { data: toLedgerApi(existing), created: false };
-      const teacher = await transaction.teacher.findUnique({ where: { id: teacherId } });
+      const teacher = await transaction.teacher.findUnique({
+        where: { id: teacherId },
+        include: { user: { select: { id: true } } },
+      });
       if (!teacher) throw new ApiError(404, 'NOT_FOUND', 'Teacher not found');
+      await this.ensureTeacherMonthlyAccrual(teacher, undefined, actorUserId, transaction);
+      const whereConditions: Prisma.LedgerEntryWhereInput[] = [
+        { accountType: 'TEACHER', teacherId },
+      ];
+      if (teacher.user?.id) {
+        whereConditions.push({
+          category: 'STAFF_PAYOUT',
+          sourceId: teacher.user.id,
+        });
+      }
       const entries = await transaction.ledgerEntry.findMany({
-        where: { accountType: 'TEACHER', teacherId },
+        where: { OR: whereConditions },
         select: { direction: true, amountUzs: true },
       });
-      if (input.amountUzs > summarize(teacherId, entries).payableUzs) {
+      const payableUzs = summarize(teacherId, entries).payableUzs;
+      if (input.amountUzs > payableUzs) {
         throw new ApiError(422, 'BUSINESS_ERROR', 'Payout exceeds payable amount');
       }
       const entry = await transaction.ledgerEntry.create({
@@ -199,9 +301,10 @@ export class KpiService {
         },
       });
 
+      const now = new Date();
       await transaction.user.updateMany({
-        where: { teacherId },
-        data: { lastSalaryPaidAt: new Date() },
+        where: teacher.user?.id ? { id: teacher.user.id } : { teacherId },
+        data: { lastSalaryPaidAt: now },
       });
 
       await createFinanceAudit(transaction, actorUserId, 'FINANCE_PAYOUT', entry.id, 'CREATE', entry);

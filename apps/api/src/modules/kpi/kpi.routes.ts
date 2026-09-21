@@ -22,7 +22,7 @@ export function createKpiRouter(authService: AuthService, kpi: KpiService): Rout
   router.use(createAuthenticate(authService));
   router.get('/:id/kpi', requireRoles('SUPER_ADMIN', 'ADMIN'), async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);
-    response.json(successResponse(await kpi.summary(id)));
+    response.json(successResponse(await kpi.summary(id, request.user?.id)));
   });
   router.post('/:id/payout', requireRoles('SUPER_ADMIN', 'ADMIN'), async (request, response) => {
     const { id } = uuidParamSchema.parse(request.params);

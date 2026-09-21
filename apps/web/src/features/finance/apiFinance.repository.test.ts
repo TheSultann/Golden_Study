@@ -10,10 +10,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const mockSummaryApi = {
-  totalIncomeUzs: 10_000_000,
-  totalExpenseUzs: 2_000_000,
-  totalPendingSalaryUzs: 3_000_000,
-  netProfitUzs: 8_000_000,
+  incomeUzs: 10_000_000,
+  expenseUzs: 2_000_000,
+  netCashflowUzs: 8_000_000,
+  studentDebtUzs: 500_000,
+  teacherPayableUzs: 3_000_000,
 }
 
 const mockTransactionApi = {
@@ -49,10 +50,62 @@ describe('ApiFinanceRepository', () => {
     const result = await repository.overview()
 
     expect(result.summary.income).toBe(10_000_000)
+    expect(result.summary.expense).toBe(2_000_000)
     expect(result.summary.profit).toBe(8_000_000)
+    expect(result.summary.salaryDebt).toBe(3_000_000)
     expect(result.transactions.length).toBe(1)
-
     expect(result.transactions[0].type).toBe('income')
+  })
+
+  it('maps teacher salary with percent rate and fetches real kpiBalance', async () => {
+    const teacherId = '77777777-7777-4777-8777-777777777777'
+    const mockTeacher = {
+      id: teacherId,
+      firstName: 'Aziz',
+      lastName: 'Karimov',
+      phone: '+998901234567',
+      salaryType: 'PERCENT',
+      kpiRateBasisPoints: 4500,
+      fixedSalaryUzs: null,
+      perStudentRateUzs: null,
+      login: 'aziz.karimov',
+      isActive: true,
+      groupsCount: 1,
+      groups: ['ENG-1'],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    const mockKpi = {
+      teacherId,
+      creditsUzs: 3_500_000,
+      debitsUzs: 500_000,
+      payableUzs: 3_000_000,
+    }
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/finance/summary')) {
+        return Promise.resolve(jsonResponse({ success: true, data: mockSummaryApi }))
+      }
+      if (url.includes('/teachers?') || url.endsWith('/teachers')) {
+        return Promise.resolve(jsonResponse({ success: true, data: [mockTeacher] }))
+      }
+      if (url.includes(`/teachers/${teacherId}/kpi`)) {
+        return Promise.resolve(jsonResponse({ success: true, data: mockKpi }))
+      }
+      if (url.includes('/transactions')) {
+        return Promise.resolve(jsonResponse({ success: true, data: [] }))
+      }
+      return Promise.resolve(jsonResponse({ success: false }, 404))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const repository = new ApiFinanceRepository()
+    const result = await repository.overview()
+
+    const teacher = result.salaries.find((s) => s.id === teacherId)
+    expect(teacher).toBeDefined()
+    expect(teacher?.salaryType).toBe('percent')
+    expect(teacher?.rate).toBe(45) // 4500 basis points / 100 = 45%
+    expect(teacher?.kpiBalance).toBe(3_000_000) // fetched from /kpi payableUzs
   })
 
   it('saves expense transaction via POST /transactions', async () => {

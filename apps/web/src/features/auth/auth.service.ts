@@ -11,6 +11,7 @@ import {
 import { z } from 'zod'
 
 import { apiRequest, clearAccessToken, setAccessToken } from '../../shared/api/httpClient'
+import { queryClient } from '../../shared/query/queryClient'
 import type { AuthUser } from './auth.types'
 
 const authUserResponseSchema = z.object({
@@ -65,6 +66,7 @@ export async function login(credentials: LoginRequest): Promise<AuthUser> {
     { method: 'POST', body: JSON.stringify(body) },
     authResponseSchema,
   )
+  queryClient.clear()
   setAccessToken(result.data.accessToken)
   session = toUiUser(result.data.user)
   return session
@@ -133,5 +135,6 @@ export function clearSession(): void {
   session = null
   clearAccessToken()
   window.localStorage.removeItem('golden-study-session')
+  queryClient.clear()
 }
 

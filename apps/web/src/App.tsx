@@ -63,6 +63,7 @@ function App() {
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/groups" element={<GroupsPage />} />
             <Route path="/leads" element={<LeadsPage />} />
+            <Route path="/finance" element={<FinancePage />} />
             <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/telegram-bot" element={<TelegramBotPage />} />
           </Route>
@@ -74,7 +75,6 @@ function App() {
 
           {/* Superadmin ONLY */}
           <Route element={<RoleRoute allowed={['superadmin']} />}>
-            <Route path="/finance" element={<FinancePage />} />
             <Route path="/staff" element={<StaffPage />} />
             <Route path="/reports" element={<ReportsPage />} />
           </Route>

@@ -2,9 +2,13 @@ import type { AttendanceSession, Exam, TeacherDashboard, TeacherRatingRow, Teach
 import type { AttendanceStatus, Prisma, PrismaClient } from '@prisma/client';
 import type { AuthUser } from '@golden-study/contracts';
 import { ApiError } from '../../common/errors/api-error.js';
+import type { KpiService } from '../kpi/kpi.service.js';
 
 export class TeacherPanelService {
-  public constructor(private readonly prisma: PrismaClient) {}
+  public constructor(
+    private readonly prisma: PrismaClient,
+    private readonly kpiService?: KpiService,
+  ) {}
 
   private async resolveTeacherId(user: AuthUser): Promise<string | null> {
     if (user.teacherId) return user.teacherId;
@@ -581,7 +585,7 @@ export class TeacherPanelService {
       where: { id: teacherId },
       include: {
         user: {
-          select: { lastSalaryPaidAt: true },
+          select: { id: true, lastSalaryPaidAt: true },
         },
       },
     });
@@ -598,12 +602,47 @@ export class TeacherPanelService {
       };
     }
 
+    if (this.kpiService) {
+      await this.kpiService.ensureTeacherMonthlyAccrual(teacher, undefined, teacher.user?.id, this.prisma);
+    } else if (teacher.salaryType === 'FIXED' && teacher.fixedSalaryUzs && teacher.fixedSalaryUzs > 0) {
+      const currentPeriod = new Date().toISOString().slice(0, 7);
+      const operationKey = `kpi:${currentPeriod}:teacher:${teacher.id}:fixed:v1`;
+      const actorUserId = teacher.user?.id ?? (await this.prisma.user.findFirst({ select: { id: true } }))?.id;
+      if (actorUserId) {
+        await this.prisma.ledgerEntry.upsert({
+          where: { operationKey },
+          create: {
+            accountType: 'TEACHER',
+            teacherId: teacher.id,
+            direction: 'CREDIT',
+            category: 'KPI_FIXED_ACCRUAL',
+            amountUzs: teacher.fixedSalaryUzs,
+            operationKey,
+            sourceType: 'KPI',
+            sourceId: teacher.id,
+            comment: `Fixed KPI ${currentPeriod}`,
+            createdByUserId: actorUserId,
+          },
+          update: {},
+        });
+      }
+    }
+
     const teacherName = `${teacher.lastName} ${teacher.firstName}`;
+
+    const whereConditions: Prisma.LedgerEntryWhereInput[] = [
+      { accountType: 'TEACHER', teacherId },
+    ];
+    if (teacher.user?.id) {
+      whereConditions.push({
+        category: 'STAFF_PAYOUT',
+        sourceId: teacher.user.id,
+      });
+    }
 
     const ledgerEntries = await this.prisma.ledgerEntry.findMany({
       where: {
-        accountType: 'TEACHER',
-        teacherId,
+        OR: whereConditions,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -623,7 +662,7 @@ export class TeacherPanelService {
       }
     }
 
-    let pendingBalanceUzs = Math.max(0, creditsUzs - debitsUzs);
+    const pendingBalanceUzs = Math.max(0, creditsUzs - debitsUzs);
     const totalPaidUzs = debitsUzs;
 
     let salaryType: 'fixed' | 'per_student' | 'percent' = 'fixed';
@@ -638,9 +677,6 @@ export class TeacherPanelService {
     } else {
       salaryType = 'fixed';
       salaryRate = teacher.fixedSalaryUzs ?? 0;
-      if (pendingBalanceUzs === 0 && ledgerEntries.length === 0 && salaryRate > 0) {
-        pendingBalanceUzs = salaryRate;
-      }
     }
 
     const lastPaidAt = latestPayoutDate ?? teacher.user?.lastSalaryPaidAt?.toISOString() ?? null;
@@ -660,37 +696,30 @@ export class TeacherPanelService {
     }
 
     for (const entry of ledgerEntries) {
-      const isDebit = entry.direction === 'DEBIT';
-      let title = 'Maosh to‘lovi';
-      if (!isDebit) {
-        if (entry.category === 'KPI_FIXED_ACCRUAL') {
-          title = 'Oylik fiks maosh';
-        } else if (entry.category === 'KPI_PER_STUDENT_ACCRUAL') {
-          title = 'O‘quvchi boshiga hisoblangan';
-        } else if (entry.category === 'KPI_PERCENT_ACCRUAL') {
-          title = 'Darslar bo‘yicha foiz (KPI)';
-        } else if (entry.category === 'REVERSAL') {
-          title = 'Qaytarish / Korreksiya';
-        } else {
-          title = 'Hisoblangan rag‘batlantirish';
-        }
-      } else {
-        if (entry.category === 'TEACHER_PAYOUT') {
-          title = 'To‘langan maosh';
-        } else if (entry.category === 'REVERSAL') {
-          title = 'Ushlab qolish / Korreksiya';
-        }
-      }
+      const isPayout = entry.category === 'TEACHER_PAYOUT' || entry.category === 'STAFF_PAYOUT';
+      const isReversal = entry.category === 'REVERSAL';
 
-      history.push({
-        id: entry.id,
-        date: entry.createdAt.toISOString(),
-        amountUzs: entry.amountUzs,
-        type: isDebit ? 'payout' : 'accrual',
-        status: 'paid',
-        title,
-        comment: entry.comment || undefined,
-      });
+      if (isPayout) {
+        history.push({
+          id: entry.id,
+          date: entry.createdAt.toISOString(),
+          amountUzs: entry.amountUzs,
+          type: 'payout',
+          status: 'paid',
+          title: 'To‘langan maosh',
+          comment: entry.comment || 'Oylik to‘lov',
+        });
+      } else if (isReversal) {
+        history.push({
+          id: entry.id,
+          date: entry.createdAt.toISOString(),
+          amountUzs: entry.amountUzs,
+          type: 'accrual',
+          status: 'paid',
+          title: 'Qaytarish / Korreksiya',
+          comment: entry.comment || undefined,
+        });
+      }
     }
 
     return {
