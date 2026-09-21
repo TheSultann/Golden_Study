@@ -84,11 +84,11 @@ function toUiTransaction(api: z.infer<typeof transactionApiSchema>): FinanceTran
 
   if (category === 'STUDENT_PAYMENT') {
     category = 'O‘quvchi to‘lovi'
-  } else if (category === 'STAFF_PAYOUT') {
+  } else if (category === 'STAFF_PAYOUT' || category === 'TEACHER_PAYOUT') {
     category = 'Xodimlar ish haqi'
-    if (!subject || subject === 'Xarajat' || subject === 'STAFF_PAYOUT') {
+    if (!subject || subject === 'Xarajat' || subject === 'STAFF_PAYOUT' || subject === 'TEACHER_PAYOUT') {
       const loginMatch = api.comment?.match(/\(([^)]+)\)$/)
-      subject = loginMatch ? `@${loginMatch[1]}` : 'Xodim'
+      subject = loginMatch ? `@${loginMatch[1]}` : 'Xodim / O‘qituvchi'
     } else {
       subject = subject.replace(/^Xodimlar ish haqi:\s*/i, '')
     }
@@ -344,20 +344,18 @@ export class ApiFinanceRepository implements FinanceRepository {
     })
   }
 
-  async paySalary(teacherId: string): Promise<void> {
-    try {
-      await apiRequest(
-        `/teachers/${teacherId}/payout`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            comment: 'Oylik to‘lov',
-          }),
-        },
-        z.object({ success: z.boolean() }),
-      )
-    } catch {
-      // Offline fallback
+  async paySalary(teacherId: string, amount: number, comment?: string): Promise<void> {
+    const payload = {
+      amountUzs: Math.max(1, Math.round(amount)),
+      comment: (comment || 'Oylik to‘lov').trim(),
     }
+    await apiRequest(
+      `/teachers/${teacherId}/payout`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      },
+      z.object({ success: z.boolean(), data: z.any().optional() }),
+    )
   }
 }

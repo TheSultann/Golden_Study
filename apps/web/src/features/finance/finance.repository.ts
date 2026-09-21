@@ -9,5 +9,5 @@ export interface FinanceRepository {
   saveTransaction(input: SaveFinanceTransactionInput): Promise<FinanceTransaction>
   saveStudentPayment(input: SaveStudentPaymentInput): Promise<FinanceTransaction>
   saveExpense(input: SaveExpenseInput): Promise<FinanceTransaction>
-  paySalary(teacherId: string): Promise<void>
+  paySalary(teacherId: string, amount: number, comment?: string): Promise<void>
 }

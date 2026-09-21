@@ -198,6 +198,12 @@ export class KpiService {
           createdByUserId: actorUserId,
         },
       });
+
+      await transaction.user.updateMany({
+        where: { teacherId },
+        data: { lastSalaryPaidAt: new Date() },
+      });
+
       await createFinanceAudit(transaction, actorUserId, 'FINANCE_PAYOUT', entry.id, 'CREATE', entry);
       return { data: toLedgerApi(entry), created: true };
     }, { isolationLevel: 'Serializable' });

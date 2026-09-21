@@ -22,19 +22,21 @@ export function usePayTeacherSalary() {
   return useMutation({
     mutationFn: async (input: string | { id: string; recipientType?: 'STAFF' | 'TEACHER'; amount?: number; comment?: string }) => {
       if (typeof input === 'string') {
-        await financeRepository.paySalary(input)
+        await financeRepository.paySalary(input, 1_000_000)
         return
       }
       if (input.recipientType === 'STAFF') {
         await staffRepository.payout(input.id, input.amount || 1_000_000, input.comment)
         return
       }
-      await financeRepository.paySalary(input.id)
+      await financeRepository.paySalary(input.id, input.amount || 0, input.comment)
     },
     onSuccess: async () => {
       await Promise.all([
         client.invalidateQueries({ queryKey: key }),
         client.invalidateQueries({ queryKey: ['staff'] }),
+        client.invalidateQueries({ queryKey: ['teacher-salary'] }),
+        client.invalidateQueries({ queryKey: ['teachers'] }),
       ])
     },
   })

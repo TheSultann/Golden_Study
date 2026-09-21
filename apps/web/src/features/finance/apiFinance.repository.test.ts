@@ -139,4 +139,29 @@ describe('ApiFinanceRepository', () => {
       }),
     )
   })
+
+  it('calls POST /teachers/:id/payout with amountUzs and comment when paySalary is invoked', async () => {
+    const teacherId = '77777777-7777-4777-8777-777777777777'
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: { id: 'payout-1', amountUzs: 2_500_000 },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const repository = new ApiFinanceRepository()
+    await repository.paySalary(teacherId, 2_500_000, 'Sentabr oylik')
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining(`/teachers/${teacherId}/payout`),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          amountUzs: 2_500_000,
+          comment: 'Sentabr oylik',
+        }),
+      }),
+    )
+  })
 })
