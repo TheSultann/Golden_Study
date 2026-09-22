@@ -33,7 +33,7 @@ describe('attendance API contracts', () => {
     ).toBe(false);
   });
 
-  it('requires rating for CAME and permits null for absence', () => {
+  it('allows optional rating for CAME as well as absence', () => {
     const base = {
       groupId,
       date: '2026-07-08',
@@ -42,12 +42,12 @@ describe('attendance API contracts', () => {
           studentId,
           status: 'CAME',
           rating: null,
-          homeworkDone: true,
+          homeworkDone: false,
           comment: '',
         },
       ],
     };
-    expect(attendanceBulkSaveInputSchema.safeParse(base).success).toBe(false);
+    expect(attendanceBulkSaveInputSchema.safeParse(base).success).toBe(true);
     expect(
       attendanceBulkSaveInputSchema.safeParse({
         ...base,

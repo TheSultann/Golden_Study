@@ -282,7 +282,9 @@ export class TeacherPanelService {
           studentId: s.id,
           studentCode: s.studentCode,
           studentName: `${s.lastName} ${s.firstName}`,
-          status: existing ? existing.status.toLowerCase() as AttendanceSession['rows'][number]['status'] : 'came',
+          status: existing
+            ? (existing.status.toLowerCase() as AttendanceSession['rows'][number]['status'])
+            : 'unmarked',
           rating: typeof existing?.rating === 'number' ? existing.rating : null,
           homeworkDone: existing?.homeworkDone ?? false,
           homeworkScore: hasSpecificScores ? (existing?.homeworkScore ?? null) : legacyRating,
@@ -348,37 +350,46 @@ export class TeacherPanelService {
       };
     });
 
-    await this.prisma.$transaction(
-      computedRows.map(({ row, rating, homeworkScore, topicScore, dictionaryScore, homeworkDone }) => {
-        return this.prisma.attendance.upsert({
-          where: { groupId_studentId_date: { groupId: session.groupId, studentId: row.studentId, date } },
-          create: {
-            groupId: session.groupId,
-            studentId: row.studentId,
-            date,
-            status: row.status.toUpperCase() as AttendanceStatus,
-            rating,
-            homeworkScore,
-            topicScore,
-            dictionaryScore,
-            homeworkDone,
-            comment: row.comment,
-            lockedByAdmin: row.lockedByAdmin,
-            createdByUserId: user.id,
-          },
-          update: {
-            status: row.status.toUpperCase() as AttendanceStatus,
-            rating,
-            homeworkScore,
-            topicScore,
-            dictionaryScore,
-            homeworkDone,
-            comment: row.comment,
-            lockedByAdmin: row.lockedByAdmin,
-          },
-        });
-      }),
+    const rowsToUpsert = computedRows.filter(
+      ({ row }) => row.status.toLowerCase() !== 'unmarked',
     );
+
+    if (rowsToUpsert.length > 0) {
+      await this.prisma.$transaction(
+        rowsToUpsert.map(({ row, rating, homeworkScore, topicScore, dictionaryScore, homeworkDone }) => {
+          const upper = row.status.toUpperCase();
+          const dbStatus: AttendanceStatus =
+            upper === 'ABSENT' ? 'ABSENT' : upper === 'EXCUSED' ? 'EXCUSED' : 'CAME';
+          return this.prisma.attendance.upsert({
+            where: { groupId_studentId_date: { groupId: session.groupId, studentId: row.studentId, date } },
+            create: {
+              groupId: session.groupId,
+              studentId: row.studentId,
+              date,
+              status: dbStatus,
+              rating,
+              homeworkScore,
+              topicScore,
+              dictionaryScore,
+              homeworkDone,
+              comment: row.comment,
+              lockedByAdmin: row.lockedByAdmin,
+              createdByUserId: user.id,
+            },
+            update: {
+              status: dbStatus,
+              rating,
+              homeworkScore,
+              topicScore,
+              dictionaryScore,
+              homeworkDone,
+              comment: row.comment,
+              lockedByAdmin: row.lockedByAdmin,
+            },
+          });
+        }),
+      );
+    }
 
     return {
       groupId: session.groupId,

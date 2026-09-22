@@ -390,4 +390,106 @@ describe('ApiAttendanceRepository', () => {
     )
     expect(result.rows[0].homeworkDone).toBe(true)
   })
+
+  it('maps UNMARKED status from backend to unmarked in UI', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          ...mockSessionApi,
+          rows: [
+            {
+              ...mockSessionApi.rows[0],
+              status: 'UNMARKED',
+              rating: null,
+            },
+          ],
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const repo = new ApiAttendanceRepository()
+    const result = await repo.get(mockSessionApi.groupId, mockSessionApi.date)
+    expect(result.rows[0].status).toBe('unmarked')
+  })
+
+  it('omits unmarked rows when saving if marked rows exist', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        success: true,
+        data: {
+          ...mockSessionApi,
+          rows: [
+            {
+              ...mockSessionApi.rows[0],
+              status: 'ABSENT',
+              rating: null,
+            },
+          ],
+        },
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const repo = new ApiAttendanceRepository()
+    await repo.save({
+      groupId: mockSessionApi.groupId,
+      groupName: mockSessionApi.groupName,
+      date: mockSessionApi.date,
+      homeworkText: '',
+      rows: [
+        {
+          studentId: '22222222-2222-4222-8222-222222222222',
+          studentCode: 'ST101',
+          studentName: 'Ali Valiyev',
+          status: 'absent',
+          rating: null,
+          homeworkScore: null,
+          topicScore: null,
+          dictionaryScore: null,
+          homeworkDone: false,
+          comment: '',
+          lockedByAdmin: false,
+        },
+        {
+          studentId: '33333333-3333-4333-8333-333333333333',
+          studentCode: 'ST102',
+          studentName: 'Vali Aliyev',
+          status: 'unmarked',
+          rating: null,
+          homeworkScore: null,
+          topicScore: null,
+          dictionaryScore: null,
+          homeworkDone: false,
+          comment: '',
+          lockedByAdmin: false,
+        },
+      ],
+    })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/attendance'),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          groupId: mockSessionApi.groupId,
+          date: mockSessionApi.date,
+          homeworkText: '',
+          items: [
+            {
+              studentId: '22222222-2222-4222-8222-222222222222',
+              status: 'ABSENT',
+              rating: null,
+              homeworkScore: null,
+              topicScore: null,
+              dictionaryScore: null,
+              homeworkDone: false,
+              comment: '',
+            },
+          ],
+        }),
+      }),
+    )
+  })
 })

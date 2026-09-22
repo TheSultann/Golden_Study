@@ -1,4 +1,4 @@
-import type { AttendanceRow } from '@golden-study/contracts';
+import type { AttendanceRow, TeacherAttendanceGroup } from '@golden-study/contracts';
 import { BookOpen, FileText, LockKeyhole, Save, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -26,31 +26,83 @@ const statuses = {
   absent: 'Sababsiz'
 } as const;
 
+const EMPTY_GROUPS: TeacherAttendanceGroup[] = [];
+
 export function TeacherAttendancePage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const groupsQuery = useTeacherAttendanceGroups();
-  const [groupId, setGroupId] = useState(searchParams.get('group') ?? 'g1');
-  const [date, setDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const groups = groupsQuery.data ?? EMPTY_GROUPS;
+
+  const urlGroup = searchParams.get('group');
+  const urlDate = searchParams.get('date');
+
+  const storedGroup = (() => {
+    try {
+      return localStorage.getItem('golden_study_teacher_group_id');
+    } catch {
+      return null;
+    }
+  })();
+
+  const storedDate = (() => {
+    try {
+      return localStorage.getItem('golden_study_teacher_date');
+    } catch {
+      return null;
+    }
+  })();
+
+  const todayIso = new Date().toLocaleDateString('en-CA');
+
+  const groupId =
+    (urlGroup && groups.some((g) => g.id === urlGroup) && urlGroup) ||
+    (storedGroup && groups.some((g) => g.id === storedGroup) && storedGroup) ||
+    groups[0]?.id ||
+    'g1';
+
+  const date =
+    (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) && urlDate) ||
+    (storedDate && /^\d{4}-\d{2}-\d{2}$/.test(storedDate) && storedDate) ||
+    todayIso;
+
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [lessonTitle, setLessonTitle] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
   const [showTelegramPrompt, setShowTelegramPrompt] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [showUnmarkedConfirm, setShowUnmarkedConfirm] = useState(false);
   const [pendingFilter, setPendingFilter] = useState<{ groupId: string; date: string } | null>(null);
 
   const query = useTeacherAttendance(groupId, date);
   const save = useSaveTeacherAttendance();
   const broadcastMutation = useBroadcastTeacherAttendance();
-  const selectedGroup = groupsQuery.data?.find((g) => g.id === groupId);
+  const selectedGroup = groups.find((g) => g.id === groupId);
 
   useEffect(() => {
-    if (groupsQuery.data && groupsQuery.data.length > 0) {
-      if (groupId === 'g1' || !groupsQuery.data.some((g) => g.id === groupId)) {
-        setGroupId(groupsQuery.data[0].id);
-      }
+    if (groups.length === 0) return;
+    const currentGroup = searchParams.get('group');
+    const currentDate = searchParams.get('date');
+    const hasValidGroup = currentGroup && groups.some((g) => g.id === currentGroup);
+    const hasValidDate = currentDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate);
+
+    try {
+      localStorage.setItem('golden_study_teacher_group_id', groupId);
+      localStorage.setItem('golden_study_teacher_date', date);
+    } catch {}
+
+    if (!hasValidGroup || !hasValidDate) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (!hasValidGroup) next.set('group', groupId);
+          if (!hasValidDate) next.set('date', date);
+          return next;
+        },
+        { replace: true },
+      );
     }
-  }, [groupsQuery.data, groupId]);
+  }, [groups, searchParams, setSearchParams, groupId, date]);
 
   useEffect(() => {
     if (query.data) {
@@ -78,9 +130,20 @@ export function TeacherAttendancePage() {
     : false;
 
   function applyFilter(next: { groupId: string; date: string }) {
-    setGroupId(next.groupId);
-    setDate(next.date);
     setPendingFilter(null);
+    try {
+      localStorage.setItem('golden_study_teacher_group_id', next.groupId);
+      localStorage.setItem('golden_study_teacher_date', next.date);
+    } catch {}
+    setSearchParams(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        nextParams.set('group', next.groupId);
+        nextParams.set('date', next.date);
+        return nextParams;
+      },
+      { replace: true },
+    );
   }
 
   function requestFilterChange(next: { groupId: string; date: string }) {
@@ -97,6 +160,19 @@ export function TeacherAttendancePage() {
         row.studentId === studentId && !row.lockedByAdmin ? { ...row, ...value } : row
       )
     );
+  }
+
+  function handleMarkAllCame() {
+    setRows((current) => {
+      const hasUnmarked = current.some((r) => (r.status as string) === 'unmarked');
+      return current.map((r) => {
+        if (r.lockedByAdmin) return r;
+        if (hasUnmarked) {
+          return (r.status as string) === 'unmarked' ? { ...r, status: 'came' } : r;
+        }
+        return { ...r, status: 'came' };
+      });
+    });
   }
 
   function updateScore(
@@ -127,7 +203,7 @@ export function TeacherAttendancePage() {
     );
   }
 
-  async function handleSave() {
+  async function performSave(rowsToSave: AttendanceRow[]) {
     if (!query.data) return;
     const formatted = formatLessonPlan(lessonTitle, homeworkText);
     await save.mutateAsync({
@@ -135,9 +211,28 @@ export function TeacherAttendancePage() {
       topic: lessonTitle,
       lessonTitle,
       homeworkText: formatted,
-      rows,
+      rows: rowsToSave,
     });
     setShowTelegramPrompt(true);
+  }
+
+  async function handleSave() {
+    if (!query.data) return;
+    const unmarkedRows = rows.filter((r) => (r.status as string) === 'unmarked');
+    if (unmarkedRows.length > 0) {
+      setShowUnmarkedConfirm(true);
+      return;
+    }
+    await performSave(rows);
+  }
+
+  async function handleConfirmUnmarkedAsCame() {
+    setShowUnmarkedConfirm(false);
+    const resolvedRows = rows.map((r) =>
+      (r.status as string) === 'unmarked' ? { ...r, status: 'came' as const } : r,
+    );
+    setRows(resolvedRows);
+    await performSave(resolvedRows);
   }
 
   return (
@@ -175,6 +270,20 @@ export function TeacherAttendancePage() {
             <span className="came">Keldi: {rows.filter((row) => row.status === 'came').length}</span>
             <span className="excused">Sababli: {rows.filter((row) => row.status === 'excused').length}</span>
             <span className="absent">Sababsiz: {rows.filter((row) => row.status === 'absent').length}</span>
+            {rows.filter((row) => (row.status as string) === 'unmarked').length > 0 ? (
+              <span className="unmarked" style={{ color: '#6b7280', fontWeight: 500 }}>
+                Belgilanmagan: {rows.filter((row) => (row.status as string) === 'unmarked').length}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleMarkAllCame}
+              style={{ height: 26, fontSize: 11, padding: '0 8px', marginLeft: 4 }}
+              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
+            >
+              Barchasi keldi
+            </button>
           </div>
 
           <div className="attendance-lesson-bar" aria-label="Dars rejasi">
@@ -350,6 +459,11 @@ export function TeacherAttendancePage() {
           <div className="attendance-actions">
             {showSuccess && <span className="save-success-badge">Muvaffaqiyatli saqlandi!</span>}
             {isDirty && !showSuccess && <span className="unsaved-badge">Saqlanmagan o‘zgarishlar mavjud</span>}
+            {rows.filter((x) => (x.status as string) === 'unmarked').length > 0 && (
+              <span className="unsaved-badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
+                {rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchi belgilanmagan
+              </span>
+            )}
             {save.isError ? <span className="save-error-badge" role="alert">Davomat saqlanmadi. Qayta urinib ko‘ring.</span> : null}
 
             <button
@@ -385,6 +499,17 @@ export function TeacherAttendancePage() {
         />
       ) : null}
 
+      {showUnmarkedConfirm ? (
+        <ConfirmDialog
+          title="Belgilanmagan o‘quvchilar bor"
+          description={`${rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchining davomati belgilanmagan. Ularni 'Keldi' deb saqlashni xohlaysizmi?`}
+          confirmLabel="Ha, 'Keldi' deb saqlash"
+          cancelLabel="Bekor qilish"
+          onCancel={() => setShowUnmarkedConfirm(false)}
+          onConfirm={() => void handleConfirmUnmarkedAsCame()}
+        />
+      ) : null}
+
       {showTelegramPrompt && selectedGroup ? (
         <ConfirmDialog
           title="Davomat saqlandi!"
@@ -415,6 +540,10 @@ export function TeacherAttendancePage() {
           onBroadcast={async (params) => {
             setLessonTitle(params.topic);
             setHomeworkText(params.homeworkText);
+            const resolvedRows = rows.map((r) =>
+              (r.status as string) === 'unmarked' ? { ...r, status: 'came' as const } : r,
+            );
+            setRows(resolvedRows);
             if (query.data) {
               const formatted = formatLessonPlan(params.topic, params.homeworkText);
               await save.mutateAsync({
@@ -422,7 +551,7 @@ export function TeacherAttendancePage() {
                 topic: params.topic,
                 lessonTitle: params.topic,
                 homeworkText: formatted,
-                rows,
+                rows: resolvedRows,
               });
             }
             return await broadcastMutation.mutateAsync({

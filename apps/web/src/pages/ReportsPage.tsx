@@ -28,6 +28,7 @@ const attendanceLabels: Record<AttendanceSession['rows'][number]['status'], stri
   came: 'Keldi',
   excused: 'Sababli',
   absent: 'Sababsiz',
+  unmarked: 'Belgilanmagan',
 }
 
 function downloadText(filename: string, content: string) {

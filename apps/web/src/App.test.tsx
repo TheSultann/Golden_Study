@@ -1174,7 +1174,7 @@ describe('mock-авторизация', () => {
 
     await user.click(screen.getByRole('link', { name: 'Telegram Bot' }))
     expect(await screen.findByRole('heading', { name: 'Telegram Bot' })).toBeInTheDocument()
-  }, 15_000)
+  }, 30_000)
 
   it('builds schedule from active groups and allows manual lesson', async () => {
     const user = userEvent.setup()

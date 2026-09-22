@@ -35,8 +35,8 @@ export function TelegramGroupConnectModal({ group, onClose }: TelegramGroupConne
   }, [unlinkMutation.isPending, onClose])
 
   const botUsername =
-    (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined) || 'SNexuss_bot'
-  const connectCommand = `/connect ${group.id}`
+    (import.meta.env.VITE_TELEGRAM_BOT_USERNAME as string | undefined)?.trim() || 'Golden_StudyBot'
+  const connectCommand = `/connect@${botUsername} ${group.id}`
   const deepLink = `https://t.me/${botUsername}?startgroup=group_${group.id}`
 
   async function handleCopy() {
@@ -157,6 +157,20 @@ export function TelegramGroupConnectModal({ group, onClose }: TelegramGroupConne
 
               <div
                 style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  color: 'var(--text)',
+                }}
+              >
+                ⚠️ <strong>Muhim:</strong> Telegram guruh maxfiylik sozlamalari tufayli, bot xabarlarni ko‘rishi va yuborishi uchun uni guruhga <strong>Administrator (admin)</strong> sifatida qo‘shishingiz shart.
+              </div>
+
+              <div
+                style={{
                   background: 'var(--surface-subtle, rgba(0,0,0,0.03))',
                   border: '1px solid var(--border)',
                   borderRadius: 8,
@@ -167,6 +181,9 @@ export function TelegramGroupConnectModal({ group, onClose }: TelegramGroupConne
                 }}
               >
                 <div style={{ fontSize: 12, fontWeight: 600 }}>1-usul: Havola orqali botni qo‘shish</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  Botni (@{botUsername}) guruhingizga tanlang va Administrator qilib qo‘shing:
+                </div>
                 <a
                   href={deepLink}
                   target="_blank"
@@ -185,7 +202,7 @@ export function TelegramGroupConnectModal({ group, onClose }: TelegramGroupConne
                   }}
                 >
                   <ExternalLink size={14} />
-                  <span>Telegram guruhga qo‘shish</span>
+                  <span>Telegram guruhga qo‘shish (@{botUsername})</span>
                 </a>
               </div>
 
@@ -202,7 +219,7 @@ export function TelegramGroupConnectModal({ group, onClose }: TelegramGroupConne
               >
                 <div style={{ fontSize: 12, fontWeight: 600 }}>2-usul: Buyruq orqali ulash</div>
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  Botni guruhingizga qo‘shgach, guruh chatiga ushbu buyruqni yuboring:
+                  Botni guruhingizga Admin qilib qo‘shgach, guruh chatiga ushbu buyruqni yuboring:
                 </div>
                 <div
                   style={{

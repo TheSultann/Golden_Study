@@ -230,10 +230,16 @@ describe('Telegram Bot - Uy vazifalari va Davomat', () => {
       expect(extractCleanGroupId('group_12345')).toBe('12345');
       expect(extractCleanGroupId('<group_12345>')).toBe('12345');
       expect(extractCleanGroupId('startgroup=group_12345')).toBe('12345');
-      expect(extractCleanGroupId('https://t.me/golden_study_bot?startgroup=group_12345')).toBe('12345');
+      expect(extractCleanGroupId('https://t.me/Golden_StudyBot?startgroup=group_12345')).toBe('12345');
       expect(extractCleanGroupId('g_abc-def')).toBe('abc-def');
       expect(extractCleanGroupId('  <IELTS Intensive>  ')).toBe('IELTS Intensive');
       expect(extractCleanGroupId('/startgroup group_999')).toBe('999');
+      expect(extractCleanGroupId('/connect@Golden_StudyBot 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d')).toBe('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
+      expect(extractCleanGroupId('/link@Golden_StudyBot group_abc')).toBe('abc');
+    });
+
+    it('has botInfo populated with Golden_StudyBot to support commands with bot username', () => {
+      expect((bot as any).botInfo?.username).toBe('Golden_StudyBot');
     });
 
     it('returns error when multiple candidate groups match ambiguously', async () => {

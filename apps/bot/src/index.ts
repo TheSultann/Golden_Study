@@ -15,7 +15,15 @@ if (!botToken && process.env.NODE_ENV !== 'test') {
   process.exit(1);
 }
 export const prisma = new PrismaClient();
+const defaultBotUsername = process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
 export const bot = new Telegraf(botToken || '000000000:TEST_TOKEN_FOR_TESTS');
+if (!(bot as any).botInfo) {
+  (bot as any).botInfo = {
+    username: defaultBotUsername,
+    first_name: 'Golden Study',
+    is_bot: true,
+  };
+}
 
 const mainMenu = Markup.keyboard([
   ['📊 Davomat', '💳 To\'lovlar'],
@@ -370,6 +378,8 @@ async function handleStartOrGroupStart(ctx: any) {
       (rawText.includes(' ') ? rawText.split(/\s+/).slice(1).join(' ') : '') ||
       (rawText.startsWith('/startgroup=') ? rawText.replace(/^\/startgroup=/, '') : '');
 
+    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
+
     if (payload) {
       const result = await connectGroupToChat(chatId, ctx.chat.title || 'Telegram Guruh', payload);
       if (result.ok && result.group) {
@@ -380,13 +390,13 @@ async function handleStartOrGroupStart(ctx: any) {
           `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
           `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
           `Endi dars rejasi, uy vazifalari va dars xulosalari ushbu guruhga yuboriladi.\n` +
-          `<i>(Aloqani uzish uchun: /disconnect yoki /unlink)</i>`,
+          `<i>(Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)} yoki /unlink@${escapeHtml(botUser)})</i>`,
         );
       } else {
         return ctx.replyWithHTML(
           `❌ <b>Bog'lashda xatolik:</b> ${escapeHtml(result.error ?? 'Guruh topilmadi')}\n\n` +
           `Guruhni ulash uchun quyidagicha yuboring:\n` +
-          `📌 <code>/connect &lt;guruh_id_yoki_nomi&gt;</code>`,
+          `📌 <code>/connect@${escapeHtml(botUser)} &lt;guruh_id_yoki_nomi&gt;</code>`,
         );
       }
     }
@@ -396,13 +406,13 @@ async function handleStartOrGroupStart(ctx: any) {
         `ℹ️ <b>Ushbu chat allaqachon bog'langan!</b>\n\n` +
         `📚 <b>Guruh:</b> ${escapeHtml(current.name)}\n` +
         `📖 <b>Kurs:</b> ${escapeHtml(current.course?.title ?? '—')}\n` +
-        `🔌 Aloqani uzish uchun: /disconnect`,
+        `🔌 Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)}`,
       );
     }
     return ctx.replyWithHTML(
       `👋 <b>Assalomu alaykum!</b>\n\n` +
       `Ushbu Telegram guruhini Golden Study CRM guruhi bilan bog'lash uchun:\n` +
-      `📌 <code>/connect &lt;Guruh_ID yoki nomi&gt;</code> buyrug'ini yuboring.`,
+      `📌 <code>/connect@${escapeHtml(botUser)} &lt;Guruh_ID yoki nomi&gt;</code> buyrug'ini yuboring.`,
     );
   }
 
@@ -422,14 +432,14 @@ async function handleStartOrGroupStart(ctx: any) {
       });
     }
     const groupLabel = targetGroup ? `“${targetGroup.name}”` : 'o‘quv guruhi';
-    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'golden_study_bot';
+    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
     const targetId = targetGroup ? targetGroup.id : cleanGroupQuery;
     return ctx.replyWithHTML(
       `ℹ️ <b>Guruhni ulash bo‘yicha ko‘rsatma</b>\n\n` +
       `Siz ${escapeHtml(groupLabel)}ni Telegram guruhiga ulamoqchisiz.\n\n` +
       `Guruhni ulash tartibi:\n` +
-      `1️⃣ Botni o‘quv guruhingizga qo‘shing.\n` +
-      `2️⃣ Guruh ichida <code>/connect ${escapeHtml(targetId)}</code> buyrug‘ini yuboring.\n\n` +
+      `1️⃣ Botni o‘quv guruhingizga Administrator (admin) sifatida qo‘shing.\n` +
+      `2️⃣ Guruh ichida <code>/connect@${escapeHtml(botUser)} ${escapeHtml(targetId)}</code> buyrug‘ini yuboring.\n\n` +
       `<i>Quyidagi tugma orqali botni bevosita guruhga qo‘shishingiz mumkin:</i>`,
       Markup.inlineKeyboard([
         [Markup.button.url('👥 Guruhga qo‘shish', `https://t.me/${botUser}?startgroup=group_${targetId}`)],
@@ -501,17 +511,17 @@ bot.command('startgroup', handleStartOrGroupStart);
 bot.command(['connect', 'link'], async (ctx) => {
   const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
   const chatId = String(ctx.chat.id);
-  const text = ctx.message.text.trim();
+  const text = (ctx.message && 'text' in ctx.message ? ctx.message.text : '').trim();
   const query = text.split(/\s+/).slice(1).join(' ').trim();
+  const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
 
   if (!isGroup) {
     const cleanId = query ? extractCleanGroupId(query) : '';
-    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'golden_study_bot';
-    const connectCmd = cleanId ? `/connect ${cleanId}` : '/connect <guruh_id>';
+    const connectCmd = cleanId ? `/connect@${botUser} ${cleanId}` : `/connect@${botUser} <guruh_id>`;
     return ctx.replyWithHTML(
       `⚠️ <b>Guruh chatida ishlatiladi!</b>\n\n` +
       `Ushbu buyruqni Telegram guruh chatida ishga tushiring:\n` +
-      `1. Botni o'quv guruhingizga qo'shing\n` +
+      `1. Botni o'quv guruhingizga Administrator (admin) sifatida qo'shing\n` +
       `2. Guruhda <code>${connectCmd}</code> buyrug'ini yuboring.`,
       cleanId
         ? Markup.inlineKeyboard([
@@ -524,7 +534,7 @@ bot.command(['connect', 'link'], async (ctx) => {
   if (!query) {
     return ctx.replyWithHTML(
       `⚠️ <b>Guruh ID yoki nomini kiriting!</b>\n\n` +
-      `Masalan: <code>/connect 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d</code> yoki <code>/connect IELTS Intensive</code>`,
+      `Masalan: <code>/connect@${escapeHtml(botUser)} 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d</code> yoki <code>/connect@${escapeHtml(botUser)} IELTS Intensive</code>`,
     );
   }
 
@@ -537,7 +547,7 @@ bot.command(['connect', 'link'], async (ctx) => {
       `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
       `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
       `Endi dars xulosalari va uy vazifalari ushbu guruhga yuboriladi.\n` +
-      `<i>(Aloqani uzish: /disconnect)</i>`,
+      `<i>(Aloqani uzish: /disconnect@${escapeHtml(botUser)})</i>`,
     );
   }
 
@@ -570,6 +580,7 @@ bot.command(['disconnect', 'unlink'], async (ctx) => {
 bot.command(['group_status', 'gstatus'], async (ctx) => {
   const isGroup = ctx.chat.type === 'group' || ctx.chat.type === 'supergroup';
   const chatId = String(ctx.chat.id);
+  const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
 
   if (!isGroup) {
     return ctx.replyWithHTML('⚠️ Ushbu buyruq faqat guruh chatlarida ishlatiladi.');
@@ -579,7 +590,7 @@ bot.command(['group_status', 'gstatus'], async (ctx) => {
   if (!linked) {
     return ctx.replyWithHTML(
       `ℹ️ <b>Ushbu chat tizimga ulanmagan</b>\n\n` +
-      `Guruhni ulash uchun: <code>/connect &lt;guruh_id&gt;</code>`,
+      `Guruhni ulash uchun: <code>/connect@${escapeHtml(botUser)} &lt;guruh_id&gt;</code>`,
     );
   }
 
@@ -589,19 +600,21 @@ bot.command(['group_status', 'gstatus'], async (ctx) => {
     `📖 <b>Kurs:</b> ${escapeHtml(linked.course?.title ?? '—')}\n` +
     `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${linked.teacher?.firstName ?? ''} ${linked.teacher?.lastName ?? ''}`.trim())}\n` +
     `🆔 <b>ID:</b> <code>${escapeHtml(linked.id)}</code>\n\n` +
-    `🔌 Aloqani uzish uchun: /disconnect`,
+    `🔌 Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)}`,
   );
 });
 
 bot.on('new_chat_members', async (ctx, next) => {
   const addedMe = ctx.message.new_chat_members.some((m) => m.is_bot && m.id === ctx.botInfo?.id);
   if (addedMe) {
+    const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
     return ctx.replyWithHTML(
       `👋 <b>Assalomu alaykum!</b>\n\n` +
       `Golden Study o'quv markazining rasmiy botini guruhga qo'shganingiz uchun rahmat!\n\n` +
+      `⚠️ <b>Eslatma:</b> Bot xabarlarni to‘liq qabul qilishi va dars xulosalarini yuborishi uchun uni guruhda <b>Administrator (admin)</b> qiling.\n\n` +
       `Ushbu Telegram guruhini CRM tizimidagi guruh bilan bog'lash uchun quyidagi buyruqni yuboring:\n` +
-      `📌 <code>/connect &lt;guruh_id&gt;</code>\n\n` +
-      `Masalan: <code>/connect IELTS Intensive</code>`,
+      `📌 <code>/connect@${escapeHtml(botUser)} &lt;guruh_id&gt;</code>\n\n` +
+      `Masalan: <code>/connect@${escapeHtml(botUser)} IELTS Intensive</code>`,
     );
   }
   return next();

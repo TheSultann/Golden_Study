@@ -106,7 +106,7 @@ export class AttendanceService {
             studentCode: student.studentCode,
             studentName: `${student.firstName} ${student.lastName}`,
             date,
-            status: 'CAME' as const,
+            status: 'UNMARKED' as const,
             rating: null,
             homeworkDone: false,
             homeworkScore: null,

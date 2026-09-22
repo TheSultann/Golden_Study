@@ -24,6 +24,11 @@ export interface NotificationQueue {
   close(): Promise<void>;
 }
 
+export function sanitizeBullMqJobId(jobId?: string): string | undefined {
+  if (!jobId) return undefined;
+  return jobId.replace(/:/g, '_');
+}
+
 class BullMqNotificationQueue implements NotificationQueue {
   public readonly kind = 'bullmq' as const;
   private readonly queue: Queue<NotificationJobPayload>;
@@ -35,8 +40,9 @@ class BullMqNotificationQueue implements NotificationQueue {
   }
 
   public async enqueue(payload: NotificationJobPayload, options?: EnqueueOptions): Promise<void> {
+    const sanitizedJobId = sanitizeBullMqJobId(options?.jobId);
     await this.queue.add('notification', payload, {
-      ...(options?.jobId ? { jobId: options.jobId } : {}),
+      ...(sanitizedJobId ? { jobId: sanitizedJobId } : {}),
       ...(options?.delayMs && options.delayMs > 0 ? { delay: options.delayMs } : {}),
       attempts: 5,
       backoff: { type: 'exponential', delay: 3000 },

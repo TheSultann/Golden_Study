@@ -15,7 +15,7 @@ const broadcastApiResponseSchema = z.object({
   data: attendanceBroadcastResultSchema,
 })
 
-const apiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT'])
+const apiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT', 'UNMARKED'])
 
 const apiRowSchema = z.object({
   studentId: z.string(),
@@ -49,8 +49,8 @@ function isUuid(str: string): boolean {
 }
 
 function mapApiToUiStatus(
-  status: 'CAME' | 'EXCUSED' | 'ABSENT',
-): 'came' | 'excused' | 'absent' {
+  status: 'CAME' | 'EXCUSED' | 'ABSENT' | 'UNMARKED' | string | null | undefined,
+): 'came' | 'excused' | 'absent' | 'unmarked' {
   switch (status) {
     case 'CAME':
       return 'came'
@@ -58,11 +58,14 @@ function mapApiToUiStatus(
       return 'excused'
     case 'ABSENT':
       return 'absent'
+    case 'UNMARKED':
+    default:
+      return 'unmarked'
   }
 }
 
 function mapUiToApiStatus(
-  status: 'came' | 'excused' | 'absent',
+  status: 'came' | 'excused' | 'absent' | 'unmarked' | string,
 ): 'CAME' | 'EXCUSED' | 'ABSENT' {
   switch (status) {
     case 'came':
@@ -71,6 +74,9 @@ function mapUiToApiStatus(
       return 'EXCUSED'
     case 'absent':
       return 'ABSENT'
+    case 'unmarked':
+    default:
+      return 'CAME'
   }
 }
 
@@ -142,7 +148,9 @@ export class ApiAttendanceRepository implements AttendanceRepository {
 
     // Filter valid UUID students to prevent Zod 400 Bad Request on fake/mock student IDs
     const validRows = session.rows.filter((row) => isUuid(row.studentId))
-    const rowsToSave = validRows.length > 0 ? validRows : session.rows
+    const sourceRows = validRows.length > 0 ? validRows : session.rows
+    const markedRows = sourceRows.filter((row) => row.status !== 'unmarked')
+    const rowsToSave = markedRows.length > 0 ? markedRows : sourceRows
 
     const payload = {
       groupId: targetGroupId,

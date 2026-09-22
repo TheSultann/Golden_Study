@@ -50,7 +50,7 @@ describe('TelegramGroupConnectModal', () => {
     expect(screen.getByText(/Telegram guruhni ulash/)).toBeInTheDocument()
     expect(screen.getByText(/General English B1 guruhi uchun/)).toBeInTheDocument()
     expect(screen.getByText(/1-usul: Havola orqali botni qo‘shish/)).toBeInTheDocument()
-    expect(screen.getByText('/connect g-test-123')).toBeInTheDocument()
+    expect(screen.getByText('/connect@Golden_StudyBot g-test-123')).toBeInTheDocument()
     expect(screen.getByText(/Maxfiylik kafolati:/)).toBeInTheDocument()
   })
 
@@ -81,7 +81,7 @@ describe('TelegramGroupConnectModal', () => {
     const copyBtn = screen.getByRole('button', { name: /Nusxa olish/i })
     await user.click(copyBtn)
 
-    expect(writeTextMock).toHaveBeenCalledWith('/connect g-test-123')
+    expect(writeTextMock).toHaveBeenCalledWith('/connect@Golden_StudyBot g-test-123')
   })
 
   it('calls onClose when Escape key is pressed', async () => {

@@ -1,6 +1,7 @@
-import type { AttendanceRow } from '@golden-study/contracts';
+import type { AttendanceRow, Group } from '@golden-study/contracts';
 import { BookOpen, FileText, Save, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAttendance, useBroadcastAttendance, useSaveAttendance } from '../features/attendance/useAttendance';
 import { LessonBroadcastModal } from '../features/attendance/LessonBroadcastModal';
 import {
@@ -16,6 +17,8 @@ import { Select } from '../shared/ui/Select';
 
 import { useGroups } from '../features/groups/useGroups';
 
+const EMPTY_GROUPS: Group[] = [];
+
 const statusLabels = {
   came: 'Keldi',
   excused: 'Sababli',
@@ -23,22 +26,74 @@ const statusLabels = {
 } as const;
 
 export function AttendancePage() {
-  const { data: groups = [] } = useGroups();
-  const [groupId, setGroupId] = useState('g1');
-  const [date, setDate] = useState(() => new Date().toLocaleDateString('en-CA'));
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: groups = EMPTY_GROUPS } = useGroups();
+
+  const urlGroup = searchParams.get('group');
+  const urlDate = searchParams.get('date');
+
+  const storedGroup = (() => {
+    try {
+      return localStorage.getItem('golden_study_selected_group_id');
+    } catch {
+      return null;
+    }
+  })();
+
+  const storedDate = (() => {
+    try {
+      return localStorage.getItem('golden_study_selected_date');
+    } catch {
+      return null;
+    }
+  })();
+
+  const todayIso = new Date().toLocaleDateString('en-CA');
+
+  const groupId =
+    (urlGroup && groups.some((g) => g.id === urlGroup) && urlGroup) ||
+    (storedGroup && groups.some((g) => g.id === storedGroup) && storedGroup) ||
+    groups[0]?.id ||
+    'g1';
+
+  const date =
+    (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) && urlDate) ||
+    (storedDate && /^\d{4}-\d{2}-\d{2}$/.test(storedDate) && storedDate) ||
+    todayIso;
+
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [lessonTitle, setLessonTitle] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
   const [showTelegramPrompt, setShowTelegramPrompt] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [showUnmarkedConfirm, setShowUnmarkedConfirm] = useState(false);
   const [pendingFilter, setPendingFilter] = useState<{ groupId: string; date: string } | null>(null);
 
   useEffect(() => {
-    if (groups.length > 0 && (groupId === 'g1' || !groups.some((g) => g.id === groupId))) {
-      setGroupId(groups[0].id);
+    if (groups.length === 0) return;
+    const currentGroup = searchParams.get('group');
+    const currentDate = searchParams.get('date');
+    const hasValidGroup = currentGroup && groups.some((g) => g.id === currentGroup);
+    const hasValidDate = currentDate && /^\d{4}-\d{2}-\d{2}$/.test(currentDate);
+
+    try {
+      localStorage.setItem('golden_study_selected_group_id', groupId);
+      localStorage.setItem('golden_study_selected_date', date);
+    } catch {}
+
+    if (!hasValidGroup || !hasValidDate) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (!hasValidGroup) next.set('group', groupId);
+          if (!hasValidDate) next.set('date', date);
+          return next;
+        },
+        { replace: true },
+      );
     }
-  }, [groups, groupId]);
+  }, [groups, searchParams, setSearchParams, groupId, date]);
 
   const q = useAttendance(groupId, date);
   const save = useSaveAttendance();
@@ -75,9 +130,20 @@ export function AttendancePage() {
   const isDirty = changedCount > 0;
 
   function applyFilter(next: { groupId: string; date: string }) {
-    setGroupId(next.groupId);
-    setDate(next.date);
     setPendingFilter(null);
+    try {
+      localStorage.setItem('golden_study_selected_group_id', next.groupId);
+      localStorage.setItem('golden_study_selected_date', next.date);
+    } catch {}
+    setSearchParams(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        nextParams.set('group', next.groupId);
+        nextParams.set('date', next.date);
+        return nextParams;
+      },
+      { replace: true },
+    );
   }
 
   function requestFilterChange(next: { groupId: string; date: string }) {
@@ -90,6 +156,18 @@ export function AttendancePage() {
 
   function patch(id: string, value: Partial<AttendanceRow>) {
     setRows((v) => v.map((x) => x.studentId === id ? { ...x, ...value } : x));
+  }
+
+  function handleMarkAllCame() {
+    setRows((current) => {
+      const hasUnmarked = current.some((r) => (r.status as string) === 'unmarked');
+      return current.map((r) => {
+        if (hasUnmarked) {
+          return (r.status as string) === 'unmarked' ? { ...r, status: 'came' } : r;
+        }
+        return { ...r, status: 'came' };
+      });
+    });
   }
 
   function updateScore(
@@ -120,7 +198,7 @@ export function AttendancePage() {
     );
   }
 
-  async function handleSave() {
+  async function performSave(rowsToSave: AttendanceRow[]) {
     if (!q.data) return;
     const formatted = formatLessonPlan(lessonTitle, homeworkText);
     await save.mutateAsync({
@@ -128,9 +206,28 @@ export function AttendancePage() {
       topic: lessonTitle,
       lessonTitle,
       homeworkText: formatted,
-      rows,
+      rows: rowsToSave,
     });
     setShowTelegramPrompt(true);
+  }
+
+  async function handleSave() {
+    if (!q.data) return;
+    const unmarkedRows = rows.filter((r) => (r.status as string) === 'unmarked');
+    if (unmarkedRows.length > 0) {
+      setShowUnmarkedConfirm(true);
+      return;
+    }
+    await performSave(rows);
+  }
+
+  async function handleConfirmUnmarkedAsCame() {
+    setShowUnmarkedConfirm(false);
+    const resolvedRows = rows.map((r) =>
+      (r.status as string) === 'unmarked' ? { ...r, status: 'came' as const } : r,
+    );
+    setRows(resolvedRows);
+    await performSave(resolvedRows);
   }
 
   return (
@@ -165,6 +262,20 @@ export function AttendancePage() {
             <span className="came">Keldi: {rows.filter((x) => x.status === 'came').length}</span>
             <span className="excused">Sababli: {rows.filter((x) => x.status === 'excused').length}</span>
             <span className="absent">Sababsiz: {rows.filter((x) => x.status === 'absent').length}</span>
+            {rows.filter((x) => (x.status as string) === 'unmarked').length > 0 ? (
+              <span className="unmarked" style={{ color: '#6b7280', fontWeight: 500 }}>
+                Belgilanmagan: {rows.filter((x) => (x.status as string) === 'unmarked').length}
+              </span>
+            ) : null}
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={handleMarkAllCame}
+              style={{ height: 28, fontSize: 11, padding: '0 8px', marginLeft: 4 }}
+              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
+            >
+              Barchasi keldi
+            </button>
           </div>
         ) : null}
       </div>
@@ -340,6 +451,11 @@ export function AttendancePage() {
           <div className="attendance-savebar" aria-live="polite">
             {showSuccess && <span className="save-success-badge">Muvaffaqiyatli saqlandi!</span>}
             {isDirty && !showSuccess && <span className="unsaved-badge">{changedCount} ta saqlanmagan o‘zgarish</span>}
+            {rows.filter((x) => (x.status as string) === 'unmarked').length > 0 && (
+              <span className="unsaved-badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
+                {rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchi belgilanmagan
+              </span>
+            )}
             {save.isError ? <span className="save-error-badge" role="alert">Davomat saqlanmadi. Qayta urinib ko‘ring.</span> : null}
 
             <button
@@ -375,6 +491,17 @@ export function AttendancePage() {
         />
       ) : null}
 
+      {showUnmarkedConfirm ? (
+        <ConfirmDialog
+          title="Belgilanmagan o‘quvchilar bor"
+          description={`${rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchining davomati belgilanmagan. Ularni 'Keldi' deb saqlashni xohlaysizmi?`}
+          confirmLabel="Ha, 'Keldi' deb saqlash"
+          cancelLabel="Bekor qilish"
+          onCancel={() => setShowUnmarkedConfirm(false)}
+          onConfirm={() => void handleConfirmUnmarkedAsCame()}
+        />
+      ) : null}
+
       {showTelegramPrompt && selectedGroup ? (
         <ConfirmDialog
           title="Davomat saqlandi!"
@@ -405,6 +532,10 @@ export function AttendancePage() {
           onBroadcast={async (params) => {
             setLessonTitle(params.topic);
             setHomeworkText(params.homeworkText);
+            const resolvedRows = rows.map((r) =>
+              (r.status as string) === 'unmarked' ? { ...r, status: 'came' as const } : r,
+            );
+            setRows(resolvedRows);
             if (q.data) {
               const formatted = formatLessonPlan(params.topic, params.homeworkText);
               await save.mutateAsync({
@@ -412,7 +543,7 @@ export function AttendancePage() {
                 topic: params.topic,
                 lessonTitle: params.topic,
                 homeworkText: formatted,
-                rows,
+                rows: resolvedRows,
               });
             }
             return await broadcastMutation.mutateAsync({

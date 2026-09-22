@@ -130,25 +130,33 @@ export class BillingService {
     if (settings?.billingMode === 'MONTHLY') return;
 
     const operationKey = attendanceOperationKey(attendance.id);
-    const original = await transaction.ledgerEntry.findUnique({
-      where: { operationKey },
+    const debitEntries = await transaction.ledgerEntry.findMany({
+      where: {
+        sourceType: 'ATTENDANCE',
+        sourceId: attendance.id,
+        direction: 'DEBIT',
+      },
       include: { reversedBy: true },
+      orderBy: { createdAt: 'asc' },
     });
+
+    const activeEntry = debitEntries.find((entry) => !entry.reversedBy);
     const chargeable =
       attendance.status === 'CAME' || attendance.status === 'ABSENT';
 
     if (!chargeable) {
-      if (original && !original.reversedBy) {
+      if (activeEntry) {
         await this.createReversal(
           transaction,
-          original,
+          activeEntry,
           actorUserId,
           `Attendance ${attendance.status}`,
         );
       }
       return;
     }
-    if (original && !original.reversedBy) return;
+
+    if (activeEntry) return;
 
     const group = await transaction.group.findUnique({
       where: { id: attendance.groupId },
@@ -174,15 +182,15 @@ export class BillingService {
       group.course.pricePerMonthUzs,
       lessonCount,
     );
-    const key = original?.reversedBy
-      ? `${operationKey}:restore:${original.reversedBy.id}`
+    const key = debitEntries.length > 0
+      ? `${operationKey}:restore:${debitEntries.length}`
       : operationKey;
     const entry = await transaction.ledgerEntry.create({
       data: {
         accountType: 'STUDENT',
         studentId: attendance.studentId,
         direction: 'DEBIT',
-        category: original ? 'ADJUSTMENT' : 'DAILY_LESSON_CHARGE',
+        category: debitEntries.length > 0 ? 'ADJUSTMENT' : 'DAILY_LESSON_CHARGE',
         amountUzs,
         operationKey: key,
         sourceType: 'ATTENDANCE',
@@ -196,7 +204,7 @@ export class BillingService {
       actorUserId,
       'FINANCE_DAILY_BILLING',
       attendance.id,
-      original ? 'RESTORE' : 'CHARGE',
+      debitEntries.length > 0 ? 'RESTORE' : 'CHARGE',
       entry,
     );
     await this.kpi.applyPercentForCharge(

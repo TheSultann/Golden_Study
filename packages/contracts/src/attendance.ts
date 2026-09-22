@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const attendanceStatusSchema = z.enum(['came', 'excused', 'absent']);
+export const attendanceStatusSchema = z.enum(['came', 'excused', 'absent', 'unmarked']);
 
 export const attendanceRowSchema = z.object({
   studentId: z.string(),

@@ -396,6 +396,43 @@ describe('Attendance API', () => {
     expect(teacherRow?.topicScore).toBe(88);
     expect(teacherRow?.dictionaryScore).toBe(88);
   });
+
+  it('returns UNMARKED status for unrecorded dates and allows taking roll call with CAME without rating', async () => {
+    // 1. Initial unrecorded date returns UNMARKED status
+    const initialRes = await teacher(
+      request(createApp()).get(`/api/v1/attendance/group/${groupId}/date/2026-07-28`),
+    );
+    expect(initialRes.status).toBe(200);
+    const initialRows = (initialRes.body as ApiDataResponse<{ rows: Array<{ studentId: string; status: string }> }>).data.rows;
+    expect(initialRows[0]?.status).toBe('UNMARKED');
+
+    // 2. Save CAME without rating succeeds without requiring grades
+    const saveRes = await teacher(
+      request(createApp()).post('/api/v1/attendance'),
+    ).send({
+      groupId,
+      date: '2026-07-28',
+      homeworkText: '',
+      items: [
+        {
+          studentId,
+          status: 'CAME',
+          rating: null,
+          homeworkDone: false,
+          comment: '',
+        },
+      ],
+    });
+    expect(saveRes.status).toBe(200);
+
+    // 3. Saved record is now CAME
+    const recordedRes = await teacher(
+      request(createApp()).get(`/api/v1/attendance/group/${groupId}/date/2026-07-28`),
+    );
+    expect(recordedRes.status).toBe(200);
+    const recordedRows = (recordedRes.body as ApiDataResponse<{ rows: Array<{ studentId: string; status: string }> }>).data.rows;
+    expect(recordedRows[0]?.status).toBe('CAME');
+  });
 });
 
 async function cleanupAttendanceFixtures() {

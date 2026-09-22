@@ -329,10 +329,20 @@ export const leadApiSchema = z.object({
   updatedAt: z.string().datetime(),
 })
 
-export const attendanceApiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT'])
+export const attendanceApiStatusSchema = z.enum([
+  'CAME',
+  'EXCUSED',
+  'ABSENT',
+  'UNMARKED',
+])
+export const attendanceSaveStatusSchema = z.enum([
+  'CAME',
+  'EXCUSED',
+  'ABSENT',
+])
 const attendanceItemBaseSchema = z.object({
   studentId: z.string().uuid(),
-  status: attendanceApiStatusSchema,
+  status: attendanceSaveStatusSchema,
   rating: z.number().int().min(0).max(100).nullable().optional(),
   homeworkScore: z.number().int().min(0).max(100).nullable().optional(),
   topicScore: z.number().int().min(0).max(100).nullable().optional(),
@@ -340,32 +350,7 @@ const attendanceItemBaseSchema = z.object({
   homeworkDone: z.boolean(),
   comment: z.string().trim().max(1000).default(''),
 }).strict()
-const requireCameRating = (
-  value: {
-    status: 'CAME' | 'EXCUSED' | 'ABSENT'
-    rating?: number | null | undefined
-    homeworkScore?: number | null | undefined
-    topicScore?: number | null | undefined
-    dictionaryScore?: number | null | undefined
-  },
-  context: z.RefinementCtx,
-) => {
-  if (value.status === 'CAME') {
-    const hasScores =
-      (value.homeworkScore !== undefined && value.homeworkScore !== null) ||
-      (value.topicScore !== undefined && value.topicScore !== null) ||
-      (value.dictionaryScore !== undefined && value.dictionaryScore !== null)
-    if (value.rating === null && !hasScores) {
-      context.addIssue({
-        code: 'custom',
-        path: ['rating'],
-        message: 'Rating is required for CAME',
-      })
-    }
-  }
-}
 const attendanceItemInputSchema = attendanceItemBaseSchema
-  .superRefine(requireCameRating)
 export const attendanceBulkSaveInputSchema = z.object({
   groupId: z.string().uuid(),
   date: dateOnlySchema,
@@ -379,11 +364,10 @@ export const attendanceBulkSaveInputSchema = z.object({
 )
 export const attendanceUpdateInputSchema = attendanceItemBaseSchema
   .omit({ studentId: true })
-  .superRefine(requireCameRating)
 export const attendanceListQuerySchema = paginationQuerySchema.extend({
   groupId: z.string().uuid().optional(),
   studentId: z.string().uuid().optional(),
-  status: attendanceApiStatusSchema.optional(),
+  status: attendanceSaveStatusSchema.optional(),
   dateFrom: dateOnlySchema.optional(),
   dateTo: dateOnlySchema.optional(),
   sortBy: z.enum(['date', 'createdAt']).default('date'),
