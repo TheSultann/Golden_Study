@@ -387,16 +387,19 @@ async function handleStartOrGroupStart(ctx: any) {
           `✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n\n` +
           `📚 <b>Guruh:</b> ${escapeHtml(result.group.name)}\n` +
           `📖 <b>Kurs:</b> ${escapeHtml(result.group.course?.title ?? '—')}\n` +
-          `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
+          `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim() || '—')}\n` +
           `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
-          `Endi dars rejasi, uy vazifalari va dars xulosalari ushbu guruhga yuboriladi.\n` +
-          `<i>(Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)} yoki /unlink@${escapeHtml(botUser)})</i>`,
+          `Dars mavzulari va uyga vazifalar avtomatik ravishda ushbu guruhga yuboriladi.\n\n` +
+          `───────────────\n` +
+          `🔌 <b>Aloqani uzish:</b> <code>/disconnect@${escapeHtml(botUser)}</code>`,
         );
       } else {
         return ctx.replyWithHTML(
           `❌ <b>Bog'lashda xatolik:</b> ${escapeHtml(result.error ?? 'Guruh topilmadi')}\n\n` +
-          `Guruhni ulash uchun quyidagicha yuboring:\n` +
-          `📌 <code>/connect@${escapeHtml(botUser)} &lt;guruh_id_yoki_nomi&gt;</code>`,
+          `Guruhni ulash uchun buyruq yuboring:\n` +
+          `👉 <code>/connect@${escapeHtml(botUser)} Guruh_Nomi</code>\n\n` +
+          `<b>Misol:</b>\n` +
+          `<code>/connect@${escapeHtml(botUser)} Super Grammar</code>`,
         );
       }
     }
@@ -406,13 +409,19 @@ async function handleStartOrGroupStart(ctx: any) {
         `ℹ️ <b>Ushbu chat allaqachon bog'langan!</b>\n\n` +
         `📚 <b>Guruh:</b> ${escapeHtml(current.name)}\n` +
         `📖 <b>Kurs:</b> ${escapeHtml(current.course?.title ?? '—')}\n` +
-        `🔌 Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)}`,
+        `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${current.teacher?.firstName ?? ''} ${current.teacher?.lastName ?? ''}`.trim() || '—')}\n\n` +
+        `───────────────\n` +
+        `🔌 <b>Aloqani uzish:</b> <code>/disconnect@${escapeHtml(botUser)}</code>`,
       );
     }
     return ctx.replyWithHTML(
       `👋 <b>Assalomu alaykum!</b>\n\n` +
-      `Ushbu Telegram guruhini Golden Study CRM guruhi bilan bog'lash uchun:\n` +
-      `📌 <code>/connect@${escapeHtml(botUser)} &lt;Guruh_ID yoki nomi&gt;</code> buyrug'ini yuboring.`,
+      `Ushbu Telegram guruhini CRM guruhi bilan bog'lash uchun quyidagi buyruqni yuboring:\n\n` +
+      `👉 <code>/connect@${escapeHtml(botUser)} Guruh_Nomi</code>\n\n` +
+      `<b>Misollar:</b>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Super Grammar</code>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Morning Grammar</code>\n\n` +
+      `<i>(Yoki CRM tizimidan guruh ID kodini nusxalab yuboring)</i>`,
     );
   }
 
@@ -533,8 +542,12 @@ bot.command(['connect', 'link'], async (ctx) => {
 
   if (!query) {
     return ctx.replyWithHTML(
-      `⚠️ <b>Guruh ID yoki nomini kiriting!</b>\n\n` +
-      `Masalan: <code>/connect@${escapeHtml(botUser)} 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d</code> yoki <code>/connect@${escapeHtml(botUser)} IELTS Intensive</code>`,
+      `⚠️ <b>Guruh nomini yoki ID kodini kiriting!</b>\n\n` +
+      `Buyruq quyidagicha yuboriladi:\n` +
+      `👉 <code>/connect@${escapeHtml(botUser)} Guruh_Nomi</code>\n\n` +
+      `<b>Misollar:</b>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Super Grammar</code>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Morning Grammar</code>`,
     );
   }
 
@@ -544,17 +557,18 @@ bot.command(['connect', 'link'], async (ctx) => {
       `✅ <b>Guruh muvaffaqiyatli bog'landi!</b>\n\n` +
       `📚 <b>Guruh:</b> ${escapeHtml(result.group.name)}\n` +
       `📖 <b>Kurs:</b> ${escapeHtml(result.group.course?.title ?? '—')}\n` +
-      `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim())}\n` +
+      `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${result.group.teacher?.firstName ?? ''} ${result.group.teacher?.lastName ?? ''}`.trim() || '—')}\n` +
       `👥 <b>Chat:</b> ${escapeHtml(ctx.chat.title || '')}\n\n` +
-      `Endi dars xulosalari va uy vazifalari ushbu guruhga yuboriladi.\n` +
-      `<i>(Aloqani uzish: /disconnect@${escapeHtml(botUser)})</i>`,
+      `Dars mavzulari va uyga vazifalar avtomatik ravishda ushbu guruhga yuboriladi.\n\n` +
+      `───────────────\n` +
+      `🔌 <b>Aloqani uzish:</b> <code>/disconnect@${escapeHtml(botUser)}</code>`,
     );
   }
 
   return ctx.replyWithHTML(
-    `❌ <b>Guruh topilmadi</b>\n\n` +
+    `❌ <b>Guruh topilmadi:</b> “${escapeHtml(query)}”\n\n` +
     `${escapeHtml(result.error ?? 'Guruh topilmadi')}.\n\n` +
-    `💡 <i>Kodni qayta tekshirib ko‘ring yoki CRM dan to‘g‘ri guruh ID sini oling.</i>`,
+    `💡 <i>CRM tizimidan guruh nomini yoki ID sini tekshirib, qayta urinib ko'ring.</i>`,
   );
 });
 
@@ -590,17 +604,18 @@ bot.command(['group_status', 'gstatus'], async (ctx) => {
   if (!linked) {
     return ctx.replyWithHTML(
       `ℹ️ <b>Ushbu chat tizimga ulanmagan</b>\n\n` +
-      `Guruhni ulash uchun: <code>/connect@${escapeHtml(botUser)} &lt;guruh_id&gt;</code>`,
+      `Guruhni ulash uchun: <code>/connect@${escapeHtml(botUser)} Guruh_Nomi</code>`,
     );
   }
 
   return ctx.replyWithHTML(
-    `📋 <b>Bog'langan guruh:</b>\n\n` +
-    `📚 <b>Nomi:</b> ${escapeHtml(linked.name)}\n` +
+    `📋 <b>Bog'langan guruh ma'lumotlari:</b>\n\n` +
+    `📚 <b>Guruh:</b> ${escapeHtml(linked.name)}\n` +
     `📖 <b>Kurs:</b> ${escapeHtml(linked.course?.title ?? '—')}\n` +
-    `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${linked.teacher?.firstName ?? ''} ${linked.teacher?.lastName ?? ''}`.trim())}\n` +
+    `👨‍🏫 <b>O'qituvchi:</b> ${escapeHtml(`${linked.teacher?.firstName ?? ''} ${linked.teacher?.lastName ?? ''}`.trim() || '—')}\n` +
     `🆔 <b>ID:</b> <code>${escapeHtml(linked.id)}</code>\n\n` +
-    `🔌 Aloqani uzish uchun: /disconnect@${escapeHtml(botUser)}`,
+    `───────────────\n` +
+    `🔌 <b>Aloqani uzish:</b> <code>/disconnect@${escapeHtml(botUser)}</code>`,
   );
 });
 
@@ -610,11 +625,13 @@ bot.on('new_chat_members', async (ctx, next) => {
     const botUser = ctx.botInfo?.username || process.env.TELEGRAM_BOT_USERNAME || 'Golden_StudyBot';
     return ctx.replyWithHTML(
       `👋 <b>Assalomu alaykum!</b>\n\n` +
-      `Golden Study o'quv markazining rasmiy botini guruhga qo'shganingiz uchun rahmat!\n\n` +
-      `⚠️ <b>Eslatma:</b> Bot xabarlarni to‘liq qabul qilishi va dars xulosalarini yuborishi uchun uni guruhda <b>Administrator (admin)</b> qiling.\n\n` +
-      `Ushbu Telegram guruhini CRM tizimidagi guruh bilan bog'lash uchun quyidagi buyruqni yuboring:\n` +
-      `📌 <code>/connect@${escapeHtml(botUser)} &lt;guruh_id&gt;</code>\n\n` +
-      `Masalan: <code>/connect@${escapeHtml(botUser)} IELTS Intensive</code>`,
+      `Golden Study rasmiy botini guruhga qo'shganingiz uchun rahmat!\n\n` +
+      `Ushbu Telegram guruhini CRM guruhi bilan bog'lash uchun buyruq yuboring:\n\n` +
+      `👉 <code>/connect@${escapeHtml(botUser)} Guruh_Nomi</code>\n\n` +
+      `<b>Misollar:</b>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Super Grammar</code>\n` +
+      `• <code>/connect@${escapeHtml(botUser)} Morning Grammar</code>\n\n` +
+      `<i>(Yoki CRM tizimidan guruh ID kodini nusxalab yuboring)</i>`,
     );
   }
   return next();
