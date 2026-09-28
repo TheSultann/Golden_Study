@@ -4,6 +4,8 @@ import {
   attendanceBroadcastResultSchema,
   type AttendanceRow,
   type AttendanceSession,
+  type MonthlyAttendanceData,
+  monthlyAttendanceDataSchema,
 } from '@golden-study/contracts'
 import { z } from 'zod'
 
@@ -13,6 +15,11 @@ import type { AttendanceRepository } from './attendance.repository'
 const broadcastApiResponseSchema = z.object({
   success: z.literal(true),
   data: attendanceBroadcastResultSchema,
+})
+
+const monthlyApiResponseSchema = z.object({
+  success: z.literal(true),
+  data: monthlyAttendanceDataSchema,
 })
 
 const apiStatusSchema = z.enum(['CAME', 'EXCUSED', 'ABSENT', 'UNMARKED'])
@@ -140,6 +147,46 @@ export class ApiAttendanceRepository implements AttendanceRepository {
           lockedByAdmin: Boolean(row.lockedByAdmin),
         }
       }),
+    }
+  }
+
+  async getMonthly(groupId: string, month: string): Promise<MonthlyAttendanceData> {
+    const targetGroupId = await this.resolveGroupId(groupId)
+
+    try {
+      const response = await apiRequest(
+        `/attendance/group/${targetGroupId}/month/${month}`,
+        { method: 'GET' },
+        monthlyApiResponseSchema,
+      )
+      return response.data
+    } catch (err) {
+      console.warn('Failed to load monthly attendance from API, falling back to empty sheet:', err)
+      const [yearStr, monthStr] = month.split('-')
+      const year = Number(yearStr) || new Date().getFullYear()
+      const monthIndex = (Number(monthStr) || new Date().getMonth() + 1) - 1
+      const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
+
+      return {
+        groupId,
+        groupName: 'Guruh',
+        month,
+        daysInMonth,
+        lessonDates: [],
+        days: Array.from({ length: daysInMonth }, (_, i) => ({
+          date: `${month}-${String(i + 1).padStart(2, '0')}`,
+          dayNumber: i + 1,
+          weekday: ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Ju', 'Sha'][new Date(Date.UTC(year, monthIndex, i + 1)).getUTCDay()],
+          hasLesson: false,
+          lessonTitle: null,
+        })),
+        students: [],
+        stats: {
+          totalStudents: 0,
+          totalLessons: 0,
+          averageAttendancePercentage: 0,
+        },
+      }
     }
   }
 

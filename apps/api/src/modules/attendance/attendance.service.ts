@@ -7,8 +7,12 @@ import type {
   AttendanceListQuery,
   AttendanceUpdateInput,
   AuthUser,
+  MonthlyAttendanceData,
+  MonthlyAttendanceStudentDay,
+  MonthlyAttendanceStudentRow,
+  MonthlyLessonDay,
 } from '@golden-study/contracts';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient, Weekday } from '@prisma/client';
 
 import { ApiError } from '../../common/errors/api-error.js';
 import { toPaginationMeta } from '../../common/http/pagination.js';
@@ -121,6 +125,292 @@ export class AttendanceService {
           }
         );
       }),
+    };
+  }
+
+  public async getMonthlySheet(
+    groupId: string,
+    month: string,
+    user: AuthUser,
+  ): Promise<MonthlyAttendanceData> {
+    const group = await this.assertGroupAccess(this.prisma, groupId, user);
+
+    const [yearStr, monthStr] = month.split('-');
+    const year = Number(yearStr);
+    const monthIndex = Number(monthStr) - 1;
+
+    const startOfMonth = new Date(Date.UTC(year, monthIndex, 1));
+    const nextMonth = new Date(Date.UTC(year, monthIndex + 1, 1));
+    const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+
+    const groupWithDetails = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: {
+        name: true,
+        weekdays: true,
+      },
+    });
+
+    const weekdayNamesUz: Record<number, string> = {
+      0: 'Yak',
+      1: 'Du',
+      2: 'Se',
+      3: 'Chor',
+      4: 'Pay',
+      5: 'Ju',
+      6: 'Sha',
+    };
+
+    const weekdayMapPrisma: Record<number, Weekday> = {
+      0: 'SUN',
+      1: 'MON',
+      2: 'TUE',
+      3: 'WED',
+      4: 'THU',
+      5: 'FRI',
+      6: 'SAT',
+    };
+
+    const memberships = await this.prisma.groupStudent.findMany({
+      where: {
+        groupId,
+        joinedAt: { lt: nextMonth },
+        OR: [{ leftAt: null }, { leftAt: { gte: startOfMonth } }],
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            studentCode: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+          },
+        },
+      },
+      orderBy: [
+        { student: { lastName: 'asc' } },
+        { student: { firstName: 'asc' } },
+      ],
+    });
+
+    const attendanceRecords = await this.prisma.attendance.findMany({
+      where: {
+        groupId,
+        date: {
+          gte: startOfMonth,
+          lt: nextMonth,
+        },
+        isReversed: false,
+      },
+      select: {
+        id: true,
+        studentId: true,
+        date: true,
+        status: true,
+        rating: true,
+        homeworkScore: true,
+        topicScore: true,
+        dictionaryScore: true,
+        homeworkDone: true,
+        comment: true,
+      },
+    });
+
+    const groupLessons = await this.prisma.groupLesson.findMany({
+      where: {
+        groupId,
+        date: {
+          gte: startOfMonth,
+          lt: nextMonth,
+        },
+      },
+      select: {
+        date: true,
+        homeworkText: true,
+      },
+    });
+
+    const lessonByDate = new Map<string, string>();
+    for (const gl of groupLessons) {
+      const dateIso = gl.date.toISOString().slice(0, 10);
+      lessonByDate.set(dateIso, gl.homeworkText);
+    }
+
+    const recordedDates = new Set<string>();
+    for (const att of attendanceRecords) {
+      recordedDates.add(att.date.toISOString().slice(0, 10));
+    }
+
+    const days: MonthlyLessonDay[] = [];
+    const lessonDates: string[] = [];
+    const groupWeekdays = groupWithDetails?.weekdays ?? [];
+
+    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+      const dateObj = new Date(Date.UTC(year, monthIndex, dayNum));
+      const dateIso = dateObj.toISOString().slice(0, 10);
+      const dayOfWeek = dateObj.getUTCDay();
+      const prismaWeekday = weekdayMapPrisma[dayOfWeek];
+      const uzWeekday = weekdayNamesUz[dayOfWeek] ?? '';
+
+      const isScheduled = Boolean(prismaWeekday && groupWeekdays.includes(prismaWeekday));
+      const hasAttendanceOrLesson = recordedDates.has(dateIso) || lessonByDate.has(dateIso);
+      const hasLesson = isScheduled || hasAttendanceOrLesson;
+
+      if (hasLesson) {
+        lessonDates.push(dateIso);
+      }
+
+      days.push({
+        date: dateIso,
+        dayNumber: dayNum,
+        weekday: uzWeekday,
+        hasLesson,
+        lessonTitle: lessonByDate.get(dateIso) ?? null,
+      });
+    }
+
+    const recordsByStudent = new Map<string, Map<string, (typeof attendanceRecords)[number]>>();
+    for (const rec of attendanceRecords) {
+      let studentMap = recordsByStudent.get(rec.studentId);
+      if (!studentMap) {
+        studentMap = new Map();
+        recordsByStudent.set(rec.studentId, studentMap);
+      }
+      studentMap.set(rec.date.toISOString().slice(0, 10), rec);
+    }
+
+    type StudentInfo = (typeof memberships)[number]['student'];
+    type MembershipInterval = { joinedAt: Date; leftAt: Date | null };
+    const studentGroupMap = new Map<string, { student: StudentInfo; intervals: MembershipInterval[] }>();
+
+    for (const m of memberships) {
+      const existing = studentGroupMap.get(m.student.id);
+      if (!existing) {
+        studentGroupMap.set(m.student.id, {
+          student: m.student,
+          intervals: [{ joinedAt: m.joinedAt, leftAt: m.leftAt }],
+        });
+      } else {
+        existing.intervals.push({ joinedAt: m.joinedAt, leftAt: m.leftAt });
+      }
+    }
+
+    const students: MonthlyAttendanceStudentRow[] = [];
+    let totalCameAcrossAll = 0;
+    let totalPossibleAcrossAll = 0;
+
+    for (const { student, intervals } of studentGroupMap.values()) {
+      const studentRecords = recordsByStudent.get(student.id);
+
+      const daysMap: Record<string, MonthlyAttendanceStudentDay> = {};
+      let came = 0;
+      let excused = 0;
+      let absent = 0;
+      let unmarked = 0;
+      const scoreList: number[] = [];
+
+      for (const d of days) {
+        if (!d.hasLesson) continue;
+
+        const isEnrolled = intervals.some((interval) => {
+          const joinedStr = interval.joinedAt.toISOString().slice(0, 10);
+          if (d.date < joinedStr) return false;
+          if (interval.leftAt) {
+            const leftStr = interval.leftAt.toISOString().slice(0, 10);
+            if (d.date > leftStr) return false;
+          }
+          return true;
+        });
+
+        const rec = studentRecords?.get(d.date);
+        if (!rec) {
+          daysMap[d.date] = {
+            status: 'unmarked',
+            rating: null,
+            homeworkDone: false,
+            comment: '',
+          };
+          if (isEnrolled) {
+            unmarked++;
+          }
+        } else {
+          const uiStatus =
+            rec.status === 'CAME'
+              ? 'came'
+              : rec.status === 'EXCUSED'
+                ? 'excused'
+                : rec.status === 'ABSENT'
+                  ? 'absent'
+                  : 'unmarked';
+
+          if (uiStatus === 'came') came++;
+          else if (uiStatus === 'excused') excused++;
+          else if (uiStatus === 'absent') absent++;
+          else if (isEnrolled) unmarked++;
+
+          if (typeof rec.rating === 'number') {
+            scoreList.push(rec.rating);
+          }
+
+          daysMap[d.date] = {
+            status: uiStatus,
+            rating: rec.rating,
+            homeworkDone: rec.homeworkDone,
+            homeworkScore: rec.homeworkScore,
+            topicScore: rec.topicScore,
+            dictionaryScore: rec.dictionaryScore,
+            comment: rec.comment,
+          };
+        }
+      }
+
+      const totalLessons = came + excused + absent + unmarked;
+      const percentage = totalLessons > 0 ? Math.round((came / totalLessons) * 100) : 0;
+      const averageScore =
+        scoreList.length > 0
+          ? Math.round(scoreList.reduce((a, b) => a + b, 0) / scoreList.length)
+          : null;
+
+      totalCameAcrossAll += came;
+      totalPossibleAcrossAll += totalLessons;
+
+      students.push({
+        studentId: student.id,
+        studentCode: student.studentCode,
+        studentName: `${student.firstName} ${student.lastName}`.trim(),
+        phone: student.phone,
+        days: daysMap,
+        stats: {
+          totalLessons,
+          came,
+          excused,
+          absent,
+          unmarked,
+          percentage,
+          averageScore,
+        },
+      });
+    }
+
+    const averageAttendancePercentage =
+      totalPossibleAcrossAll > 0
+        ? Math.round((totalCameAcrossAll / totalPossibleAcrossAll) * 100)
+        : 0;
+
+    return {
+      groupId,
+      groupName: group.name,
+      month,
+      daysInMonth,
+      lessonDates,
+      days,
+      students,
+      stats: {
+        totalStudents: students.length,
+        totalLessons: lessonDates.length,
+        averageAttendancePercentage,
+      },
     };
   }
 

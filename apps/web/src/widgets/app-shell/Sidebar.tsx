@@ -1,8 +1,9 @@
 import { X, LogOut } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 
 import goldenStudyEmblem from '../../assets/golden-study-emblem.png'
 import type { UserRole } from '../../features/auth/auth.types'
+import { useUnsavedChanges } from '../../shared/context/UnsavedChangesContext'
 import { getNavigationForRole } from './navigation'
 
 interface SidebarProps {
@@ -13,6 +14,10 @@ interface SidebarProps {
 }
 
 export function Sidebar({ role, open, onClose, onLogout }: SidebarProps) {
+  const { isDirty, requestNavigate } = useUnsavedChanges()
+  const location = useLocation()
+  const navigate = useNavigate()
+
   return (
     <>
       <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
@@ -24,7 +29,27 @@ export function Sidebar({ role, open, onClose, onLogout }: SidebarProps) {
 
         <nav className="sidebar-nav" aria-label="Asosiy navigatsiya">
           {getNavigationForRole(role).map(({ label, path, icon: Icon }) => (
-            <NavLink key={path} to={path} end={path === '/'} onClick={onClose} className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
+            <NavLink
+              key={path}
+              to={path}
+              end={path === '/'}
+              onClick={(e) => {
+                if (location.pathname === path) {
+                  onClose()
+                  return
+                }
+                if (isDirty) {
+                  e.preventDefault()
+                  requestNavigate(() => {
+                    onClose()
+                    navigate(path)
+                  })
+                } else {
+                  onClose()
+                }
+              }}
+              className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
+            >
               <Icon size={17} />
               <span>{label}</span>
             </NavLink>

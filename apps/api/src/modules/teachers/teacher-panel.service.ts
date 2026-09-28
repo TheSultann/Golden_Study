@@ -170,8 +170,14 @@ export class TeacherPanelService {
   }
 
   public async getRating(user: AuthUser): Promise<TeacherRatingRow[]> {
-    const teacherId = await this.resolveTeacherId(user);
-    const groups = teacherId
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const teacherId = isAdmin ? null : await this.resolveTeacherId(user);
+    const groups = isAdmin
+      ? await this.prisma.group.findMany({
+          where: { status: 'ACTIVE' },
+          include: { course: true, students: { where: { status: 'ACTIVE' }, include: { student: true } } },
+        })
+      : teacherId
       ? await this.prisma.group.findMany({
           where: { teacherId, status: 'ACTIVE' },
           include: { course: true, students: { where: { status: 'ACTIVE' }, include: { student: true } } },
@@ -182,9 +188,16 @@ export class TeacherPanelService {
     for (const g of groups) {
       for (const gs of g.students) {
         const s = gs.student;
-        const attendance = await this.prisma.attendance.findMany({
-          where: { studentId: s.id, groupId: g.id, isReversed: false },
-        });
+        const [attendance, examResults] = await Promise.all([
+          this.prisma.attendance.findMany({
+            where: { studentId: s.id, groupId: g.id, isReversed: false },
+          }),
+          this.prisma.examResult.findMany({
+            where: { studentId: s.id, exam: { groupId: g.id } },
+            include: { exam: true },
+          }),
+        ]);
+
         const total = attendance.length;
         const cameRecords = attendance.filter((a) => a.status === 'CAME');
         const cameCount = cameRecords.length;
@@ -193,22 +206,53 @@ export class TeacherPanelService {
         const avgRating = cameCount > 0 ? cameRecords.reduce((sum, a) => sum + (a.rating ?? 0), 0) / cameCount : 0;
         const homeworkDone = total > 0 ? (attendance.filter((a) => a.status !== 'ABSENT' && a.homeworkDone).length / total) * 100 : 0;
         const attendanceRating = Math.round(avgRating);
-        const totalScore = total > 0
-          ? Math.round((attendanceRate / 100) * 40 + (attendanceRating / 100) * 30 + (homeworkDone / 100) * 30)
+
+        const examsCount = examResults.length;
+        const averagePercent = examsCount > 0
+          ? Math.round(
+              examResults.reduce((sum, r) => {
+                const max = r.exam?.maxScore || 100;
+                return sum + Math.min(100, Math.round((r.score / max) * 100));
+              }, 0) / examsCount,
+            )
           : 0;
-        const stars = cameCount > 0 ? Math.min(5, Math.max(0, Math.round(avgRating / 20))) : 0;
+
+        let totalScore = 0;
+        if (examsCount > 0 && total > 0) {
+          totalScore = Math.round(
+            (averagePercent * 0.4) +
+            (attendanceRate * 0.2) +
+            (attendanceRating * 0.2) +
+            (homeworkDone * 0.2),
+          );
+        } else if (examsCount > 0 && total === 0) {
+          totalScore = averagePercent;
+        } else if (examsCount === 0 && total > 0) {
+          totalScore = Math.round(
+            (attendanceRate / 100) * 40 +
+            (attendanceRating / 100) * 30 +
+            (homeworkDone / 100) * 30,
+          );
+        }
+
+        const boundedScore = Math.min(100, Math.max(0, totalScore));
+        const stars = cameCount > 0
+          ? Math.min(5, Math.max(0, Math.round(avgRating / 20)))
+          : examsCount > 0
+          ? Math.min(5, Math.max(0, Math.round(averagePercent / 20)))
+          : 0;
 
         rows.push({
           studentId: s.id,
           studentCode: s.studentCode,
           studentName: `${s.lastName} ${s.firstName}`,
           groupName: g.name,
-          examsCount: 0,
-          averagePercent: 0,
+          examsCount,
+          averagePercent,
           attendanceRate,
           attendanceRating,
           homeworkRate: Math.round(homeworkDone),
-          totalScore: Math.min(100, totalScore),
+          totalScore: boundedScore,
           stars,
         });
       }
@@ -217,8 +261,14 @@ export class TeacherPanelService {
   }
 
   public async getAttendanceGroups(user: AuthUser) {
-    const teacherId = await this.resolveTeacherId(user);
-    const groups = teacherId
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const teacherId = isAdmin ? null : await this.resolveTeacherId(user);
+    const groups = isAdmin
+      ? await this.prisma.group.findMany({
+          where: { status: 'ACTIVE' },
+          include: { students: { where: { status: 'ACTIVE' } } },
+        })
+      : teacherId
       ? await this.prisma.group.findMany({
           where: { teacherId, status: 'ACTIVE' },
           include: { students: { where: { status: 'ACTIVE' } } },
@@ -408,8 +458,11 @@ export class TeacherPanelService {
   }
 
   public async getExams(user: AuthUser): Promise<Exam[]> {
-    const teacherId = await this.resolveTeacherId(user);
-    const groupIds = teacherId
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const teacherId = isAdmin ? null : await this.resolveTeacherId(user);
+    const groupIds = isAdmin
+      ? (await this.prisma.group.findMany({ where: { status: 'ACTIVE' }, select: { id: true } })).map((g) => g.id)
+      : teacherId
       ? (await this.prisma.group.findMany({ where: { teacherId, status: 'ACTIVE' }, select: { id: true } })).map((g) => g.id)
       : [];
 
@@ -445,8 +498,14 @@ export class TeacherPanelService {
   }
 
   public async getExamGroups(user: AuthUser) {
-    const teacherId = await this.resolveTeacherId(user);
-    const groups = teacherId
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN';
+    const teacherId = isAdmin ? null : await this.resolveTeacherId(user);
+    const groups = isAdmin
+      ? await this.prisma.group.findMany({
+          where: { status: 'ACTIVE' },
+          include: { students: { where: { status: 'ACTIVE' }, include: { student: true } } },
+        })
+      : teacherId
       ? await this.prisma.group.findMany({
           where: { teacherId, status: 'ACTIVE' },
           include: { students: { where: { status: 'ACTIVE' }, include: { student: true } } },

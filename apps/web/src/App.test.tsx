@@ -173,6 +173,43 @@ vi.mock('./features/groups/group.dependencies', () => {
       list: vi.fn(async () => { await delay(); return groups }),
       create: vi.fn(async (g: any) => { await delay(); groups.push(g); return g }),
       update: vi.fn(async (g: any) => { await delay(); groups = groups.map(x => x.id === g.id ? g : x); return g }),
+      listStudents: vi.fn(async () => {
+        await delay()
+        return [
+          {
+            id: 's1',
+            code: 'ST101',
+            studentCode: 'ST101',
+            firstName: 'Sardor',
+            lastName: 'Abdullayev',
+            phone: '+998 90 444 55 66',
+            parentName: 'Dilshod Abdullayev',
+            parentPhone: '+998 90 444 55 66',
+            birthDate: '2010-01-01',
+            address: 'Toshkent',
+            status: 'active',
+            balance: 150000,
+            groups: ['IELTS-24-01'],
+          },
+          {
+            id: 's2',
+            code: 'ST102',
+            studentCode: 'ST102',
+            firstName: 'Aziza',
+            lastName: 'Rahimova',
+            phone: '+998 90 987 65 43',
+            parentName: 'Shahnoza Rahimova',
+            parentPhone: '+998 90 987 65 43',
+            birthDate: '2008-05-12',
+            address: 'Toshkent',
+            status: 'active',
+            balance: -400000,
+            groups: ['IELTS-24-01'],
+          },
+        ]
+      }),
+      addStudent: vi.fn(async () => { await delay() }),
+      removeStudent: vi.fn(async () => { await delay() }),
     }
   }
 })
@@ -267,6 +304,59 @@ vi.mock('./features/attendance/attendance.dependencies', () => {
             { studentId: 's1', studentCode: 'ST101', studentName: 'Sardor Abdullayev', status: 'came', comment: 'A’lo', rating: 95, homeworkDone: true, lockedByAdmin: false },
             { studentId: 's2', studentCode: 'ST102', studentName: 'Aziza Rahimova', status: 'came', comment: 'Yaxshi', rating: 85, homeworkDone: true, lockedByAdmin: false }
           ]
+        }
+      }),
+      getMonthly: vi.fn(async (groupId: string, month: string) => {
+        return {
+          groupId: groupId || 'g1',
+          groupName: 'IELTS-24-01',
+          month: month || '2026-07',
+          daysInMonth: 31,
+          lessonDates: [`${month || '2026-07'}-01`],
+          days: [
+            { date: `${month || '2026-07'}-01`, dayNumber: 1, weekday: 'Chor', hasLesson: true, lessonTitle: 'Intro' }
+          ],
+          students: [
+            {
+              studentId: 's1',
+              studentCode: 'ST101',
+              studentName: 'Sardor Abdullayev',
+              days: {
+                [`${month || '2026-07'}-01`]: { status: 'came', rating: 95, homeworkScore: 95, topicScore: 95, dictionaryScore: 95, homeworkDone: true, comment: '' }
+              },
+              stats: {
+                totalLessons: 1,
+                came: 1,
+                excused: 0,
+                absent: 0,
+                unmarked: 0,
+                percentage: 100,
+                averageScore: 95,
+              },
+            },
+            {
+              studentId: 's2',
+              studentCode: 'ST102',
+              studentName: 'Aziza Rahimova',
+              days: {
+                [`${month || '2026-07'}-01`]: { status: 'came', rating: 85, homeworkScore: 85, topicScore: 85, dictionaryScore: 85, homeworkDone: true, comment: '' }
+              },
+              stats: {
+                totalLessons: 1,
+                came: 1,
+                excused: 0,
+                absent: 0,
+                unmarked: 0,
+                percentage: 100,
+                averageScore: 85,
+              },
+            }
+          ],
+          stats: {
+            totalStudents: 2,
+            totalLessons: 1,
+            averageAttendancePercentage: 100,
+          }
         }
       }),
       save: vi.fn(async (s: any) => { await delay(); return s }),
@@ -718,11 +808,13 @@ describe('mock-авторизация', () => {
     await user.click(screen.getByRole('button', { name: 'Kirish' }))
     await user.click(await screen.findByRole('link', { name: 'Guruhlar' }))
 
-    const row = await screen.findByRole('row', { name: 'IELTS-24-01 guruhini tahrirlash' })
+    const row = await screen.findByRole('row', { name: /IELTS-24-01/ })
     expect(within(row).getByText('01.07.2026')).toBeInTheDocument()
     expect(within(row).getByText('31.12.2026')).toBeInTheDocument()
     row.focus()
     await user.keyboard('{Enter}')
+    expect(screen.getByRole('heading', { name: 'IELTS-24-01' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Guruhni tahrirlash' }))
     expect(screen.getByRole('heading', { name: 'Guruhni tahrirlash' })).toBeInTheDocument()
   })
 

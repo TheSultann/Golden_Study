@@ -1,8 +1,13 @@
 import {
   attendanceBulkSaveInputSchema,
   attendanceListQuerySchema,
+  monthlyAttendanceResponseSchema,
+  type AuthUser,
 } from '@golden-study/contracts';
-import { describe, expect, it } from 'vitest';
+import type { PrismaClient } from '@prisma/client';
+import { describe, expect, it, vi } from 'vitest';
+
+import { AttendanceService } from './attendance.service.js';
 
 const studentId = '00000000-0000-4000-8000-000000000001';
 const groupId = '00000000-0000-4000-8000-000000000002';
@@ -170,6 +175,138 @@ describe('attendance API contracts', () => {
       ],
     };
     expect(attendanceBulkSaveInputSchema.safeParse(invalidScore).success).toBe(false);
+  });
+
+  it('validates monthly attendance response schema correctly', () => {
+    const validMonthly = {
+      data: {
+        groupId,
+        groupName: 'General English B1',
+        month: '2026-09',
+        daysInMonth: 30,
+        lessonDates: ['2026-09-02', '2026-09-04'],
+        days: [
+          {
+            date: '2026-09-01',
+            dayNumber: 1,
+            weekday: 'Se',
+            hasLesson: false,
+            lessonTitle: null,
+          },
+          {
+            date: '2026-09-02',
+            dayNumber: 2,
+            weekday: 'Chor',
+            hasLesson: true,
+            lessonTitle: 'Present Simple',
+          },
+        ],
+        students: [
+          {
+            studentId,
+            studentCode: 'GS-101',
+            studentName: 'Aliyev Vali',
+            phone: '+998901234567',
+            days: {
+              '2026-09-02': {
+                status: 'came',
+                rating: 90,
+                homeworkDone: true,
+                homeworkScore: 90,
+                topicScore: 90,
+                dictionaryScore: 90,
+                comment: 'Yaxshi',
+              },
+            },
+            stats: {
+              totalLessons: 1,
+              came: 1,
+              excused: 0,
+              absent: 0,
+              unmarked: 0,
+              percentage: 100,
+              averageScore: 90,
+            },
+          },
+        ],
+        stats: {
+          totalStudents: 1,
+          totalLessons: 1,
+          averageAttendancePercentage: 100,
+        },
+      },
+    };
+    const parsed = monthlyAttendanceResponseSchema.safeParse(validMonthly);
+    expect(parsed.success).toBe(true);
+  });
+
+  it('correctly calculates monthly sheet attendance percentage excluding lessons before joinedAt', async () => {
+    const mockPrisma = {
+      group: {
+        findUnique: vi.fn(async () => ({
+          name: 'IELTS Intensive',
+          weekdays: ['MON', 'WED', 'FRI'],
+          teacherId: 't1',
+        })),
+      },
+      groupStudent: {
+        findMany: vi.fn(async () => [
+          {
+            groupId,
+            studentId,
+            joinedAt: new Date('2026-09-15T00:00:00.000Z'),
+            leftAt: null,
+            student: {
+              id: studentId,
+              studentCode: 'GS-101',
+              firstName: 'Vali',
+              lastName: 'Aliyev',
+              phone: '+998901234567',
+            },
+          },
+        ]),
+      },
+      attendance: {
+        findMany: vi.fn(async () => [
+          {
+            id: 'att-1',
+            studentId,
+            date: new Date('2026-09-16T00:00:00.000Z'),
+            status: 'CAME',
+            rating: 90,
+            homeworkScore: 90,
+            topicScore: 90,
+            dictionaryScore: 90,
+            homeworkDone: true,
+            comment: '',
+          },
+        ]),
+      },
+      groupLesson: {
+        findMany: vi.fn(async () => []),
+      },
+    };
+
+    const service = new AttendanceService(
+      mockPrisma as unknown as PrismaClient,
+    );
+    const user: AuthUser = {
+      id: 'u1',
+      role: 'ADMIN',
+      login: 'admin',
+      teacherId: null,
+    };
+    const result = await service.getMonthlySheet(groupId, '2026-09', user);
+
+    expect(result.students.length).toBe(1);
+    const studentRow = result.students[0]!;
+    expect(studentRow.stats.came).toBe(1);
+    expect(studentRow.stats.excused).toBe(0);
+    expect(studentRow.stats.absent).toBe(0);
+    // Unmarked should ONLY count lessons from Sep 15 onwards: Sep 18, 21, 23, 25, 28, 30 (6 lessons)
+    expect(studentRow.stats.unmarked).toBe(6);
+    expect(studentRow.stats.totalLessons).toBe(7);
+    expect(studentRow.stats.percentage).toBe(Math.round((1 / 7) * 100)); // 14%
   });
 });
 

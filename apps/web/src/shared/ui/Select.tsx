@@ -62,6 +62,9 @@ export function Select({
       )
     : options
 
+  const MAX_VISIBLE_OPTIONS = 100
+  const visibleOptions = filteredOptions.slice(0, MAX_VISIBLE_OPTIONS)
+
   // Close when clicking outside
   useEffect(() => {
     if (!isOpen) return
@@ -117,13 +120,13 @@ export function Select({
 
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setFocusedIndex((prev) => (prev < filteredOptions.length - 1 ? prev + 1 : 0))
+      setFocusedIndex((prev) => (prev < visibleOptions.length - 1 ? prev + 1 : 0))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
-      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : filteredOptions.length - 1))
-    } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < filteredOptions.length) {
+      setFocusedIndex((prev) => (prev > 0 ? prev - 1 : visibleOptions.length - 1))
+    } else if (e.key === 'Enter' && focusedIndex >= 0 && focusedIndex < visibleOptions.length) {
       e.preventDefault()
-      const target = filteredOptions[focusedIndex]
+      const target = visibleOptions[focusedIndex]
       if (target && !target.disabled) {
         onChange(target.value)
         setIsOpen(false)
@@ -242,9 +245,9 @@ export function Select({
             position: 'absolute',
             top: 'calc(100% + 4px)',
             left: 0,
+            width: '100%',
             minWidth: 'max(100%, 230px)',
-            maxWidth: 'min(380px, calc(100vw - 24px))',
-            width: 'max-content',
+            maxWidth: 'min(500px, calc(100vw - 24px))',
             maxHeight: 280,
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -316,78 +319,96 @@ export function Select({
                 Topilmadi
               </li>
             ) : (
-              filteredOptions.map((opt, idx) => {
-                const isSelected = opt.value === value
-                const isFocused = idx === focusedIndex
+              <>
+                {visibleOptions.map((opt, idx) => {
+                  const isSelected = opt.value === value
+                  const isFocused = idx === focusedIndex
 
-                return (
-                  <li
-                    key={opt.value}
-                    role="option"
-                    aria-selected={isSelected}
-                    aria-disabled={opt.disabled}
-                    onClick={() => {
-                      if (!opt.disabled) {
-                        onChange(opt.value)
-                        setIsOpen(false)
-                        containerRef.current?.querySelector<HTMLButtonElement>('.modern-select-trigger')?.focus()
-                      }
-                    }}
-                    onMouseEnter={() => !opt.disabled && setFocusedIndex(idx)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      minHeight: 36,
-                      padding: '0 12px',
-                      borderRadius: 6,
-                      fontSize: 13,
-                      fontWeight: isSelected ? 500 : 400,
-                      color: isSelected ? 'var(--gold-dark, #b48508)' : 'var(--text)',
-                      background: isSelected
-                        ? 'rgba(212, 160, 23, 0.08)'
-                        : isFocused
-                          ? 'var(--surface-soft)'
-                          : 'transparent',
-                      cursor: opt.disabled ? 'not-allowed' : 'pointer',
-                      opacity: opt.disabled ? 0.5 : 1,
-                      userSelect: 'none',
-                      transition: 'background 0.12s ease',
-                      border: 0,
-                      boxShadow: 'none',
-                      marginBottom: 2,
-                      gap: 10,
-                    }}
-                  >
-                    <div
-                      className="modern-select-option-text"
+                  return (
+                    <li
+                      key={opt.value}
+                      role="option"
+                      aria-selected={isSelected}
+                      aria-disabled={opt.disabled}
+                      onClick={() => {
+                        if (!opt.disabled) {
+                          onChange(opt.value)
+                          setIsOpen(false)
+                          containerRef.current?.querySelector<HTMLButtonElement>('.modern-select-trigger')?.focus()
+                        }
+                      }}
+                      onMouseEnter={() => !opt.disabled && setFocusedIndex(idx)}
                       style={{
-                        flex: 1,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        border: 0,
-                        background: 'transparent',
-                        borderRadius: 0,
-                        padding: 0,
-                        boxShadow: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        minHeight: 36,
+                        padding: '0 12px',
+                        borderRadius: 6,
                         fontSize: 13,
+                        fontWeight: isSelected ? 500 : 400,
+                        color: isSelected ? 'var(--gold-dark, #b48508)' : 'var(--text)',
+                        background: isSelected
+                          ? 'rgba(212, 160, 23, 0.08)'
+                          : isFocused
+                            ? 'var(--surface-soft)'
+                            : 'transparent',
+                        cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                        opacity: opt.disabled ? 0.5 : 1,
+                        userSelect: 'none',
+                        transition: 'background 0.12s ease',
+                        border: 0,
+                        boxShadow: 'none',
+                        marginBottom: 2,
+                        gap: 10,
                       }}
                     >
-                      {opt.label}
-                    </div>
-                    {isSelected && (
-                      <Check
-                        size={15}
+                      <div
+                        className="modern-select-option-text"
                         style={{
-                          color: 'var(--gold)',
-                          flexShrink: 0,
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          border: 0,
+                          background: 'transparent',
+                          borderRadius: 0,
+                          padding: 0,
+                          boxShadow: 'none',
+                          fontSize: 13,
                         }}
-                      />
-                    )}
+                      >
+                        {opt.label}
+                      </div>
+                      {isSelected && (
+                        <Check
+                          size={15}
+                          style={{
+                            color: 'var(--gold)',
+                            flexShrink: 0,
+                          }}
+                        />
+                      )}
+                    </li>
+                  )
+                })}
+                {filteredOptions.length > MAX_VISIBLE_OPTIONS && (
+                  <li
+                    style={{
+                      padding: '8px 12px',
+                      color: 'var(--muted)',
+                      fontSize: 11,
+                      textAlign: 'center',
+                      background: 'var(--surface-soft)',
+                      borderRadius: 6,
+                      marginTop: 4,
+                      listStyle: 'none',
+                    }}
+                  >
+                    Yana {filteredOptions.length - MAX_VISIBLE_OPTIONS} ta natija bor. Qidiruvdan foydalaning.
                   </li>
-                )
-              })
+                )}
+              </>
             )}
           </ul>
         </div>

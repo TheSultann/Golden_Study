@@ -1,15 +1,36 @@
-import type { Group } from '@golden-study/contracts'
-import { CalendarDays, Clock3, MapPin, Plus, Search, Send, UsersRound, X } from 'lucide-react'
+import type { Group, Student } from '@golden-study/contracts'
+import {
+  CalendarCheck,
+  CalendarDays,
+  Clock3,
+  MapPin,
+  Pencil,
+  Plus,
+  Search,
+  Send,
+  UserMinus,
+  UsersRound,
+  X,
+} from 'lucide-react'
 import { type FormEvent, type KeyboardEvent, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCourses } from '../features/courses/useCourses'
-import { useGroups, useSaveGroup, useSetGroupActive } from '../features/groups/useGroups'
+import {
+  useAddGroupStudent,
+  useGroupStudents,
+  useGroups,
+  useRemoveGroupStudent,
+  useSaveGroup,
+  useSetGroupActive,
+} from '../features/groups/useGroups'
 import { TelegramGroupConnectModal } from '../features/groups/TelegramGroupConnectModal'
 import { useRooms } from '../features/rooms/useRooms'
 import { useTeachers } from '../features/teachers/useTeachers'
+import { useStudents } from '../features/students/useStudents'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
 import { DateInput, displayToIsoDate } from '../shared/ui/DateInput'
 import { Pagination } from '../shared/ui/Pagination'
+import { Select, type SelectOption } from '../shared/ui/Select'
 import { formatApiError } from '../shared/api/errorTranslation'
 
 const emptyGroups: Group[] = []
@@ -39,6 +60,7 @@ function GroupForm({ group, pending, errorMessage, close, save }: GroupFormProps
   const teachersQuery = useTeachers()
   const coursesQuery = useCourses()
   const roomsQuery = useRooms()
+
   const [selectedTeacher, setSelectedTeacher] = useState(group?.teacher ?? '')
   const [selectedCourse, setSelectedCourse] = useState(group?.course ?? '')
 
@@ -87,6 +109,15 @@ function GroupForm({ group, pending, errorMessage, close, save }: GroupFormProps
           <div><h2 id="group-form-title">{group ? 'Guruhni tahrirlash' : 'Guruh qo‘shish'}</h2><p>Jadval va bog‘lanishlarni kiriting</p></div>
           <button type="button" onClick={close} aria-label="Yopish" disabled={pending}><X size={18} /></button>
         </header>
+
+        {group ? (
+          <div style={{ padding: '8px 18px 10px', display: 'flex', alignItems: 'center', borderBottom: '1px solid var(--border)', background: 'var(--surface-soft)' }}>
+            <span className={`status-badge ${group.active ? 'status-active' : 'status-finished'}`}>
+              {group.active ? 'Faol guruh' : 'Yakunlangan'}
+            </span>
+          </div>
+        ) : null}
+
         <form onSubmit={submit}>
           <div className="form-grid">
             <label className="group-name-field">Nomi<input name="name" required defaultValue={group?.name} /></label>
@@ -143,7 +174,369 @@ function GroupForm({ group, pending, errorMessage, close, save }: GroupFormProps
   )
 }
 
+type AddStudentToGroupModalProps = {
+  group: Group
+  currentStudents: Student[]
+  close: () => void
+}
+
+function AddStudentToGroupModal({ group, currentStudents, close }: AddStudentToGroupModalProps) {
+  const studentsQuery = useStudents()
+  const addMutation = useAddGroupStudent()
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+
+  const availableStudents = useMemo(() => {
+    const raw = studentsQuery.data ?? []
+    return raw.filter(
+      (s) => s.status === 'active' && !currentStudents.some((cs) => cs.id === s.id),
+    )
+  }, [studentsQuery.data, currentStudents])
+
+  const studentOptions = useMemo<SelectOption[]>(() => {
+    return availableStudents.map((s) => ({
+      value: s.id,
+      label: `${s.firstName} ${s.lastName} (${s.code})${s.phone ? ` — ${s.phone}` : ''}`,
+    }))
+  }, [availableStudents])
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!selectedStudentId) return
+    try {
+      await addMutation.mutateAsync({ groupId: group.id, studentId: selectedStudentId })
+      close()
+    } catch {
+      // Handled by mutation error
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+      <section
+        className="teacher-modal add-student-modal"
+        style={{ width: 'min(100%, 480px)' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-student-title"
+      >
+        <header>
+          <div>
+            <h2 id="add-student-title">Guruhga o‘quvchi qo‘shish</h2>
+            <p>“{group.name}” guruhiga o‘quvchini biriktirish</p>
+          </div>
+          <button type="button" onClick={close} aria-label="Yopish" disabled={addMutation.isPending}>
+            <X size={18} />
+          </button>
+        </header>
+
+        <form onSubmit={submit}>
+          <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 500 }}>
+              O‘quvchini tanlang
+              <Select
+                id="add-student-select"
+                aria-label="O‘quvchini tanlang"
+                value={selectedStudentId}
+                onChange={setSelectedStudentId}
+                options={studentOptions}
+                placeholder={
+                  studentsQuery.isPending
+                    ? 'O‘quvchilar yuklanmoqda...'
+                    : availableStudents.length === 0
+                    ? 'Mavjud faol o‘quvchilar topilmadi'
+                    : 'O‘quvchini tanlang'
+                }
+                disabled={addMutation.isPending || studentsQuery.isPending || availableStudents.length === 0}
+                searchable
+              />
+            </label>
+
+            {availableStudents.length === 0 && !studentsQuery.isPending ? (
+              <small style={{ color: 'var(--muted)', fontSize: 11 }}>
+                Barcha faol o‘quvchilar ushbu guruhga qo‘shilgan yoki faol o‘quvchi mavjud emas.
+              </small>
+            ) : null}
+
+            {addMutation.error ? (
+              <p className="form-error" role="alert">
+                {formatApiError(addMutation.error, 'O‘quvchini guruhga qo‘shib bo‘lmadi.')}
+              </p>
+            ) : null}
+          </div>
+
+          <footer>
+            <button type="button" className="secondary-button" onClick={close} disabled={addMutation.isPending}>
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={!selectedStudentId || addMutation.isPending}
+            >
+              {addMutation.isPending ? 'Qo‘shilmoqda...' : 'Guruhga qo‘shish'}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  )
+}
+
+type GroupDetailModalProps = {
+  group: Group
+  close: () => void
+  onEdit: () => void
+  onTakeAttendance: () => void
+}
+
+function GroupDetailModal({ group, close, onEdit, onTakeAttendance }: GroupDetailModalProps) {
+  const studentsQuery = useGroupStudents(group.id)
+  const removeStudentMutation = useRemoveGroupStudent()
+  const [studentSearch, setStudentSearch] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [studentToRemove, setStudentToRemove] = useState<Student | null>(null)
+
+  const students = useMemo(() => studentsQuery.data ?? [], [studentsQuery.data])
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase()
+    if (!q) return students
+    return students.filter(
+      (s) =>
+        s.firstName.toLowerCase().includes(q) ||
+        s.lastName.toLowerCase().includes(q) ||
+        s.code.toLowerCase().includes(q) ||
+        s.phone.includes(q),
+    )
+  }, [students, studentSearch])
+
+  async function handleRemove(studentId: string) {
+    try {
+      await removeStudentMutation.mutateAsync({ groupId: group.id, studentId })
+      setStudentToRemove(null)
+    } catch {
+      // error handled by mutation
+    }
+  }
+
+  return (
+    <div className="modal-backdrop">
+      <section
+        className="teacher-modal group-detail-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-detail-title"
+      >
+        <header>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2 id="group-detail-title" style={{ margin: 0 }}>{group.name}</h2>
+              <span className={`status-badge ${group.active ? 'status-active' : 'status-finished'}`}>
+                {group.active ? 'Faol' : 'Yakunlangan'}
+              </span>
+            </div>
+            <p>{group.course} • {group.teacher}</p>
+          </div>
+          <button type="button" onClick={close} aria-label="Yopish">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="group-detail-actions">
+          <button
+            type="button"
+            className="take-attendance-btn"
+            onClick={onTakeAttendance}
+            title="Guruh uchun davomat olish sahifasiga o‘tish"
+          >
+            <CalendarCheck size={16} />
+            <span>Davomat olish</span>
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              type="button"
+              className="secondary-button"
+              style={{ height: 38, padding: '0 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onClick={onEdit}
+            >
+              <Pencil size={15} />
+              <span>Guruhni tahrirlash</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="group-detail-modal-body">
+          <div className="group-detail-grid">
+            <div className="group-detail-pill">
+              <span>Kurs</span>
+              <strong title={group.course}>{group.course}</strong>
+            </div>
+            <div className="group-detail-pill">
+              <span>O‘qituvchi</span>
+              <strong title={group.teacher}>{group.teacher}</strong>
+            </div>
+            <div className="group-detail-pill">
+              <span>Dars vaqti</span>
+              <strong>{group.weekdays.join(', ')} ({group.time})</strong>
+            </div>
+            <div className="group-detail-pill">
+              <span>Auditoriya</span>
+              <strong>{group.room}</strong>
+            </div>
+          </div>
+
+          <div className="group-students-section">
+            <div className="group-students-header">
+              <div>
+                <h3 style={{ margin: 0, fontSize: 14 }}>
+                  Guruh o‘quvchilari ({students.length} ta)
+                </h3>
+              </div>
+              {students.length > 0 ? (
+                <div className="group-students-toolbar">
+                  <div className="group-students-search">
+                    <Search size={14} style={{ color: 'var(--muted)' }} />
+                    <input
+                      type="text"
+                      placeholder="Qidirish..."
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    style={{ height: 34, padding: '0 12px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                    onClick={() => setShowAddModal(true)}
+                  >
+                    <Plus size={14} />
+                    <span>O‘quvchi qo‘shish</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+
+            {studentsQuery.isPending ? (
+              <div className="dashboard-state" style={{ minHeight: 120 }}>O‘quvchilar yuklanmoqda...</div>
+            ) : null}
+
+            {studentsQuery.isError ? (
+              <div className="dashboard-state dashboard-error" style={{ minHeight: 120 }}>
+                O‘quvchilarni yuklab bo‘lmadi
+              </div>
+            ) : null}
+
+            {!studentsQuery.isPending && !studentsQuery.isError && students.length === 0 ? (
+              <div className="empty-state group-empty-card" style={{ padding: '24px 16px' }}>
+                <UsersRound size={28} strokeWidth={1.5} style={{ color: 'var(--muted)', marginBottom: 6, opacity: 0.7 }} />
+                <p style={{ margin: '0 0 4px 0', color: 'var(--text)', fontSize: 13, fontWeight: 500 }}>
+                  Guruhda hali o‘quvchilar yo‘q
+                </p>
+                <p style={{ margin: '0 0 12px 0', color: 'var(--muted)', fontSize: 11 }}>
+                  Guruhga birinchi o‘quvchini biriktirish uchun tugmani bosing
+                </p>
+                <button
+                  type="button"
+                  className="primary-button"
+                  style={{ height: 34, padding: '0 14px', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <Plus size={14} />
+                  <span>O‘quvchi qo‘shish</span>
+                </button>
+              </div>
+            ) : null}
+
+            {!studentsQuery.isPending && !studentsQuery.isError && students.length > 0 && filteredStudents.length === 0 ? (
+              <div className="empty-state" style={{ padding: '20px 16px' }}>
+                Mos o‘quvchilar topilmadi
+              </div>
+            ) : null}
+
+            {filteredStudents.length > 0 ? (
+              <div className="table-scroll" style={{ maxHeight: 320 }}>
+                <table className="group-students-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 36, textAlign: 'center' }}>№</th>
+                      <th>O‘quvchi</th>
+                      <th>Telefon</th>
+                      <th>Holat</th>
+                      <th style={{ width: 100, textAlign: 'center' }}>Amallar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredStudents.map((student, idx) => (
+                      <tr key={student.id}>
+                        <td style={{ textAlign: 'center', color: 'var(--muted)' }}>{idx + 1}</td>
+                        <td>
+                          <strong>{student.firstName} {student.lastName}</strong>
+                          <small style={{ display: 'block', color: 'var(--muted)', fontSize: 11 }}>{student.code}</small>
+                        </td>
+                        <td>{student.phone || '—'}</td>
+                        <td>
+                          <span className={`status-badge status-${student.status === 'active' ? 'active' : 'finished'}`}>
+                            {student.status === 'active' ? 'Faol' : student.status === 'frozen' ? 'Muzlatilgan' : 'Bitirgan'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="student-remove-btn"
+                            title="Guruhdan chiqarish"
+                            aria-label={`${student.firstName}ni guruhdan chiqarish`}
+                            onClick={() => setStudentToRemove(student)}
+                            disabled={removeStudentMutation.isPending}
+                          >
+                            <UserMinus size={13} />
+                            <span>Chiqarish</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <footer>
+          <button type="button" className="secondary-button" onClick={close}>
+            Yopish
+          </button>
+        </footer>
+      </section>
+
+      {studentToRemove ? (
+        <ConfirmDialog
+          title="O‘quvchini guruhdan chiqarish"
+          description={`Haqiqatan ham “${studentToRemove.firstName} ${studentToRemove.lastName}” o‘quvchisini “${group.name}” guruhidan chiqarmoqchimisiz?`}
+          confirmLabel="Guruhdan chiqarish"
+          cancelLabel="Bekor qilish"
+          variant="danger"
+          pending={removeStudentMutation.isPending}
+          errorMessage={removeStudentMutation.error ? formatApiError(removeStudentMutation.error, 'O‘quvchini guruhdan chiqarib bo‘lmadi.') : null}
+          onCancel={() => {
+            setStudentToRemove(null)
+            removeStudentMutation.reset()
+          }}
+          onConfirm={() => void handleRemove(studentToRemove.id)}
+        />
+      ) : null}
+
+      {showAddModal ? (
+        <AddStudentToGroupModal
+          group={group}
+          currentStudents={students}
+          close={() => setShowAddModal(false)}
+        />
+      ) : null}
+    </div>
+  )
+}
+
 export function GroupsPage() {
+  const navigate = useNavigate()
   const query = useGroups()
   const saveMutation = useSaveGroup()
   const activeMutation = useSetGroupActive()
@@ -153,6 +546,7 @@ export function GroupsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState('active')
   const [editing, setEditing] = useState<Group | 'new' | null>(() => searchParams.get('action') === 'new' ? 'new' : null)
+  const [selectedGroupForDetail, setSelectedGroupForDetail] = useState<Group | null>(null)
   const [pendingStatus, setPendingStatus] = useState<Group | null>(null)
   const [connectingTelegramGroup, setConnectingTelegramGroup] = useState<Group | null>(null)
 
@@ -202,7 +596,7 @@ export function GroupsPage() {
   function openFromKeyboard(event: KeyboardEvent<HTMLTableRowElement>, group: Group) {
     if (event.target !== event.currentTarget || !['Enter', ' '].includes(event.key)) return
     event.preventDefault()
-    setEditing(group)
+    setSelectedGroupForDetail(group)
   }
 
   return (
@@ -232,8 +626,8 @@ export function GroupsPage() {
                 <tr
                   key={group.id}
                   tabIndex={0}
-                  aria-label={`${group.name} guruhini tahrirlash`}
-                  onClick={() => setEditing(group)}
+                  aria-label={`${group.name} guruhi`}
+                  onClick={() => setSelectedGroupForDetail(group)}
                   onKeyDown={(event) => openFromKeyboard(event, group)}
                 >
                   <td data-label="Guruh"><strong>{group.name}</strong><small className={`status-badge ${group.active ? 'status-active' : 'status-finished'}`}>{group.active ? 'Faol' : 'Yakunlangan'}</small></td>
@@ -298,7 +692,45 @@ export function GroupsPage() {
 
 
                   <td data-label="Amallar">
-                    <div className="group-actions">
+                    <div className="group-actions" style={{ gap: 6 }}>
+                      <button
+                        type="button"
+                        className="group-status-button"
+                        aria-label={`${group.name} o‘quvchilar ro‘yxati`}
+                        title="O‘quvchilar ro‘yxatini ko‘rish"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setSelectedGroupForDetail(group)
+                        }}
+                      >
+                        O‘quvchilar
+                      </button>
+                      <button
+                        type="button"
+                        className="group-status-button"
+                        aria-label={`${group.name} guruhiga davomat olish`}
+                        title="Davomat olish"
+                        style={{ color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          const todayIso = new Date().toLocaleDateString('en-CA')
+                          navigate(`/attendance?group=${group.id}&date=${todayIso}&view=daily`)
+                        }}
+                      >
+                        Davomat
+                      </button>
+                      <button
+                        type="button"
+                        className="group-status-button"
+                        aria-label={`${group.name} guruhini tahrirlash`}
+                        title="Tahrirlash"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          setEditing(group)
+                        }}
+                      >
+                        Tahrirlash
+                      </button>
                       <button
                         type="button"
                         className="group-status-button"
@@ -317,6 +749,22 @@ export function GroupsPage() {
         </div>
         <Pagination page={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div> : null}
+
+      {selectedGroupForDetail ? (
+        <GroupDetailModal
+          group={query.data?.find((g) => g.id === selectedGroupForDetail.id) ?? selectedGroupForDetail}
+          close={() => setSelectedGroupForDetail(null)}
+          onEdit={() => {
+            const grp = selectedGroupForDetail
+            setSelectedGroupForDetail(null)
+            setEditing(grp)
+          }}
+          onTakeAttendance={() => {
+            const todayIso = new Date().toLocaleDateString('en-CA')
+            navigate(`/attendance?group=${selectedGroupForDetail.id}&date=${todayIso}&view=daily`)
+          }}
+        />
+      ) : null}
 
       {editing ? (
         <GroupForm

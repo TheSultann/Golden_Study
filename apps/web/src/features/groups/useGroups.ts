@@ -36,4 +36,46 @@ export function useUnlinkGroupTelegram() {
   })
 }
 
+export function useGroupStudents(groupId: string) {
+  return useQuery({
+    queryKey: ['group-students', groupId],
+    queryFn: () => groupRepository.listStudents(groupId),
+    enabled: Boolean(groupId),
+  })
+}
+
+export function useAddGroupStudent() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, studentId }: { groupId: string; studentId: string }) =>
+      groupRepository.addStudent(groupId, studentId),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['group-students', variables.groupId] }),
+        client.invalidateQueries({ queryKey: key }),
+        client.invalidateQueries({ queryKey: ['students'] }),
+        client.invalidateQueries({ queryKey: ['attendance'] }),
+        client.invalidateQueries({ queryKey: ['attendance-monthly'] }),
+      ])
+    },
+  })
+}
+
+export function useRemoveGroupStudent() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, studentId }: { groupId: string; studentId: string }) =>
+      groupRepository.removeStudent(groupId, studentId),
+    onSuccess: async (_, variables) => {
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['group-students', variables.groupId] }),
+        client.invalidateQueries({ queryKey: key }),
+        client.invalidateQueries({ queryKey: ['students'] }),
+        client.invalidateQueries({ queryKey: ['attendance'] }),
+        client.invalidateQueries({ queryKey: ['attendance-monthly'] }),
+      ])
+    },
+  })
+}
+
 

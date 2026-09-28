@@ -52,7 +52,7 @@ function cleanDate(raw: string | undefined | null): string | null {
   return null
 }
 
-function toFrontendStudent(apiStudent: StudentApi): Student {
+export function toFrontendStudent(apiStudent: StudentApi): Student {
   const statusMap: Record<StudentApi['status'], Student['status']> = {
     ACTIVE: 'active',
     FROZEN: 'frozen',
@@ -65,14 +65,14 @@ function toFrontendStudent(apiStudent: StudentApi): Student {
     code: apiStudent.studentCode,
     firstName: apiStudent.firstName,
     lastName: apiStudent.lastName,
-    birthDate: apiStudent.birthDate ?? '',
+    birthDate: cleanDate(apiStudent.birthDate) ?? '',
     phone: apiStudent.phone ?? '',
     parentName: apiStudent.parentName ?? '',
     parentPhone: apiStudent.parentPhone ?? '',
     address: apiStudent.address ?? '',
-    status: statusMap[apiStudent.status],
+    status: statusMap[apiStudent.status] ?? 'active',
     balance: 0,
-    groups: apiStudent.activeGroups.map((g) => g.name),
+    groups: apiStudent.activeGroups ? apiStudent.activeGroups.map((g) => g.name) : [],
   }
 }
 

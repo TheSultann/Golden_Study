@@ -44,6 +44,19 @@ export function createAttendanceRouter(
       successResponse(await service.getSession(groupId, date, request.user!)),
     );
   });
+  router.get('/group/:groupId/month/:month', async (request, response) => {
+    const { groupId, month } = z
+      .object({
+        groupId: z.string().uuid(),
+        month: z.string().regex(/^\d{4}-\d{2}$/),
+      })
+      .parse(request.params);
+    response.json(
+      successResponse(
+        await service.getMonthlySheet(groupId, month, request.user!),
+      ),
+    );
+  });
   router.post('/group/:groupId/broadcast', async (request, response) => {
     const { groupId } = groupIdParamSchema.parse(request.params);
     const bodyObj = typeof request.body === 'object' && request.body !== null ? request.body : {};

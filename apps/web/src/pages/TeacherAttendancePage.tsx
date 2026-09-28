@@ -1,5 +1,5 @@
 import type { AttendanceRow, TeacherAttendanceGroup } from '@golden-study/contracts';
-import { BookOpen, FileText, LockKeyhole, Save, Send } from 'lucide-react';
+import { BookOpen, CheckCheck, FileText, LockKeyhole, Save, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -19,6 +19,7 @@ import {
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 import { DateInput } from '../shared/ui/DateInput';
 import { Select } from '../shared/ui/Select';
+import { useUnsavedChanges } from '../shared/context/UnsavedChangesContext';
 
 const statuses = {
   came: 'Keldi',
@@ -128,9 +129,16 @@ export function TeacherAttendancePage() {
   const isDirty = query.data
     ? (JSON.stringify(rows) !== JSON.stringify(query.data.rows.map(normalizeAttendanceRow)) || isLessonPlanChanged)
     : false;
+  useUnsavedChanges(isDirty);
 
   function applyFilter(next: { groupId: string; date: string }) {
     setPendingFilter(null);
+    if (query.data) {
+      setRows(query.data.rows.map(normalizeAttendanceRow));
+      const parsed = parseLessonPlan(query.data.homeworkText || '');
+      setLessonTitle(query.data.lessonTitle || query.data.topic || parsed.topic);
+      setHomeworkText(parsed.topic ? parsed.homeworkText : (query.data.homeworkText || ''));
+    }
     try {
       localStorage.setItem('golden_study_teacher_group_id', next.groupId);
       localStorage.setItem('golden_study_teacher_date', next.date);
@@ -275,15 +283,6 @@ export function TeacherAttendancePage() {
                 Belgilanmagan: {rows.filter((row) => (row.status as string) === 'unmarked').length}
               </span>
             ) : null}
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleMarkAllCame}
-              style={{ height: 26, fontSize: 11, padding: '0 8px', marginLeft: 4 }}
-              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
-            >
-              Barchasi keldi
-            </button>
           </div>
 
           <div className="attendance-lesson-bar" aria-label="Dars rejasi">
@@ -457,14 +456,26 @@ export function TeacherAttendancePage() {
             </table>
           </div>
           <div className="attendance-actions">
+            <button
+              type="button"
+              className="secondary-button attendance-mark-all-btn"
+              onClick={handleMarkAllCame}
+              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
+            >
+              <CheckCheck size={15} />
+              <span>Barchasi keldi</span>
+            </button>
+
             {showSuccess && <span className="save-success-badge">Muvaffaqiyatli saqlandi!</span>}
-            {isDirty && !showSuccess && <span className="unsaved-badge">Saqlanmagan o‘zgarishlar mavjud</span>}
+            {isDirty && !showSuccess && <span className="unsaved-changes-badge">Saqlanmagan o‘zgarishlar mavjud</span>}
             {rows.filter((x) => (x.status as string) === 'unmarked').length > 0 && (
               <span className="unsaved-badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
                 {rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchi belgilanmagan
               </span>
             )}
             {save.isError ? <span className="save-error-badge" role="alert">Davomat saqlanmadi. Qayta urinib ko‘ring.</span> : null}
+
+            <div className="attendance-savebar-spacer" />
 
             <button
               type="button"

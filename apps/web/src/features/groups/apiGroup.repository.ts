@@ -4,15 +4,26 @@ import {
   paginationMetaSchema,
   teacherApiSchema,
   roomApiSchema,
+  studentApiSchema,
   type Group,
   type GroupApi,
+  type Student,
 } from '@golden-study/contracts'
 import { z } from 'zod'
 
-
-import { apiRequest } from '../../shared/api/httpClient'
+import { apiRequest, apiRequestVoid } from '../../shared/api/httpClient'
+import { toFrontendStudent } from '../students/apiStudent.repository'
 
 import type { GroupRepository } from './group.repository'
+
+function isUuid(str: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str)
+}
+
+const groupStudentListApiResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.array(studentApiSchema),
+})
 
 const groupListApiResponseSchema = z.object({
   success: z.literal(true),
@@ -248,6 +259,39 @@ export class ApiGroupRepository implements GroupRepository {
       groupApiResponseSchema,
     )
     return toFrontendGroup(response.data)
+  }
+
+  async listStudents(groupId: string): Promise<Student[]> {
+    if (!isUuid(groupId)) {
+      return []
+    }
+    const response = await apiRequest(
+      `/groups/${groupId}/students`,
+      { method: 'GET' },
+      groupStudentListApiResponseSchema,
+    )
+    return response.data.map(toFrontendStudent)
+  }
+
+  async addStudent(groupId: string, studentId: string): Promise<void> {
+    await apiRequest(
+      `/groups/${groupId}/students`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ studentId }),
+      },
+      z.object({
+        success: z.literal(true),
+        data: z.unknown(),
+      }),
+    )
+  }
+
+  async removeStudent(groupId: string, studentId: string): Promise<void> {
+    await apiRequestVoid(
+      `/groups/${groupId}/students/${studentId}`,
+      { method: 'DELETE' },
+    )
   }
 }
 

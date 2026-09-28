@@ -1,10 +1,12 @@
 import { Search, Trophy, TrendingUp, UsersRound } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTeacherRating } from '../features/teacher-rating/useTeacherRating'
+import { useGroups } from '../features/groups/useGroups'
 import { CopyCodeButton } from '../shared/ui/CopyCodeButton'
 
 export function RatingPage() {
   const teacherRatingQuery = useTeacherRating()
+  const groupsQuery = useGroups()
   const [group, setGroup] = useState('all')
   const [search, setSearch] = useState('')
 
@@ -12,9 +14,16 @@ export function RatingPage() {
 
   const groups = useMemo(() => {
     const set = new Set<string>()
-    rating.forEach((row) => { if (row.groupName && row.groupName !== '—') set.add(row.groupName) })
+    if (groupsQuery.data) {
+      groupsQuery.data.forEach((item) => {
+        if (item.name) set.add(item.name)
+      })
+    }
+    rating.forEach((row) => {
+      if (row.groupName && row.groupName !== '—') set.add(row.groupName)
+    })
     return Array.from(set).sort()
-  }, [rating])
+  }, [groupsQuery.data, rating])
 
   const filtered = useMemo(() => rating.filter((row) => {
     const query = search.toLowerCase()
@@ -56,7 +65,28 @@ export function RatingPage() {
         <div className="table-scroll">
           <table aria-label="O'quvchilar reytingi">
             <thead><tr><th>Joy</th><th>O'quvchi</th><th>Guruh</th><th>Imtihon</th><th>Davomat</th><th>Uy vazifasi</th><th>Baho</th><th>Ball</th></tr></thead>
-            <tbody>{filtered.map((row, index) => <tr key={row.studentId} className={index === 0 ? 'place-1' : ''}><td data-label="Joy"><strong>#{index + 1}</strong></td><td data-label="O'quvchi"><div className="student-identity-cell"><strong>{row.studentName}</strong><CopyCodeButton code={row.studentCode} /></div></td><td data-label="Guruh">{row.groupName}</td><td data-label="Imtihon">{row.averagePercent}%<small>{row.examsCount} imtihon</small></td><td data-label="Davomat">{row.attendanceRate}%</td><td data-label="Uy vazifasi">{row.homeworkRate}%</td><td data-label="Baho">{row.attendanceRating}%</td><td data-label="Ball"><b>{row.totalScore}</b></td></tr>)}</tbody>
+            <tbody>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="empty-cell text-center py-6 text-muted-foreground">
+                    O'quvchilar topilmadi
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((row, index) => (
+                  <tr key={row.studentId} className={index === 0 ? 'place-1' : ''}>
+                    <td data-label="Joy"><strong>#{index + 1}</strong></td>
+                    <td data-label="O'quvchi"><div className="student-identity-cell"><strong>{row.studentName}</strong><CopyCodeButton code={row.studentCode} /></div></td>
+                    <td data-label="Guruh">{row.groupName}</td>
+                    <td data-label="Imtihon">{row.averagePercent}%<small>{row.examsCount} imtihon</small></td>
+                    <td data-label="Davomat">{row.attendanceRate}%</td>
+                    <td data-label="Uy vazifasi">{row.homeworkRate}%</td>
+                    <td data-label="Baho">{row.attendanceRating}%</td>
+                    <td data-label="Ball"><b>{row.totalScore}</b></td>
+                  </tr>
+                ))
+              )}
+            </tbody>
           </table>
         </div>
       </section>

@@ -1,8 +1,13 @@
 import type { AttendanceRow, Group } from '@golden-study/contracts';
-import { BookOpen, FileText, Save, Send } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { BookOpen, CalendarCheck, CheckCheck, ChevronLeft, ChevronRight, FileText, Save, Send } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useAttendance, useBroadcastAttendance, useSaveAttendance } from '../features/attendance/useAttendance';
+import {
+  useAttendance,
+  useBroadcastAttendance,
+  useMonthlyAttendance,
+  useSaveAttendance,
+} from '../features/attendance/useAttendance';
 import { LessonBroadcastModal } from '../features/attendance/LessonBroadcastModal';
 import {
   calculateAttendanceAverage,
@@ -14,6 +19,7 @@ import {
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 import { DateInput } from '../shared/ui/DateInput';
 import { Select } from '../shared/ui/Select';
+import { useUnsavedChanges } from '../shared/context/UnsavedChangesContext';
 
 import { useGroups } from '../features/groups/useGroups';
 
@@ -29,8 +35,13 @@ export function AttendancePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: groups = EMPTY_GROUPS } = useGroups();
 
+  const todayIso = new Date().toLocaleDateString('en-CA');
+  const todayMonth = todayIso.slice(0, 7);
+
   const urlGroup = searchParams.get('group');
   const urlDate = searchParams.get('date');
+  const urlView = searchParams.get('view');
+  const urlMonth = searchParams.get('month');
 
   const storedGroup = (() => {
     try {
@@ -48,8 +59,6 @@ export function AttendancePage() {
     }
   })();
 
-  const todayIso = new Date().toLocaleDateString('en-CA');
-
   const groupId =
     (urlGroup && groups.some((g) => g.id === urlGroup) && urlGroup) ||
     (storedGroup && groups.some((g) => g.id === storedGroup) && storedGroup) ||
@@ -61,6 +70,17 @@ export function AttendancePage() {
     (storedDate && /^\d{4}-\d{2}-\d{2}$/.test(storedDate) && storedDate) ||
     todayIso;
 
+  const viewMode: 'daily' | 'monthly' =
+    urlView === 'monthly'
+      ? 'monthly'
+      : urlView === 'daily'
+      ? 'daily'
+      : urlMonth && !urlDate
+      ? 'monthly'
+      : 'daily';
+  const selectedMonth = (urlMonth && /^\d{4}-\d{2}$/.test(urlMonth) && urlMonth) || date.slice(0, 7) || todayMonth;
+  const [onlyLessonDays, setOnlyLessonDays] = useState(true);
+
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [lessonTitle, setLessonTitle] = useState('');
   const [homeworkText, setHomeworkText] = useState('');
@@ -68,7 +88,7 @@ export function AttendancePage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [showUnmarkedConfirm, setShowUnmarkedConfirm] = useState(false);
-  const [pendingFilter, setPendingFilter] = useState<{ groupId: string; date: string } | null>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<{ groupId?: string; date?: string; view?: 'daily' | 'monthly' } | null>(null);
 
   useEffect(() => {
     if (groups.length === 0) return;
@@ -94,6 +114,61 @@ export function AttendancePage() {
       );
     }
   }, [groups, searchParams, setSearchParams, groupId, date]);
+
+  const monthlyQ = useMonthlyAttendance(groupId, selectedMonth);
+
+  function handleMonthChange(nextMonth: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('month', nextMonth);
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  function goToPrevMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const prevDate = new Date(Date.UTC(y, m - 2, 1));
+    const nextMonthStr = `${prevDate.getUTCFullYear()}-${String(prevDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    handleMonthChange(nextMonthStr);
+  }
+
+  function goToNextMonth() {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const nextDate = new Date(Date.UTC(y, m, 1));
+    const nextMonthStr = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}`;
+    handleMonthChange(nextMonthStr);
+  }
+
+  function handleViewChange(targetView: 'daily' | 'monthly', targetDate?: string) {
+    if (isDirty && viewMode === 'daily') {
+      setPendingNavigation({
+        view: targetView,
+        date: targetDate,
+      });
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('view', targetView);
+        if (targetView === 'daily' && targetDate) {
+          next.set('date', targetDate);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  const monthlyDays = useMemo(() => {
+    if (!monthlyQ.data) return [];
+    if (!onlyLessonDays) return monthlyQ.data.days;
+    const lessonDays = monthlyQ.data.days.filter((d) => d.hasLesson);
+    return lessonDays.length > 0 ? lessonDays : monthlyQ.data.days;
+  }, [monthlyQ.data, onlyLessonDays]);
 
   const q = useAttendance(groupId, date);
   const save = useSaveAttendance();
@@ -128,9 +203,39 @@ export function AttendancePage() {
     return count + (JSON.stringify(current) === JSON.stringify(normalizedOriginal) ? 0 : 1);
   }, 0) ?? 0) + (isLessonPlanChanged ? 1 : 0);
   const isDirty = changedCount > 0;
+  useUnsavedChanges(viewMode === 'daily' && isDirty);
+
+  function discardAndProceed(pending: { groupId?: string; date?: string; view?: 'daily' | 'monthly' }) {
+    setPendingNavigation(null);
+    if (q.data) {
+      setRows(q.data.rows.map(normalizeAttendanceRow));
+      const parsed = parseLessonPlan(q.data.homeworkText || '');
+      setLessonTitle(q.data.lessonTitle || q.data.topic || parsed.topic);
+      setHomeworkText(parsed.topic ? parsed.homeworkText : (q.data.homeworkText || ''));
+    }
+    if (pending.groupId) {
+      try {
+        localStorage.setItem('golden_study_selected_group_id', pending.groupId);
+      } catch {}
+    }
+    if (pending.date) {
+      try {
+        localStorage.setItem('golden_study_selected_date', pending.date);
+      } catch {}
+    }
+    setSearchParams(
+      (prev) => {
+        const nextParams = new URLSearchParams(prev);
+        if (pending.groupId) nextParams.set('group', pending.groupId);
+        if (pending.date) nextParams.set('date', pending.date);
+        if (pending.view) nextParams.set('view', pending.view);
+        return nextParams;
+      },
+      { replace: true },
+    );
+  }
 
   function applyFilter(next: { groupId: string; date: string }) {
-    setPendingFilter(null);
     try {
       localStorage.setItem('golden_study_selected_group_id', next.groupId);
       localStorage.setItem('golden_study_selected_date', next.date);
@@ -148,7 +253,7 @@ export function AttendancePage() {
 
   function requestFilterChange(next: { groupId: string; date: string }) {
     if (isDirty) {
-      setPendingFilter(next);
+      setPendingNavigation(next);
       return;
     }
     applyFilter(next);
@@ -239,6 +344,27 @@ export function AttendancePage() {
         </div>
       </div>
       <div className="attendance-toolbar">
+        <div className="attendance-view-toggle" role="tablist" aria-label="Davomat ko‘rinishi">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'daily'}
+            className={viewMode === 'daily' ? 'active' : ''}
+            onClick={() => handleViewChange('daily')}
+          >
+            Kunlik jurnal
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={viewMode === 'monthly'}
+            className={viewMode === 'monthly' ? 'active' : ''}
+            onClick={() => handleViewChange('monthly')}
+          >
+            Oylik tabel
+          </button>
+        </div>
+
         <div className="attendance-filters">
           <label>Guruh
             <Select
@@ -252,11 +378,51 @@ export function AttendancePage() {
             />
           </label>
 
-          <label>Sana
-            <DateInput aria-label="Sana" value={date} onChange={(nextDate) => nextDate && requestFilterChange({ groupId, date: nextDate })} />
-          </label>
+          {viewMode === 'monthly' ? (
+            <div className="attendance-month-picker" aria-label="Oyni tanlash">
+              <button
+                type="button"
+                className="month-nav-btn"
+                onClick={goToPrevMonth}
+                title="Oldingi oy"
+                aria-label="Oldingi oy"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <input
+                type="month"
+                aria-label="Davomat oyi"
+                value={selectedMonth}
+                onChange={(e) => e.target.value && handleMonthChange(e.target.value)}
+              />
+              <button
+                type="button"
+                className="month-nav-btn"
+                onClick={goToNextMonth}
+                title="Keyingi oy"
+                aria-label="Keyingi oy"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                style={{ height: 38, padding: '0 14px', gap: 6 }}
+                onClick={() => handleViewChange('daily', todayIso)}
+                title="Bugungi kun davomatini olish"
+              >
+                <CalendarCheck size={15} />
+                <span>Davomat olish</span>
+              </button>
+            </div>
+          ) : (
+            <label>Sana
+              <DateInput aria-label="Sana" value={date} onChange={(nextDate) => nextDate && requestFilterChange({ groupId, date: nextDate })} />
+            </label>
+          )}
         </div>
-        {q.data ? (
+
+        {viewMode === 'daily' && q.data ? (
           <div className="attendance-overview" aria-label="Davomat xulosasi">
             <span>Jami: {rows.length}</span>
             <span className="came">Keldi: {rows.filter((x) => x.status === 'came').length}</span>
@@ -267,23 +433,140 @@ export function AttendancePage() {
                 Belgilanmagan: {rows.filter((x) => (x.status as string) === 'unmarked').length}
               </span>
             ) : null}
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleMarkAllCame}
-              style={{ height: 28, fontSize: 11, padding: '0 8px', marginLeft: 4 }}
-              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
-            >
-              Barchasi keldi
-            </button>
           </div>
         ) : null}
       </div>
 
-      {q.isPending ? <div className="dashboard-state">Davomat yuklanmoqda...</div> : null}
-      {q.isError ? <div className="dashboard-state dashboard-error">Davomat yuklanmadi</div> : null}
+      {viewMode === 'monthly' ? (
+        <div className="attendance-monthly-panel">
+          {monthlyQ.isPending ? <div className="dashboard-state">Oylik davomat yuklanmoqda...</div> : null}
+          {monthlyQ.isError ? <div className="dashboard-state dashboard-error">Oylik davomatni yuklab bo‘lmadi</div> : null}
+          {monthlyQ.data ? (
+            <>
+              <div className="monthly-summary-strip">
+                <div className="monthly-stats-badges">
+                  <span className="monthly-stat-pill">
+                    <strong>{monthlyQ.data.stats.totalStudents}</strong> ta o‘quvchi
+                  </span>
+                  <span className="monthly-stat-pill">
+                    <strong>{monthlyQ.data.stats.totalLessons}</strong> ta dars
+                  </span>
+                  <span className="monthly-stat-pill">
+                    O‘rtacha davomat: <strong>{monthlyQ.data.stats.averageAttendancePercentage}%</strong>
+                  </span>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    style={{ height: 28, fontSize: 12, padding: '0 10px', display: 'inline-flex', alignItems: 'center', gap: 5, borderRadius: 6 }}
+                    onClick={() => handleViewChange('daily', todayIso)}
+                    title="Bugungi kun davomatini olish"
+                  >
+                    <CalendarCheck size={13} />
+                    <span>Davomat olish</span>
+                  </button>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer', marginLeft: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={onlyLessonDays}
+                      onChange={(e) => setOnlyLessonDays(e.target.checked)}
+                      style={{ accentColor: 'var(--gold)' }}
+                    />
+                    Faqat dars kunlari
+                  </label>
+                </div>
+                <div className="monthly-legend">
+                  <span className="legend-item"><span className="legend-badge came">+</span> Keldi</span>
+                  <span className="legend-item"><span className="legend-badge excused">S</span> Sababli</span>
+                  <span className="legend-item"><span className="legend-badge absent">-</span> Sababsiz</span>
+                  <span className="legend-item"><span className="legend-badge unmarked">·</span> Belgilanmagan</span>
+                </div>
+              </div>
 
-      {q.data ? (
+              {monthlyQ.data.students.length === 0 ? (
+                <div className="empty-state">Ushbu guruhda o‘quvchilar mavjud emas</div>
+              ) : (
+                <div className="monthly-table-scroll">
+                  <table className="monthly-attendance-table" aria-label="Oylik davomat jadvali">
+                    <thead>
+                      <tr>
+                        <th className="sticky-col col-num">№</th>
+                        <th className="sticky-col col-name">O‘quvchi</th>
+                        {monthlyDays.map((d) => (
+                          <th
+                            key={d.date}
+                            className={`col-day ${d.hasLesson ? 'has-lesson' : ''}`}
+                            title={d.lessonTitle ? `${d.date} (${d.weekday}): ${d.lessonTitle}\nDavomat olish uchun bosing` : `${d.date} (${d.weekday}) — Davomat olish uchun bosing`}
+                            onClick={() => handleViewChange('daily', d.date)}
+                          >
+                            <span className="day-number">{d.dayNumber.toString().padStart(2, '0')}</span>
+                            <span className="day-weekday">{d.weekday}</span>
+                          </th>
+                        ))}
+                        <th className="col-stat stat-came" title="Keldi">Keldi</th>
+                        <th className="col-stat stat-excused" title="Sababli">Sababli</th>
+                        <th className="col-stat stat-absent" title="Sababsiz">Sababsiz</th>
+                        <th className="col-stat stat-pct" title="Davomat foizi">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyQ.data.students.map((student, idx) => (
+                        <tr key={student.studentId} role="presentation">
+                          <td className="sticky-col col-num">{idx + 1}</td>
+                          <td className="sticky-col col-name" title={`${student.studentName} (${student.studentCode})`}>
+                            <strong>{student.studentName} ({student.studentCode})</strong>
+                          </td>
+                          {monthlyDays.map((d) => {
+                            const att = student.days[d.date];
+                            if (!d.hasLesson && !att) {
+                              return (
+                                <td key={d.date} className="col-day-cell">
+                                  <span className="empty-dot">·</span>
+                                </td>
+                              );
+                            }
+                            const status = att?.status ?? 'unmarked';
+                            return (
+                              <td
+                                key={d.date}
+                                className="col-day-cell"
+                                onClick={() => handleViewChange('daily', d.date)}
+                                title={`${student.studentName} — ${d.date} (${statusLabels[status as keyof typeof statusLabels] || status})`}
+                              >
+                                {status === 'came' ? (
+                                  <span className="badge-came">+</span>
+                                ) : status === 'excused' ? (
+                                  <span className="badge-excused">S</span>
+                                ) : status === 'absent' ? (
+                                  <span className="badge-absent">-</span>
+                                ) : (
+                                  <span className="badge-unmarked">·</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                          <td className="col-stat stat-came" style={{ color: '#16a34a', fontWeight: 600 }}>{student.stats?.came ?? 0}</td>
+                          <td className="col-stat stat-excused" style={{ color: '#ca8a04', fontWeight: 500 }}>{student.stats?.excused ?? 0}</td>
+                          <td className="col-stat stat-absent" style={{ color: '#dc2626', fontWeight: 500 }}>{student.stats?.absent ?? 0}</td>
+                          <td className="col-stat stat-pct">
+                            <span className={`pct-badge ${(student.stats?.percentage ?? 0) >= 85 ? 'high' : (student.stats?.percentage ?? 0) >= 60 ? 'mid' : 'low'}`}>
+                              {student.stats?.percentage ?? 0}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
+      {viewMode === 'daily' && q.isPending ? <div className="dashboard-state">Davomat yuklanmoqda...</div> : null}
+      {viewMode === 'daily' && q.isError ? <div className="dashboard-state dashboard-error">Davomat yuklanmadi</div> : null}
+
+      {viewMode === 'daily' && q.data ? (
         <div className="panel attendance-register">
           <div className="attendance-lesson-bar" aria-label="Dars rejasi">
             <div className="attendance-lesson-item">
@@ -449,14 +732,30 @@ export function AttendancePage() {
             </table>
           </div>
           <div className="attendance-savebar" aria-live="polite">
+            <button
+              type="button"
+              className="secondary-button attendance-mark-all-btn"
+              onClick={handleMarkAllCame}
+              title="Barcha o‘quvchilarni 'Keldi' deb belgilash"
+            >
+              <CheckCheck size={15} />
+              <span>Barchasi keldi</span>
+            </button>
+
             {showSuccess && <span className="save-success-badge">Muvaffaqiyatli saqlandi!</span>}
-            {isDirty && !showSuccess && <span className="unsaved-badge">{changedCount} ta saqlanmagan o‘zgarish</span>}
+            {isDirty && !showSuccess && (
+              <span className="unsaved-changes-badge">
+                {changedCount} ta saqlanmagan o‘zgarish
+              </span>
+            )}
             {rows.filter((x) => (x.status as string) === 'unmarked').length > 0 && (
               <span className="unsaved-badge" style={{ background: '#fef3c7', color: '#92400e', borderColor: '#fde68a' }}>
                 {rows.filter((x) => (x.status as string) === 'unmarked').length} ta o‘quvchi belgilanmagan
               </span>
             )}
             {save.isError ? <span className="save-error-badge" role="alert">Davomat saqlanmadi. Qayta urinib ko‘ring.</span> : null}
+
+            <div className="attendance-savebar-spacer" />
 
             <button
               type="button"
@@ -481,13 +780,13 @@ export function AttendancePage() {
         </div>
       ) : null}
 
-      {pendingFilter ? (
+      {pendingNavigation ? (
         <ConfirmDialog
           title="O‘zgarishlar saqlanmagan"
-          description="Guruh yoki sanani almashtirsangiz, kiritilgan o‘zgarishlar yo‘qoladi."
+          description="Boshqa bo‘lim yoki sanaga o‘tsangiz, kiritilgan o‘zgarishlar yo‘qoladi."
           confirmLabel="O‘zgarishsiz davom etish"
-          onCancel={() => setPendingFilter(null)}
-          onConfirm={() => applyFilter(pendingFilter)}
+          onCancel={() => setPendingNavigation(null)}
+          onConfirm={() => discardAndProceed(pendingNavigation)}
         />
       ) : null}
 
