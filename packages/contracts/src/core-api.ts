@@ -255,6 +255,14 @@ export const studentListQuerySchema = paginationQuerySchema.extend({
     .default('createdAt'),
 })
 
+export const studentStatsSchema = z.object({
+  active: z.number().int().nonnegative(),
+  frozen: z.number().int().nonnegative(),
+  graduate: z.number().int().nonnegative(),
+  all: z.number().int().nonnegative(),
+})
+export type StudentStats = z.infer<typeof studentStatsSchema>
+
 export const studentApiSchema = z.object({
   id: z.string().uuid(),
   studentCode: z.string(),

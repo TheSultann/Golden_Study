@@ -353,6 +353,19 @@ describe('Students and memberships API', () => {
       }),
     ).toBe(0);
   });
+
+  it('returns student counts stats for admin', async () => {
+    const response = await auth(request(createApp()).get('/api/v1/students/stats'));
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toHaveProperty('active');
+    expect(response.body.data).toHaveProperty('frozen');
+    expect(response.body.data).toHaveProperty('graduate');
+    expect(response.body.data).toHaveProperty('all');
+    expect(response.body.data.all).toBe(
+      response.body.data.active + response.body.data.frozen + response.body.data.graduate,
+    );
+  });
 });
 
 function auth(test: request.Test): request.Test {

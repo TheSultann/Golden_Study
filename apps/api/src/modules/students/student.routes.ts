@@ -33,6 +33,9 @@ export function createStudentRouter(
     );
     response.json(paginatedResponse(result.data, result.meta));
   });
+  router.get('/stats', async (request, response) => {
+    response.json(successResponse(await service.getStats(request.user!)));
+  });
   router.post('/', canWriteStudent, async (request, response) => {
     response
       .status(201)

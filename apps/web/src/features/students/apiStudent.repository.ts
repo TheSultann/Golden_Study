@@ -2,8 +2,11 @@ import {
   paginationMetaSchema,
   studentApiSchema,
   groupApiSchema,
+  studentStatsSchema,
   type Student,
   type StudentApi,
+  type StudentStats,
+  type PaginationMeta,
 } from '@golden-study/contracts'
 import { z } from 'zod'
 
@@ -84,6 +87,46 @@ export class ApiStudentRepository implements StudentRepository {
       studentListApiResponseSchema,
     )
     return response.data.filter((item) => item.status !== 'ARCHIVED').map(toFrontendStudent)
+  }
+
+  async listPaginated(params: {
+    page: number
+    limit: number
+    status?: 'active' | 'frozen' | 'graduate' | 'all'
+    search?: string
+  }): Promise<{ data: Student[]; meta: PaginationMeta }> {
+    const searchParams = new URLSearchParams()
+    searchParams.set('page', String(params.page))
+    searchParams.set('limit', String(params.limit))
+    if (params.status && params.status !== 'all') {
+      const apiStatus = params.status === 'active' ? 'ACTIVE' : params.status === 'frozen' ? 'FROZEN' : 'GRADUATE'
+      searchParams.set('status', apiStatus)
+    }
+    if (params.search && params.search.trim()) {
+      searchParams.set('search', params.search.trim())
+    }
+
+    const response = await apiRequest(
+      `/students?${searchParams.toString()}`,
+      { method: 'GET' },
+      studentListApiResponseSchema,
+    )
+    return {
+      data: response.data.filter((item) => item.status !== 'ARCHIVED').map(toFrontendStudent),
+      meta: response.meta,
+    }
+  }
+
+  async getStats(): Promise<StudentStats> {
+    const response = await apiRequest(
+      '/students/stats',
+      { method: 'GET' },
+      z.object({
+        success: z.literal(true),
+        data: studentStatsSchema,
+      }),
+    )
+    return response.data
   }
 
   async save(student: Student): Promise<Student> {

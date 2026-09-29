@@ -16,10 +16,10 @@ import {
   User
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { type FormEvent, useMemo, useState, useEffect, useRef } from 'react';
+import { type FormEvent, useState, useEffect, useRef, useDeferredValue } from 'react';
 import { createPortal } from 'react-dom';
 import { StudentProfileDrawer } from '../features/student-profile/StudentProfileDrawer';
-import { useSaveStudent, useSetStudentStatus, useStudents, useDeleteStudent } from '../features/students/useStudents';
+import { useSaveStudent, useSetStudentStatus, usePaginatedStudents, useStudentStats, useDeleteStudent } from '../features/students/useStudents';
 import { useGroups } from '../features/groups/useGroups';
 import { CopyCodeButton } from '../shared/ui/CopyCodeButton';
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
@@ -246,7 +246,6 @@ function TelegramTokenModal({ student, close }: { student: Student; close: () =>
 // O'quvchilar ro'yxati bosh sahifasi
 export function StudentsPage() {
   const navigate = useNavigate();
-  const q = useStudents();
   const user = getSession();
   const isTeacher = user?.role === 'teacher';
   const saveM = useSaveStudent();
@@ -254,7 +253,19 @@ export function StudentsPage() {
   const deleteM = useDeleteStudent();
 
   const [search, setSearch] = useState('');
+  const deferredSearch = useDeferredValue(search);
   const [tab, setTab] = useState<Student['status'] | 'all'>('active');
+  const PAGE_SIZE = 10;
+  const [page, setPage] = useState(1);
+
+  const statsQuery = useStudentStats();
+  const q = usePaginatedStudents({
+    page,
+    limit: PAGE_SIZE,
+    status: tab,
+    search: deferredSearch.trim() || undefined,
+  });
+
   const [editing, setEditing] = useState<Student | 'new' | null>(null);
   const [profileStudentId, setProfileStudentId] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -306,11 +317,9 @@ export function StudentsPage() {
     };
   }, [activeDropdown]);
 
-  const rawData = q.data;
-  const data: Student[] = Array.isArray(rawData) ? rawData : Array.isArray((rawData as any)?.data) ? (rawData as any).data : empty;
-
-  const PAGE_SIZE = 10;
-  const [page, setPage] = useState(1);
+  const paginatedStudents: Student[] = q.data?.data ?? empty;
+  const totalItems = q.data?.meta?.total ?? 0;
+  const totalPages = q.data?.meta?.totalPages ?? (totalItems > 0 ? Math.ceil(totalItems / PAGE_SIZE) : 1);
 
   const handleTabChange = (newTab: typeof tab) => {
     setTab(newTab);
@@ -322,27 +331,15 @@ export function StudentsPage() {
     setPage(1);
   };
 
-  const filtered = useMemo(() => {
-    return data.filter(s => {
-      const matchSearch = `${s.code} ${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase());
-      const matchTab = tab === 'all' || s.status === tab;
-      return matchSearch && matchTab;
-    });
-  }, [data, search, tab]);
-
-  const paginatedStudents = useMemo(() => {
-    return filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  }, [filtered, page]);
-
-  const counts = useMemo(() => ({
-    active: data.filter((student) => student.status === 'active').length,
-    frozen: data.filter((student) => student.status === 'frozen').length,
-    graduate: data.filter((student) => student.status === 'graduate').length,
-    all: data.length
-  }), [data]);
+  const counts = statsQuery.data ?? {
+    active: 0,
+    frozen: 0,
+    graduate: 0,
+    all: 0,
+  };
 
   async function save(v: Student) {
-    const isNew = !data.some((s) => s.id === v.id);
+    const isNew = !v.id || v.id.startsWith('new-') || v.id.startsWith('s-');
     await saveM.mutateAsync(v);
     setEditing(null);
     showToast(isNew ? 'Yangi o‘quvchi muvaffaqiyatli qo‘shildi' : 'O‘quvchi ma’lumotlari muvaffaqiyatli yangilandi');
@@ -451,7 +448,7 @@ export function StudentsPage() {
       ) : null}
       {notice ? <div className="inline-notice" role="status">{notice}</div> : null}
 
-      {!q.isPending && !q.isError && filtered.length === 0 ? (
+      {!q.isPending && !q.isError && paginatedStudents.length === 0 ? (
         <div className="panel student-empty" role="status">
           <Search size={20} />
           <strong>O‘quvchi topilmadi</strong>
@@ -459,7 +456,7 @@ export function StudentsPage() {
         </div>
       ) : null}
 
-      {filtered.length > 0 ? <div className="panel students-table">
+      {paginatedStudents.length > 0 ? <div className="panel students-table">
         <div className="table-scroll">
           <table aria-label="O‘quvchilar ro‘yxati">
             <thead>
@@ -564,7 +561,7 @@ export function StudentsPage() {
             </tbody>
           </table>
         </div>
-        <Pagination page={page} totalPages={Math.ceil(filtered.length / PAGE_SIZE)} totalItems={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} />
       </div> : null}
 
       {profileStudentId ? (
@@ -572,7 +569,7 @@ export function StudentsPage() {
           studentId={profileStudentId}
           onClose={() => setProfileStudentId(null)}
           onEdit={(studentId) => {
-            const student = data.find((item) => item.id === studentId);
+            const student = paginatedStudents.find((item) => item.id === studentId);
             if (student) setEditing(student);
             setProfileStudentId(null);
           }}
@@ -640,7 +637,7 @@ export function StudentsPage() {
           className="actions-dropdown-menu student-actions-menu" 
           ref={dropdownRef}
           role="menu"
-          aria-label={`${data.find((student) => student.id === activeDropdown)?.code ?? ''} amallari`}
+          aria-label={`${paginatedStudents.find((student) => student.id === activeDropdown)?.code ?? ''} amallari`}
           style={{ 
             position: 'fixed',
             top: `${dropdownCoords.top}px`, 
@@ -649,7 +646,7 @@ export function StudentsPage() {
           }}
         >
           {(() => {
-            const student = filtered.find(x => x.id === activeDropdown);
+            const student = paginatedStudents.find(x => x.id === activeDropdown);
             if (!student) return null;
             return (
               <>

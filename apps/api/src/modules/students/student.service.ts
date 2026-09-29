@@ -5,6 +5,7 @@ import type {
   StudentCreateInput,
   StudentListQuery,
   StudentProfileApi,
+  StudentStats,
   StudentUpdateInput,
 } from '@golden-study/contracts';
 import type { Prisma, PrismaClient } from '@prisma/client';
@@ -21,6 +22,39 @@ const studentInclude = {
 
 export class StudentService {
   public constructor(private readonly prisma: PrismaClient) {}
+
+  public async getStats(user: AuthUser): Promise<StudentStats> {
+    const baseWhere: Prisma.StudentWhereInput = {
+      status: { not: 'ARCHIVED' },
+      ...(user.role === 'TEACHER'
+        ? {
+            groups: {
+              some: { group: { teacherId: user.teacherId ?? '__missing__' } },
+            },
+          }
+        : {}),
+    };
+
+    const grouped = await this.prisma.student.groupBy({
+      by: ['status'],
+      where: baseWhere,
+      _count: { _all: true },
+    });
+
+    let active = 0;
+    let frozen = 0;
+    let graduate = 0;
+
+    for (const item of grouped) {
+      if (item.status === 'ACTIVE') active = item._count._all;
+      else if (item.status === 'FROZEN') frozen = item._count._all;
+      else if (item.status === 'GRADUATE') graduate = item._count._all;
+    }
+
+    const all = active + frozen + graduate;
+
+    return { active, frozen, graduate, all };
+  }
 
   public async list(query: StudentListQuery, user: AuthUser) {
     const where: Prisma.StudentWhereInput = {
