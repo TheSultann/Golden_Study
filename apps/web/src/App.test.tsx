@@ -1237,10 +1237,9 @@ describe('mock-авторизация', () => {
     expect(studentName.compareDocumentPosition(studentCode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(studentName.closest('td')).toHaveAttribute('data-label', 'O‘quvchi')
 
-    await user.click(screen.getByRole('button', { name: 'Davomat' }))
-    expect(await screen.findByRole('table', { name: 'Akademik davomat hisoboti' })).toBeInTheDocument()
-    expect(screen.getByTestId('reports-summary')).toHaveTextContent('Keldi')
-    expect(screen.queryByText('came')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Davomat' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Qarzlar' }))
+    expect(await screen.findByRole('table', { name: 'Qarzdorlar ro‘yxati' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Imtihonlar' }))
     expect(await screen.findByRole('table', { name: 'Imtihonlar analitikasi' })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Kirim-chiqim' }))

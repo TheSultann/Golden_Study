@@ -1,18 +1,16 @@
-import type { AttendanceSession, Exam, FinanceOverview } from '@golden-study/contracts'
+import type { Exam, FinanceOverview } from '@golden-study/contracts'
 import { ArrowDownToLine, ArrowUpFromLine, ChevronDown, CircleDollarSign, Download, FileSpreadsheet, FileText, ReceiptText } from 'lucide-react'
 import { useState } from 'react'
-import { useAttendance } from '../features/attendance/useAttendance'
 import { useExams } from '../features/exams/useExams'
 import { useFinance } from '../features/finance/useFinance'
 import { createCashflowSummary, type ReportTone } from '../features/reports/reportSummary'
 
-type ReportTab = 'income' | 'debts' | 'attendance' | 'exams' | 'cashflow'
+type ReportTab = 'income' | 'debts' | 'exams' | 'cashflow'
 type ExportKind = 'excel' | 'csv' | 'pdf'
 
 const tabs: [ReportTab, string][] = [
   ['income', 'Tushumlar'],
   ['debts', 'Qarzlar'],
-  ['attendance', 'Davomat'],
   ['exams', 'Imtihonlar'],
   ['cashflow', 'Kirim-chiqim'],
 ]
@@ -22,13 +20,6 @@ const money = (value: number) => `${new Intl.NumberFormat('uz-UZ').format(value)
 function formatDate(value: string) {
   const [year, month, day] = value.slice(0, 10).split('-')
   return year && month && day ? `${day}.${month}.${year}` : value
-}
-
-const attendanceLabels: Record<AttendanceSession['rows'][number]['status'], string> = {
-  came: 'Keldi',
-  excused: 'Sababli',
-  absent: 'Sababsiz',
-  unmarked: 'Belgilanmagan',
 }
 
 function downloadText(filename: string, content: string) {
@@ -41,12 +32,11 @@ function downloadText(filename: string, content: string) {
   URL.revokeObjectURL(url)
 }
 
-function exportReport(kind: ExportKind, tab: ReportTab, finance?: FinanceOverview, attendance?: AttendanceSession, exams?: Exam[]) {
+function exportReport(kind: ExportKind, tab: ReportTab, finance?: FinanceOverview, exams?: Exam[]) {
   const lines = [`Hisobot: ${tab}`, `Format: ${kind.toUpperCase()}`, `Sana: ${new Date().toISOString()}`]
   if (tab === 'income' && finance) finance.payments.forEach((item) => lines.push(`${item.paidAt};${item.studentCode};${item.studentName};${item.group};${item.amount}`))
   if (tab === 'debts' && finance) finance.debts.forEach((item) => lines.push(`${item.studentCode};${item.studentName};${item.group};${item.parentPhone};${item.balance}`))
   if (tab === 'cashflow' && finance) finance.transactions.forEach((item) => lines.push(`${item.createdAt};${item.type};${item.category};${item.subject};${item.amount}`))
-  if (tab === 'attendance' && attendance) attendance.rows.forEach((item) => lines.push(`${attendance.date};${attendance.groupName};${item.studentCode};${item.studentName};${item.status};${item.rating}`))
   if (tab === 'exams' && exams) exams.forEach((exam) => lines.push(`${exam.date};${exam.groupName};${exam.name};avg=${avgScore(exam)};max=${exam.maxScore}`))
   downloadText(`hisobot-${tab}.${kind === 'excel' ? 'xls' : kind}`, lines.join('\n'))
 }
@@ -73,26 +63,21 @@ function SummaryIcon({ tone }: { tone: ReportTone }) {
   return <ReceiptText size={15} />
 }
 
-function ExportButtons({ tab, finance, attendance, exams }: { tab: ReportTab; finance?: FinanceOverview; attendance?: AttendanceSession; exams?: Exam[] }) {
+function ExportButtons({ tab, finance, exams }: { tab: ReportTab; finance?: FinanceOverview; exams?: Exam[] }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="report-export">
       <button className="report-export-trigger" type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)}><Download size={14} /> Eksport <ChevronDown size={13} /></button>
       {open && <div className="report-export-menu">
-        <button type="button" onClick={() => exportReport('excel', tab, finance, attendance, exams)}><FileSpreadsheet size={14} /> Excel</button>
-        <button type="button" onClick={() => exportReport('csv', tab, finance, attendance, exams)}><Download size={14} /> CSV</button>
-        <button type="button" onClick={() => exportReport('pdf', tab, finance, attendance, exams)}><FileText size={14} /> PDF</button>
+        <button type="button" onClick={() => exportReport('excel', tab, finance, exams)}><FileSpreadsheet size={14} /> Excel</button>
+        <button type="button" onClick={() => exportReport('csv', tab, finance, exams)}><Download size={14} /> CSV</button>
+        <button type="button" onClick={() => exportReport('pdf', tab, finance, exams)}><FileText size={14} /> PDF</button>
       </div>}
     </div>
   )
 }
 
-function reportSummary(tab: ReportTab, finance: FinanceOverview, attendance: AttendanceSession, exams: Exam[]) {
-  const attendanceStats = {
-    came: attendance.rows.filter((item) => item.status === 'came').length,
-    excused: attendance.rows.filter((item) => item.status === 'excused').length,
-    absent: attendance.rows.filter((item) => item.status === 'absent').length,
-  }
+function reportSummary(tab: ReportTab, finance: FinanceOverview, exams: Exam[]) {
   const allScores = exams.flatMap((exam) => exam.results.map((result) => result.score))
   if (tab === 'income') return [
     ['Jami tushum', money(finance.summary.income)],
@@ -106,12 +91,6 @@ function reportSummary(tab: ReportTab, finance: FinanceOverview, attendance: Att
     ['O‘rtacha qarz', money(finance.debts.length ? Math.round(finance.summary.debt / finance.debts.length) : 0)],
     ['Eng katta qarz', money(Math.max(0, ...finance.debts.map((item) => Math.abs(item.balance))))],
   ]
-  if (tab === 'attendance') return [
-    ['Jami', `${attendance.rows.length} ta`],
-    ['Keldi', `${attendanceStats.came} ta`],
-    ['Sababli', `${attendanceStats.excused} ta`],
-    ['Sababsiz', `${attendanceStats.absent} ta`],
-  ]
   if (tab === 'exams') return [
     ['Imtihonlar', `${exams.length} ta`],
     ['Natijalar', `${allScores.length} ta`],
@@ -124,20 +103,13 @@ function reportSummary(tab: ReportTab, finance: FinanceOverview, attendance: Att
 
 export function ReportsPage() {
   const financeQuery = useFinance()
-  const attendanceQuery = useAttendance('g1', '2026-07-06')
   const examsQuery = useExams()
   const [tab, setTab] = useState<ReportTab>('income')
   const finance = financeQuery.data
-  const attendance = attendanceQuery.data
   const exams = examsQuery.data
-  const loading = financeQuery.isPending || attendanceQuery.isPending || examsQuery.isPending
-  const error = financeQuery.isError || attendanceQuery.isError || examsQuery.isError
-  const attendanceStats = attendance?.rows ? {
-    came: attendance.rows.filter((item) => item.status === 'came').length,
-    excused: attendance.rows.filter((item) => item.status === 'excused').length,
-    absent: attendance.rows.filter((item) => item.status === 'absent').length,
-  } : null
-  const summaryItems = finance && attendance && exams ? reportSummary(tab, finance, attendance, exams) : []
+  const loading = financeQuery.isPending || examsQuery.isPending
+  const error = financeQuery.isError || examsQuery.isError
+  const summaryItems = finance && exams ? reportSummary(tab, finance, exams) : []
 
   return (
     <section className="finance-page reports-page">
@@ -153,10 +125,10 @@ export function ReportsPage() {
 
       <div className="finance-toolbar reports-toolbar">
         <div className="finance-tabs reports-tabs" aria-label="Hisobot turi">{tabs.map(([value, label]) => <button key={value} type="button" aria-pressed={tab === value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{label}</button>)}</div>
-        {finance && attendance && exams && <ExportButtons tab={tab} finance={finance} attendance={attendance} exams={exams} />}
+        {finance && exams && <ExportButtons tab={tab} finance={finance} exams={exams} />}
       </div>
 
-      {finance && attendance && exams && (
+      {finance && exams && (
         <>
           <div className="reports-summary" data-testid="reports-summary">
             {summaryItems.map(([label, value], index) => {
@@ -172,7 +144,6 @@ export function ReportsPage() {
 
           {tab === 'income' && <IncomeReport finance={finance} />}
           {tab === 'debts' && <DebtsReport finance={finance} />}
-          {tab === 'attendance' && <AttendanceReport attendance={attendance} stats={attendanceStats} />}
           {tab === 'exams' && <ExamsReport exams={exams} />}
           {tab === 'cashflow' && <CashflowReport finance={finance} />}
         </>
@@ -187,10 +158,6 @@ function IncomeReport({ finance }: { finance: FinanceOverview }) {
 
 function DebtsReport({ finance }: { finance: FinanceOverview }) {
   return <section className="panel finance-table report-panel"><header><h2>Qarzdorlar vedomosti</h2><span className="finance-note">{finance.debts.length} o‘quvchi</span></header><div className="table-scroll"><table aria-label="Qarzdorlar ro‘yxati"><thead><tr><th>O‘quvchi</th><th>Guruh</th><th>Ota-ona telefoni</th><th>Qarz</th></tr></thead><tbody>{finance.debts.map((item) => <tr key={item.id}><td data-label="O‘quvchi"><strong>{item.studentName}</strong><span>{item.studentCode}</span></td><td data-label="Guruh">{item.group}</td><td data-label="Ota-ona telefoni">{item.parentPhone}</td><td data-label="Qarz" className="debt">{money(Math.abs(item.balance))}</td></tr>)}</tbody></table></div></section>
-}
-
-function AttendanceReport({ attendance, stats }: { attendance: AttendanceSession; stats: { came: number; excused: number; absent: number } | null }) {
-  return <section className="panel finance-table report-panel"><header><h2>Akademik davomat</h2><span className="finance-note">{attendance.groupName} · {formatDate(attendance.date)}</span></header><div className="attendance-summary"><span>Jami: {attendance.rows.length}</span><span className="came">Keldi: {stats?.came ?? 0}</span><span className="excused">Sababli: {stats?.excused ?? 0}</span><span className="absent">Sababsiz: {stats?.absent ?? 0}</span></div><div className="table-scroll"><table aria-label="Akademik davomat hisoboti"><thead><tr><th>O‘quvchi</th><th>Holat</th><th>Reyting</th><th>Uy vazifasi</th><th>Izoh</th></tr></thead><tbody>{attendance.rows.map((item) => <tr key={item.studentId}><td data-label="O‘quvchi"><strong>{item.studentName}</strong><span>{item.studentCode}</span></td><td data-label="Holat"><span className={`telegram-status ${item.status === 'came' ? 'sent' : item.status === 'absent' ? 'failed' : 'queued'}`}>{attendanceLabels[item.status]}</span></td><td data-label="Reyting">{item.rating}%</td><td data-label="Uy vazifasi">{item.homeworkDone ? 'Bajarilgan' : 'Bajarilmagan'}</td><td data-label="Izoh">{item.comment || '-'}</td></tr>)}</tbody></table></div></section>
 }
 
 function ExamsReport({ exams }: { exams: Exam[] }) {

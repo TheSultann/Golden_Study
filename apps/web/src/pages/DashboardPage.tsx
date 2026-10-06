@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarCheck, GraduationCap, TrendingUp, UsersRound, WalletCards } from 'lucide-react'
+import { BookOpen, CalendarCheck, GraduationCap, TrendingDown, TrendingUp, UsersRound, WalletCards } from 'lucide-react'
 
 import { useDashboard } from '../features/dashboard/useDashboard'
 import { getSession } from '../features/auth/auth.service'
@@ -47,7 +47,18 @@ export function DashboardPage() {
         {data.stats.map((stat, index) => {
           if (index === 3 && !isSuperAdmin) return null
           const Icon = statIcons[index]
-          return <Link className="stat stat-link" to={statPaths[index]} key={stat.label}><span className={`stat-icon stat-${stat.tone}`}><Icon size={20} /></span><div><p>{stat.label}</p><strong>{stat.value}</strong><small><TrendingUp size={12} /> {stat.change} o‘tgan oyга nisbatan</small></div></Link>
+          const isNegative = stat.change.startsWith('-')
+          const TrendIcon = isNegative ? TrendingDown : TrendingUp
+          return (
+            <Link className="stat stat-link" to={statPaths[index]} key={stat.label}>
+              <span className={`stat-icon stat-${stat.tone}`}><Icon size={20} /></span>
+              <div>
+                <p>{stat.label}</p>
+                <strong>{stat.value}</strong>
+                <small><TrendIcon size={12} /> {stat.change} o‘tgan oyga nisbatan</small>
+              </div>
+            </Link>
+          )
         })}
       </div>
 

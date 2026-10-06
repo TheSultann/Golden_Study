@@ -1,6 +1,7 @@
 import {
   paginationMetaSchema,
   teacherApiSchema,
+  type FinanceDebt,
   type FinanceOverview,
   type FinanceTransaction,
   type StaffMember,
@@ -28,15 +29,17 @@ const summaryResponseSchema = z.object({
   data: summarySchema,
 })
 
-const transactionApiSchema = z.object({
+export const transactionApiSchema = z.object({
   id: z.string(),
   direction: z.enum(['CREDIT', 'DEBIT']),
+  accountType: z.enum(['STUDENT', 'TEACHER', 'CENTER']).nullable().optional(),
   category: z.string().optional().default('OTHER'),
   amountUzs: z.number(),
   categoryLabel: z.string().optional().default(''),
   subject: z.string().optional().default(''),
   comment: z.string().optional().default(''),
   studentId: z.string().nullable().optional(),
+  teacherId: z.string().nullable().optional(),
   createdAt: z.string(),
 })
 
@@ -53,6 +56,20 @@ const singleTransactionResponseSchema = z.object({
 const teacherListApiResponseSchema = z.object({
   success: z.literal(true),
   data: z.array(teacherApiSchema),
+  meta: paginationMetaSchema.optional(),
+})
+
+const debtorListApiResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.array(
+    z.object({
+      studentId: z.string(),
+      studentCode: z.string().optional(),
+      studentName: z.string().optional(),
+      balanceUzs: z.number().int().optional(),
+      debtUzs: z.number().int().optional(),
+    }),
+  ),
   meta: paginationMetaSchema.optional(),
 })
 
@@ -77,39 +94,219 @@ const paymentApiResponseSchema = z.object({
   }),
 })
 
-function toUiTransaction(api: z.infer<typeof transactionApiSchema>): FinanceTransaction {
-  const isIncome = api.direction === 'CREDIT'
-  let category = api.categoryLabel || api.category || (isIncome ? 'To‘lov' : 'Chiqim')
-  let subject = api.subject
+export function formatTransactionComment(rawComment: string | null | undefined): string {
+  if (!rawComment) return ''
+  const trimmed = rawComment.trim()
 
-  if (category === 'STUDENT_PAYMENT') {
-    category = 'O‘quvchi to‘lovi'
-  } else if (category === 'STAFF_PAYOUT' || category === 'TEACHER_PAYOUT') {
-    category = 'Xodimlar ish haqi'
-    if (!subject || subject === 'Xarajat' || subject === 'STAFF_PAYOUT' || subject === 'TEACHER_PAYOUT') {
-      const loginMatch = api.comment?.match(/\(([^)]+)\)$/)
-      subject = loginMatch ? `@${loginMatch[1]}` : 'Xodim / O‘qituvchi'
-    } else {
+  // Fixed KPI YYYY-MM -> Oylik maosh / oklad (MM.YYYY)
+  const fixedKpiMatch = trimmed.match(/^Fixed KPI\s+(\d{4})-(\d{2})/i)
+  if (fixedKpiMatch) {
+    const [, y, m] = fixedKpiMatch
+    return `Oylik maosh / oklad (${m}.${y})`
+  }
+
+  // Per-student KPI YYYY-MM -> O‘quvchi soni hisoblash (MM.YYYY)
+  const perStudentKpiMatch = trimmed.match(/^Per-student KPI\s+(\d{4})-(\d{2})/i)
+  if (perStudentKpiMatch) {
+    const [, y, m] = perStudentKpiMatch
+    return `O‘quvchi soni hisoblash (${m}.${y})`
+  }
+
+  if (trimmed === 'Percent KPI accrual') {
+    return 'Foiz hisoblash'
+  }
+
+  if (trimmed === 'KPI source charge reversed') {
+    return 'KPI qaytarildi (manba dars bekor qilindi)'
+  }
+
+  // Attendance CAME 2026-09-22 -> Davomat: Keldi (22.09.2026)
+  const cameMatch = trimmed.match(/^Attendance CAME\s+(\d{4}-\d{2}-\d{2})/i)
+  if (cameMatch) {
+    const [y, m, d] = cameMatch[1].split('-')
+    return `Davomat: Keldi (${d}.${m}.${y})`
+  }
+
+  // Attendance ABSENT 2026-09-22 -> Davomat: Sababsiz (22.09.2026)
+  const absentMatch = trimmed.match(/^Attendance ABSENT\s+(\d{4}-\d{2}-\d{2})/i)
+  if (absentMatch) {
+    const [y, m, d] = absentMatch[1].split('-')
+    return `Davomat: Sababsiz (${d}.${m}.${y})`
+  }
+
+  // Attendance EXCUSED -> Davomat: Sababli (mablag‘ qaytarildi)
+  const excusedMatch = trimmed.match(/^Attendance EXCUSED(?:\s+(\d{4}-\d{2}-\d{2}))?/i)
+  if (excusedMatch) {
+    if (excusedMatch[1]) {
+      const [y, m, d] = excusedMatch[1].split('-')
+      return `Davomat: Sababli (${d}.${m}.${y}, mablag‘ qaytarildi)`
+    }
+    return 'Davomat: Sababli (mablag‘ qaytarildi)'
+  }
+
+  if (trimmed === 'Attendance reversed') {
+    return 'Davomat bekor qilindi (mablag‘ qaytarildi)'
+  }
+
+  return trimmed
+}
+
+export type TransactionApiInput = z.input<typeof transactionApiSchema>
+
+export function toUiTransaction(
+  api: TransactionApiInput,
+  studentMap?: Map<string, any>,
+  teacherMap?: Map<string, any>,
+): FinanceTransaction {
+  const rawCategory = api.category || 'OTHER'
+
+  let accountType = api.accountType
+  if (!accountType) {
+    if (
+      api.teacherId ||
+      [
+        'KPI_FIXED_ACCRUAL',
+        'KPI_PERCENT_ACCRUAL',
+        'KPI_PER_STUDENT_ACCRUAL',
+        'TEACHER_PAYOUT',
+      ].includes(rawCategory)
+    ) {
+      accountType = 'TEACHER'
+    } else if (
+      api.studentId ||
+      (rawCategory === 'STUDENT_PAYMENT' && api.direction === 'CREDIT') ||
+      [
+        'DAILY_LESSON_CHARGE',
+        'MONTHLY_TUITION_CHARGE',
+      ].includes(rawCategory)
+    ) {
+      accountType = 'STUDENT'
+    } else if (
+      ['MANUAL_INCOME', 'MANUAL_EXPENSE', 'STAFF_PAYOUT'].includes(rawCategory)
+    ) {
+      accountType = 'CENTER'
+    }
+  }
+
+  let type: 'income' | 'expense' = api.direction === 'CREDIT' ? 'income' : 'expense'
+  let category = api.categoryLabel || rawCategory
+  let subject = api.subject || ''
+
+  const student = api.studentId && studentMap ? studentMap.get(api.studentId) : undefined
+  const studentFullName = student
+    ? `${student.firstName || ''} ${student.lastName || ''}`.trim()
+    : null
+
+  const teacher = api.teacherId && teacherMap ? teacherMap.get(api.teacherId) : undefined
+  const teacherFullName = teacher
+    ? `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+    : null
+
+  if (accountType === 'TEACHER') {
+    type = 'expense'
+
+    if (rawCategory === 'KPI_FIXED_ACCRUAL') {
+      category = 'O‘qituvchi oyligi (Oklad)'
+    } else if (rawCategory === 'KPI_PERCENT_ACCRUAL') {
+      category = 'O‘qituvchi oyligi (Foiz hisoblash)'
+    } else if (rawCategory === 'KPI_PER_STUDENT_ACCRUAL') {
+      category = 'O‘qituvchi oyligi (O‘quvchi soni hisoblash)'
+    } else if (rawCategory === 'TEACHER_PAYOUT') {
+      category = 'Xodimlar ish haqi (To‘langan)'
+    } else if (!api.categoryLabel || api.categoryLabel === rawCategory) {
+      category = 'O‘qituvchi oyligi'
+    }
+
+    if (teacherFullName) {
+      subject = teacherFullName
+    } else if (
+      subject &&
+      subject !== 'Xarajat' &&
+      subject !== 'O‘quvchi to‘lovi' &&
+      subject !== 'TEACHER_PAYOUT' &&
+      !subject.startsWith('KPI_')
+    ) {
       subject = subject.replace(/^Xodimlar ish haqi:\s*/i, '')
+    } else {
+      const loginMatch = api.comment?.match(/\(([^)]+)\)$/)
+      subject = loginMatch ? `@${loginMatch[1]}` : 'O‘qituvchi'
     }
-  } else if (category === 'DAILY_LESSON_CHARGE') {
-    category = 'Dars billingi'
-    if (!subject || subject === 'Xarajat') {
+  } else if (accountType === 'STUDENT') {
+    if (rawCategory === 'STUDENT_PAYMENT') {
+      type = 'income'
+      category = 'O‘quvchi to‘lovi'
+    } else if (rawCategory === 'DAILY_LESSON_CHARGE') {
+      type = 'expense'
+      category = 'Dars billingi'
+    } else if (rawCategory === 'MONTHLY_TUITION_CHARGE') {
+      type = 'expense'
+      category = 'Oylik to‘lov billingi'
+    } else if (rawCategory === 'ADJUSTMENT') {
+      type = api.direction === 'CREDIT' ? 'income' : 'expense'
+      category = 'Tuzatish (Balans to‘g‘rilash)'
+    } else if (rawCategory === 'REVERSAL') {
+      type = 'income'
+      category = 'Bekor qilish (Dars qaytarildi)'
+    } else if (!api.categoryLabel || api.categoryLabel === rawCategory) {
+      category = type === 'income' ? 'O‘quvchi to‘lovi' : 'Dars billingi'
+    }
+
+    if (studentFullName) {
+      subject = studentFullName
+    } else if (
+      subject &&
+      subject !== 'Xarajat' &&
+      subject !== 'O‘quvchi to‘lovi'
+    ) {
+      // keep existing subject
+    } else if (rawCategory === 'DAILY_LESSON_CHARGE') {
       subject = 'Abonement yechildi'
+    } else if (rawCategory === 'MONTHLY_TUITION_CHARGE') {
+      subject = 'Oylik to‘lov'
+    } else if (rawCategory === 'ADJUSTMENT') {
+      subject = 'Davomat qayta hisoblandi'
+    } else if (rawCategory === 'REVERSAL') {
+      subject = 'Dars uchun mablag‘ qaytarildi'
+    } else {
+      subject = type === 'income' ? 'O‘quvchi to‘lovi' : 'O‘quvchi'
     }
-  } else if (category === 'MANUAL_EXPENSE') {
-    category = 'Boshqa xarajat'
-  } else if (category === 'MANUAL_INCOME') {
-    category = 'Kirim'
+  } else {
+    // CENTER or other
+    if (rawCategory === 'MANUAL_INCOME') {
+      type = 'income'
+      category = api.categoryLabel && api.categoryLabel !== 'MANUAL_INCOME' ? api.categoryLabel : 'Kirim'
+      subject = subject || 'Kirim'
+    } else if (rawCategory === 'MANUAL_EXPENSE') {
+      type = 'expense'
+      category = api.categoryLabel && api.categoryLabel !== 'MANUAL_EXPENSE' ? api.categoryLabel : 'Boshqa xarajat'
+      subject = subject || 'Xarajat'
+    } else if (rawCategory === 'STAFF_PAYOUT') {
+      type = 'expense'
+      category = 'Xodimlar ish haqi'
+      if (!subject || subject === 'Xarajat' || subject === 'STAFF_PAYOUT') {
+        const loginMatch = api.comment?.match(/\(([^)]+)\)$/)
+        subject = loginMatch ? `@${loginMatch[1]}` : 'Xodim'
+      } else {
+        subject = subject.replace(/^Xodimlar ish haqi:\s*/i, '')
+      }
+    } else {
+      type = api.direction === 'CREDIT' ? 'income' : 'expense'
+      if (!api.categoryLabel || api.categoryLabel === rawCategory) {
+        category = type === 'income' ? 'Kirim' : 'Boshqa xarajat'
+      }
+      if (!subject) {
+        subject = type === 'income' ? 'Kirim' : 'Xarajat'
+      }
+    }
   }
 
   return {
     id: api.id,
-    type: isIncome ? 'income' : 'expense',
+    type,
     category,
     amount: api.amountUzs,
-    subject: subject || (isIncome ? 'O‘quvchi to‘lovi' : 'Xarajat'),
-    comment: api.comment || '',
+    subject,
+    comment: formatTransactionComment(api.comment),
     studentId: api.studentId ?? undefined,
     createdAt: api.createdAt,
   }
@@ -117,7 +314,7 @@ function toUiTransaction(api: z.infer<typeof transactionApiSchema>): FinanceTran
 
 export class ApiFinanceRepository implements FinanceRepository {
   async overview(staffMembers?: StaffMember[]): Promise<FinanceOverview> {
-    const [summaryRes, transactionsRes, teachersRes, studentsRes, groupsRes] = await Promise.all([
+    const [summaryRes, transactionsRes, teachersRes, studentsRes, groupsRes, debtorsRes] = await Promise.all([
       apiRequest('/finance/summary', { method: 'GET' }, summaryResponseSchema).catch(() => ({
         data: { incomeUzs: 0, expenseUzs: 0, netCashflowUzs: 0, studentDebtUzs: 0, teacherPayableUzs: 0 },
       })),
@@ -133,6 +330,9 @@ export class ApiFinanceRepository implements FinanceRepository {
       apiRequest('/groups?limit=100', { method: 'GET' }, z.object({ data: z.array(z.any()) })).catch(() => ({
         data: [],
       })),
+      apiRequest('/finance/debtors?limit=100', { method: 'GET' }, debtorListApiResponseSchema).catch(() => ({
+        data: [],
+      })),
     ])
 
     const summaryData = summaryRes.data
@@ -143,8 +343,25 @@ export class ApiFinanceRepository implements FinanceRepository {
     const rawGroups = Array.isArray(groupsRes.data) ? groupsRes.data : []
 
     const studentMap = new Map(rawStudents.map((s: any) => [s.id, s]))
+    const teacherMap = new Map(rawTeachers.map((t: any) => [t.id, t]))
+    for (const s of rawStaff) {
+      if (s.linkedTeacherId && !teacherMap.has(s.linkedTeacherId)) {
+        teacherMap.set(s.linkedTeacherId, {
+          id: s.linkedTeacherId,
+          firstName: s.fullName?.split(' ')[0] || s.login,
+          lastName: s.fullName?.split(' ').slice(1).join(' ') || '',
+        })
+      }
+      if (s.id && !teacherMap.has(s.id)) {
+        teacherMap.set(s.id, {
+          id: s.id,
+          firstName: s.fullName?.split(' ')[0] || s.login,
+          lastName: s.fullName?.split(' ').slice(1).join(' ') || '',
+        })
+      }
+    }
 
-    const transactions = rawTransactions.map(toUiTransaction)
+    const transactions = rawTransactions.map((t) => toUiTransaction(t, studentMap, teacherMap))
 
     const payments = transactions
       .filter((t) => t.type === 'income')
@@ -261,8 +478,60 @@ export class ApiFinanceRepository implements FinanceRepository {
       .reduce((acc, s) => acc + s.kpiBalance, 0)
     const totalSalaryDebt = (summaryData.teacherPayableUzs || 0) + unpaidStaffSalary
 
+    const rawDebtors = Array.isArray(debtorsRes?.data) ? debtorsRes.data : []
+    const debts: FinanceDebt[] = rawDebtors.map((debtor) => {
+      const student = studentMap.get(debtor.studentId)
+      const studentGroups = Array.isArray(student?.activeGroups)
+        ? student.activeGroups.map((g: any) => g.name || g)
+        : Array.isArray(student?.groups)
+          ? student.groups
+          : []
+      const groupName = studentGroups[0] || '—'
+      const parentPhone = student?.parentPhone || student?.phone || '—'
+      const studentCode = debtor.studentCode || student?.studentCode || student?.code || 'ST101'
+      const studentName =
+        debtor.studentName ||
+        `${student?.firstName || ''} ${student?.lastName || ''}`.trim() ||
+        'O‘quvchi'
+      const balance = typeof debtor.balanceUzs === 'number'
+        ? debtor.balanceUzs
+        : debtor.debtUzs
+          ? -debtor.debtUzs
+          : 0
+
+      return {
+        id: debtor.studentId,
+        studentCode,
+        studentName,
+        group: groupName,
+        parentPhone,
+        balance,
+      }
+    })
+
+    if (debts.length === 0 && rawStudents.length > 0) {
+      for (const student of rawStudents) {
+        if (typeof student.balance === 'number' && student.balance < 0) {
+          const studentGroups = Array.isArray(student.activeGroups)
+            ? student.activeGroups.map((g: any) => g.name || g)
+            : Array.isArray(student.groups)
+              ? student.groups
+              : []
+          debts.push({
+            id: student.id,
+            studentCode: student.studentCode || student.code || 'ST101',
+            studentName: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'O‘quvchi',
+            group: studentGroups[0] || '—',
+            parentPhone: student.parentPhone || student.phone || '—',
+            balance: student.balance,
+          })
+        }
+      }
+    }
+
     transactions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     payments.sort((a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime())
+    debts.sort((a, b) => Math.abs(b.balance) - Math.abs(a.balance))
 
     return {
       summary: {
@@ -273,7 +542,7 @@ export class ApiFinanceRepository implements FinanceRepository {
         debt: summaryData.studentDebtUzs,
       },
       payments,
-      debts: [],
+      debts,
       salaries,
       transactions,
     }
