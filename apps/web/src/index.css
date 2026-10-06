@@ -168,6 +168,14 @@ button { cursor: pointer; }
 .panel header button, .panel-header-link { color: var(--gold-dark); background: transparent; border: 0; font-size: 11px; text-decoration: none; font-weight: 500; transition: color 150ms ease; }
 .panel header button:hover, .panel-header-link:hover { color: var(--gold); }
 .panel select { height: 32px; padding: 0 9px; color: var(--text); background-color: var(--surface); border: 1px solid var(--border); border-radius: 7px; font-size: 11px; }
+.period-selector-container { position: relative; display: inline-block; }
+.period-selector-btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 7px; font-size: 11px; font-weight: 500; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease; }
+.period-selector-btn:hover { border-color: var(--gold-dark); background: var(--surface-soft); }
+.period-selector-menu { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; min-width: 140px; padding: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 14px rgb(0 0 0 / 10%); }
+.period-selector-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 6px 10px; color: var(--text); background: transparent; border: 0; border-radius: 5px; font-size: 11px; cursor: pointer; text-align: left; transition: background-color 120ms ease; }
+.period-selector-item:hover { background: var(--surface-soft); }
+.period-selector-item.active { font-weight: 600; color: var(--gold-dark); }
+.attendance-panel { overflow: visible; }
 .chart { padding: 22px 18px 14px; }
 .chart svg { width: 100%; height: 220px; overflow: visible; }
 .chart line { stroke: var(--border); stroke-dasharray: 4 4; }.chart polyline { fill: none; stroke: var(--gold); stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }

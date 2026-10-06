@@ -1,5 +1,16 @@
+import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarCheck, GraduationCap, TrendingDown, TrendingUp, UsersRound, WalletCards } from 'lucide-react'
+import {
+  BookOpen,
+  CalendarCheck,
+  Check,
+  ChevronDown,
+  GraduationCap,
+  TrendingDown,
+  TrendingUp,
+  UsersRound,
+  WalletCards,
+} from 'lucide-react'
 import type { AttendanceTrendPoint } from '@golden-study/contracts'
 
 import { useDashboard } from '../features/dashboard/useDashboard'
@@ -7,9 +18,100 @@ import { getSession } from '../features/auth/auth.service'
 
 const statIcons = [UsersRound, GraduationCap, CalendarCheck, WalletCards]
 
-function AttendanceChart({ data }: { data?: AttendanceTrendPoint[] }) {
+const PERIOD_OPTIONS = [
+  { value: 30, label: 'Oxirgi 30 kun' },
+  { value: 14, label: 'Oxirgi 14 kun' },
+  { value: 7, label: 'Oxirgi 7 kun' },
+]
+
+function PeriodSelector({
+  value,
+  onChange,
+}: {
+  value: number
+  onChange: (val: number) => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const selectedOption = PERIOD_OPTIONS.find((opt) => opt.value === value) || PERIOD_OPTIONS[0]
+
+  return (
+    <div className="period-selector-container" ref={containerRef}>
+      <button
+        type="button"
+        className="period-selector-btn"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span>{selectedOption.label}</span>
+        <ChevronDown
+          size={13}
+          style={{
+            transform: isOpen ? 'rotate(180deg)' : 'none',
+            transition: 'transform 150ms ease',
+          }}
+        />
+      </button>
+      {isOpen && (
+        <div className="period-selector-menu" role="listbox">
+          {PERIOD_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={`period-selector-item ${opt.value === value ? 'active' : ''}`}
+              onClick={() => {
+                onChange(opt.value)
+                setIsOpen(false)
+              }}
+              role="option"
+              aria-selected={opt.value === value}
+            >
+              <span>{opt.label}</span>
+              {opt.value === value && <Check size={12} />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function AttendanceChart({
+  data,
+  period,
+}: {
+  data?: AttendanceTrendPoint[]
+  period: number
+}) {
   const pointsList = data && data.length > 0 ? data : []
   const count = pointsList.length
+
+  if (count === 0) {
+    return (
+      <div className="chart" aria-label="Davomat dinamikasi grafigi">
+        <svg viewBox="0 0 700 110" role="img" aria-label="Davomat foizi">
+          <line x1="0" y1="20" x2="700" y2="20" />
+          <line x1="0" y1="52" x2="700" y2="52" />
+          <line x1="0" y1="85" x2="700" y2="85" />
+        </svg>
+        <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: 11, padding: '10px 0' }}>
+          Oxirgi {period} kunda davomat qayd etilmagan
+        </div>
+      </div>
+    )
+  }
 
   const coordinates = pointsList.map((p, i) => {
     const x = count > 1 ? Math.round(25 + (i / (count - 1)) * 650) : 350
@@ -28,13 +130,13 @@ function AttendanceChart({ data }: { data?: AttendanceTrendPoint[] }) {
 
   return (
     <div className="chart" aria-label="Davomat dinamikasi grafigi">
-      <svg viewBox="0 0 700 110" role="img" aria-label="Oxirgi 30 kun davomat foizi">
+      <svg viewBox="0 0 700 110" role="img" aria-label="Davomat foizi">
         <line x1="0" y1="20" x2="700" y2="20" />
         <line x1="0" y1="52" x2="700" y2="52" />
         <line x1="0" y1="85" x2="700" y2="85" />
         {polylineStr ? (
           <>
-            <polyline points={polylineStr} />
+            <polyline points={polylineStr} style={{ transition: 'all 250ms ease' }} />
             {coordinates.map((c) => (
               <circle
                 key={c.date}
@@ -42,6 +144,7 @@ function AttendanceChart({ data }: { data?: AttendanceTrendPoint[] }) {
                 cy={c.y}
                 r="3.5"
                 fill="var(--gold)"
+                style={{ transition: 'cx 250ms ease, cy 250ms ease' }}
               >
                 <title>{`${c.label}: ${c.rate}% (${c.came}/${c.total} qatnashdi)`}</title>
               </circle>
@@ -60,12 +163,22 @@ function AttendanceChart({ data }: { data?: AttendanceTrendPoint[] }) {
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const [period, setPeriod] = useState<number>(30)
   const dashboardQuery = useDashboard()
   const data = dashboardQuery.data
   const isSuperAdmin = getSession()?.role === 'superadmin'
   const statPaths = isSuperAdmin
     ? ['/students', '/courses', '/attendance', '/finance']
     : ['/students', '/courses', '/attendance', '/students']
+
+  const todayEnd = new Date()
+  todayEnd.setHours(23, 59, 59, 999)
+  const cutoffTime = todayEnd.getTime() - period * 24 * 60 * 60 * 1000
+
+  const trendData = (data?.attendanceTrend ?? []).filter((item) => {
+    const itemTime = new Date(item.date).getTime()
+    return itemTime >= cutoffTime
+  })
 
   return (
     <section className="dashboard-page">
@@ -102,7 +215,13 @@ export function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
-        <article className="panel attendance-panel"><header><h2>Davomat dinamikasi</h2><select aria-label="Davr"><option>Oxirgi 30 kun</option></select></header><AttendanceChart data={data.attendanceTrend} /></article>
+        <article className="panel attendance-panel">
+          <header>
+            <h2>Davomat dinamikasi</h2>
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </header>
+          <AttendanceChart data={trendData} period={period} />
+        </article>
         <article className="panel lessons-panel">
           <header>
             <h2>Kutilayotgan darslar</h2>
