@@ -9,6 +9,9 @@ export class DashboardService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
     const [
       monthlyIncomeRes,
       prevMonthlyIncomeRes,
@@ -20,6 +23,7 @@ export class DashboardService {
       prevStudentLedgerRows,
       recentPaymentRows,
       upcomingGroupRows,
+      recentAttendanceRows,
     ] = await Promise.all([
       this.prisma.ledgerEntry.aggregate({
         where: {
@@ -74,6 +78,17 @@ export class DashboardService {
           course: true,
           room: true,
         },
+      }),
+      this.prisma.attendance.findMany({
+        where: {
+          date: { gte: thirtyDaysAgo },
+          isReversed: false,
+        },
+        select: {
+          date: true,
+          status: true,
+        },
+        orderBy: { date: 'asc' },
       }),
     ]);
 
@@ -165,6 +180,49 @@ export class DashboardService {
       },
     ];
 
+    const uzMonths = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
+
+    const formatUzDate = (dateIso: string) => {
+      const parts = dateIso.split('-');
+      const mIdx = parts[1] ? Number.parseInt(parts[1], 10) - 1 : 0;
+      const dNum = parts[2] ? Number.parseInt(parts[2], 10) : 1;
+      return `${dNum} ${uzMonths[mIdx] || (parts[1] ?? '')}`;
+    };
+
+    const dateStats = new Map<string, { total: number; came: number }>();
+    for (const row of recentAttendanceRows) {
+      const dateKey = row.date.toISOString().slice(0, 10);
+      const current = dateStats.get(dateKey) ?? { total: 0, came: 0 };
+      current.total += 1;
+      if (row.status === 'CAME') current.came += 1;
+      dateStats.set(dateKey, current);
+    }
+
+    const attendanceTrend: DashboardData['attendanceTrend'] = [...dateStats.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([dateKey, st]) => ({
+        date: dateKey,
+        label: formatUzDate(dateKey),
+        rate: st.total > 0 ? Math.round((st.came / st.total) * 100) : 0,
+        total: st.total,
+        came: st.came,
+      }));
+
+    if (attendanceTrend.length === 0) {
+      const intervals = [28, 21, 14, 7, 0];
+      for (const daysAgo of intervals) {
+        const d = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+        const dateKey = d.toISOString().slice(0, 10);
+        attendanceTrend.push({
+          date: dateKey,
+          label: formatUzDate(dateKey),
+          rate: 0,
+          total: 0,
+          came: 0,
+        });
+      }
+    }
+
     const upcomingLessons: DashboardData['upcomingLessons'] = upcomingGroupRows.map((g) => {
       const minutes = g.lessonStartMinutes;
       const hours = Math.floor(minutes / 60);
@@ -175,6 +233,7 @@ export class DashboardService {
         title: g.name,
         meta: g.course.title,
         room: g.room?.name ?? 'Xona 1',
+        date: 'Bugun',
       };
     });
 
@@ -195,6 +254,7 @@ export class DashboardService {
       stats,
       upcomingLessons,
       recentPayments,
+      attendanceTrend,
     };
   }
 }

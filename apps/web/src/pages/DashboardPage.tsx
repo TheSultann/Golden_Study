@@ -1,20 +1,59 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { BookOpen, CalendarCheck, GraduationCap, TrendingDown, TrendingUp, UsersRound, WalletCards } from 'lucide-react'
+import type { AttendanceTrendPoint } from '@golden-study/contracts'
 
 import { useDashboard } from '../features/dashboard/useDashboard'
 import { getSession } from '../features/auth/auth.service'
 
 const statIcons = [UsersRound, GraduationCap, CalendarCheck, WalletCards]
 
-function AttendanceChart() {
-  const points = '0,55 28,70 56,64 84,72 112,48 140,61 168,43 196,68 224,59 252,74 280,46 308,58 336,39 364,50 392,42 420,57 448,36 476,49 504,32 532,45 560,37 588,51 616,35 644,44 672,31 700,49'
+function AttendanceChart({ data }: { data?: AttendanceTrendPoint[] }) {
+  const pointsList = data && data.length > 0 ? data : []
+  const count = pointsList.length
+
+  const coordinates = pointsList.map((p, i) => {
+    const x = count > 1 ? Math.round(25 + (i / (count - 1)) * 650) : 350
+    const y = Math.round(85 - (p.rate / 100) * 65)
+    return { x, y, ...p }
+  })
+
+  const polylineStr = coordinates.map((c) => `${c.x},${c.y}`).join(' ')
+
+  const labelIndices =
+    count <= 6
+      ? coordinates.map((_, i) => i)
+      : [0, Math.floor(count * 0.25), Math.floor(count * 0.5), Math.floor(count * 0.75), count - 1]
+
+  const displayedLabels = coordinates.filter((_, i) => labelIndices.includes(i))
+
   return (
     <div className="chart" aria-label="Davomat dinamikasi grafigi">
       <svg viewBox="0 0 700 110" role="img" aria-label="Oxirgi 30 kun davomat foizi">
-        <line x1="0" y1="25" x2="700" y2="25" /><line x1="0" y1="55" x2="700" y2="55" /><line x1="0" y1="85" x2="700" y2="85" />
-        <polyline points={points} />
+        <line x1="0" y1="20" x2="700" y2="20" />
+        <line x1="0" y1="52" x2="700" y2="52" />
+        <line x1="0" y1="85" x2="700" y2="85" />
+        {polylineStr ? (
+          <>
+            <polyline points={polylineStr} />
+            {coordinates.map((c) => (
+              <circle
+                key={c.date}
+                cx={c.x}
+                cy={c.y}
+                r="3.5"
+                fill="var(--gold)"
+              >
+                <title>{`${c.label}: ${c.rate}% (${c.came}/${c.total} qatnashdi)`}</title>
+              </circle>
+            ))}
+          </>
+        ) : null}
       </svg>
-      <div className="chart-labels"><span>7 iyun</span><span>14 iyun</span><span>21 iyun</span><span>28 iyun</span><span>6 iyul</span></div>
+      <div className="chart-labels">
+        {displayedLabels.map((c) => (
+          <span key={c.date}>{c.label}</span>
+        ))}
+      </div>
     </div>
   )
 }
@@ -63,7 +102,7 @@ export function DashboardPage() {
       </div>
 
       <div className="dashboard-grid">
-        <article className="panel attendance-panel"><header><h2>Davomat dinamikasi</h2><select aria-label="Davr"><option>Oxirgi 30 kun</option></select></header><AttendanceChart /></article>
+        <article className="panel attendance-panel"><header><h2>Davomat dinamikasi</h2><select aria-label="Davr"><option>Oxirgi 30 kun</option></select></header><AttendanceChart data={data.attendanceTrend} /></article>
         <article className="panel lessons-panel">
           <header>
             <h2>Kutilayotgan darslar</h2>
@@ -73,7 +112,7 @@ export function DashboardPage() {
             {data.upcomingLessons.map((lesson) => (
               <Link to="/schedule" className="lesson-link" key={lesson.time} style={{ display: 'block' }}>
                 <div className="lesson">
-                  <time>{lesson.time}<small>6 iyul</small></time>
+                  <time>{lesson.time}<small>{lesson.date || 'Bugun'}</small></time>
                   <div>
                     <strong>{lesson.title}</strong>
                     <span>{lesson.meta}</span>
