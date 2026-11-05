@@ -2,8 +2,8 @@ import type { Exam } from '@golden-study/contracts'
 import { BarChart3, CalendarDays, CheckCircle2, Plus, Save, Search, Trash2, Trophy, X } from 'lucide-react'
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { useExams, useSaveExam, useDeleteExam } from '../features/exams/useExams'
-import { useGroups } from '../features/groups/useGroups'
-import { useStudents } from '../features/students/useStudents'
+import { useGroups, useGroupStudents } from '../features/groups/useGroups'
+import { groupRepository } from '../features/groups/group.dependencies'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
 import { DateInput, displayToIsoDate } from '../shared/ui/DateInput'
 
@@ -28,36 +28,68 @@ function sortByRank(exam: Exam) {
   return [...exam.results].sort((a, b) => a.rank - b.rank)
 }
 
-function ExamForm({ close, save }: { close: () => void; save: (exam: Exam) => void }) {
+function ExamForm({ close, save }: { close: () => void; save: (exam: Exam) => Promise<void> | void }) {
   const groupsQuery = useGroups()
-  const studentsQuery = useStudents()
-  const groups = groupsQuery.data ?? []
-  const students = studentsQuery.data ?? []
+  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data])
+  const activeGroups = useMemo(() => {
+    const active = groups.filter((group) => group.active)
+    return active.length > 0 ? active : groups
+  }, [groups])
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('')
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const currentGroupId = selectedGroupId || activeGroups[0]?.id || ''
+  const currentGroup = groups.find((item) => item.id === currentGroupId)
+
+  const groupStudentsQuery = useGroupStudents(currentGroupId)
+  const groupStudents = groupStudentsQuery.data ?? []
+  const activeStudents = useMemo(
+    () => groupStudents.filter((student) => student.status === 'active'),
+    [groupStudents],
+  )
+  const isStudentsLoading = Boolean(currentGroupId) && (groupStudentsQuery.isPending || groupStudentsQuery.isFetching)
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    if (submitting || isStudentsLoading) return
+    setSubmitError(null)
     const data = new FormData(event.currentTarget)
-    const groupId = String(data.get('groupId'))
-    const group = groups.find((item) => item.id === groupId)
+    const groupId = String(data.get('groupId') || currentGroupId)
+    const group = groups.find((item) => item.id === groupId) ?? currentGroup
     if (!group) return
-    const activeStudents = students.filter((student) => student.status === 'active' && student.groups.includes(group.name))
-    const exam: Exam = {
-      id: `e-${Date.now()}`,
-      groupId: group.id,
-      groupName: group.name,
-      name: String(data.get('name')),
-      date: displayToIsoDate(String(data.get('date'))),
-      maxScore: Number(data.get('maxScore')),
-      results: activeStudents.map((student, index) => ({
-        studentId: student.id,
-        studentCode: student.code,
-        studentName: `${student.firstName} ${student.lastName}`,
-        score: 0,
-        comment: '',
-        rank: index + 1,
-      })),
+
+    setSubmitting(true)
+    try {
+      let studentList = group.id === currentGroupId ? groupStudentsQuery.data : null
+      if (!studentList && group.id) {
+        studentList = await groupRepository.listStudents(group.id)
+      }
+      const validStudents = (studentList ?? []).filter((student) => student.status === 'active')
+      const exam: Exam = {
+        id: `e-${Date.now()}`,
+        groupId: group.id,
+        groupName: group.name,
+        name: String(data.get('name')),
+        date: displayToIsoDate(String(data.get('date'))),
+        maxScore: Number(data.get('maxScore')),
+        results: validStudents.map((student, index) => ({
+          studentId: student.id,
+          studentCode: (student as { code?: string; studentCode?: string }).code || (student as { code?: string; studentCode?: string }).studentCode || '',
+          studentName: `${student.firstName} ${student.lastName}`.trim(),
+          score: 0,
+          comment: '',
+          rank: index + 1,
+        })),
+      }
+      await save(exam)
+    } catch (err) {
+      console.error('Failed to create exam:', err)
+      setSubmitError(err instanceof Error ? err.message : 'Imtihonni saqlashda xatolik yuz berdi')
+    } finally {
+      setSubmitting(false)
     }
-    save(exam)
   }
 
   return (
@@ -66,20 +98,52 @@ function ExamForm({ close, save }: { close: () => void; save: (exam: Exam) => vo
         <header>
           <div>
             <h2>Imtihon qo‘shish</h2>
-            <p>Guruh tanlang, keyin ballar jadvali avtomatik ochiladi</p>
+            <p>
+              {isStudentsLoading
+                ? 'Guruh o‘quvchilari yuklanmoqda...'
+                : groupStudentsQuery.isError
+                  ? `${currentGroup?.name ?? 'Guruh'} · O‘quvchilar ro‘yxatini yuklab bo‘lmadi`
+                  : currentGroup
+                    ? `${currentGroup.name} · ${activeStudents.length} ta faol o‘quvchi`
+                    : 'Guruh tanlang, keyin ballar jadvali avtomatik ochiladi'}
+            </p>
           </div>
           <button type="button" onClick={close} aria-label="Yopish"><X size={18} /></button>
         </header>
         <form onSubmit={submit}>
           <div className="form-grid">
             <label className="form-wide">Nomi<input name="name" required placeholder="Masalan: Mock IELTS Reading" /></label>
-            <label>Guruh<select name="groupId" required defaultValue={groups[0]?.id ?? ''}>{groups.filter((group) => group.active).map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}</select></label>
+            <label>
+              Guruh
+              <select
+                name="groupId"
+                required
+                value={currentGroupId}
+                onChange={(event) => {
+                  setSubmitError(null)
+                  setSelectedGroupId(event.target.value)
+                }}
+              >
+                {activeGroups.map((group) => (
+                  <option key={group.id} value={group.id}>
+                    {group.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label>Sana<DateInput name="date" required aria-label="Sana" /></label>
             <label>Maksimal ball<input name="maxScore" type="number" min="1" required defaultValue="100" /></label>
           </div>
+          {submitError && (
+            <div role="alert" style={{ color: '#ef4444', fontSize: '12px', marginTop: '8px' }}>
+              {submitError}
+            </div>
+          )}
           <footer>
-            <button className="secondary-button" type="button" onClick={close}>Bekor</button>
-            <button className="primary-button" type="submit">Saqlash</button>
+            <button className="secondary-button" type="button" onClick={close} disabled={submitting}>Bekor</button>
+            <button className="primary-button" type="submit" disabled={submitting || isStudentsLoading || !currentGroupId}>
+              {submitting ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
           </footer>
         </form>
       </section>
@@ -190,7 +254,7 @@ export function ExamsPage() {
 
       {query.isPending && <div className="dashboard-state">Imtihonlar yuklanmoqda...</div>}
       {query.isError && <div className="dashboard-state dashboard-error">Imtihonlar yuklanmadi</div>}
-      {creating && <ExamForm close={() => setCreating(false)} save={(exam) => void createExam(exam)} />}
+      {creating && <ExamForm close={() => setCreating(false)} save={createExam} />}
 
       {exams.length === 0 ? (
         <div className="exams-layout">

@@ -13,4 +13,9 @@ describe('admin exam draft protection', () => {
     expect(page).toContain('const selected = exams.find')
     expect(page).toContain('<ConfirmDialog')
   })
+
+  it('relies on useGroupStudents instead of global useStudents in ExamForm', () => {
+    expect(page).toContain('useGroupStudents')
+    expect(page).not.toContain("from '../features/students/useStudents'")
+  })
 })
