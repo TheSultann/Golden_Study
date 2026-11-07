@@ -28,7 +28,7 @@ if (!(bot as any).botInfo) {
 const mainMenu = Markup.keyboard([
   ['📊 Davomat', '💳 To\'lovlar'],
   ['📝 Uy vazifalari', '⭐ Reyting'],
-  ['🎯 Imtihonlar']
+  ['🎯 Imtihonlar', '🎤 Speaking'],
 ]).resize();
 
 function escapeHtml(text: string): string {
@@ -1129,6 +1129,366 @@ bot.hears('🎯 Imtihonlar', async (ctx) => {
   }
   return sendRichSafe(ctx, slides, fallbackHtml);
 });
+
+export const studentSelectedTopic = new Map<string, string>();
+
+export function markdownToTelegramHtml(md: string): string {
+  let text = escapeHtml(md);
+  text = text.replace(/^###\s*(?:📌|🎯|📝|⭐|💡)?\s*(.*)$/gm, '📌 <b>$1</b>');
+  text = text.replace(/^##\s*(?:📊|🎯)?\s*(.*)$/gm, '📊 <b>$1</b>');
+  text = text.replace(/^#\s*(?:🎯|📊)?\s*(.*)$/gm, '🎯 <b>$1</b>');
+  text = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+  text = text.replace(/(?<!\*)\*(?!\*)([^*\r\n]+?)(?<!\*)\*(?!\*)/g, '<i>$1</i>');
+  text = text.replace(/^(?:&gt;|>)\s*(.*)$/gm, '<blockquote>$1</blockquote>');
+  text = text.replace(/<\/blockquote>\n<blockquote>/g, '\n');
+  return text;
+}
+
+export async function replyHtmlInChunks(ctx: any, html: string, extra?: any) {
+  const tryReply = async (chunk: string, markup?: any) => {
+    try {
+      return await ctx.replyWithHTML(chunk, markup);
+    } catch {
+      return await ctx.reply(chunk.replace(/<[^>]+>/g, ''), markup);
+    }
+  };
+
+  if (html.length <= 4000) {
+    return tryReply(html, extra);
+  }
+  const parts = html.split('───────────────');
+  let currentChunk = '';
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i] + (i < parts.length - 1 ? '───────────────' : '');
+    if ((currentChunk + part).length > 3900) {
+      if (currentChunk.trim()) {
+        await tryReply(currentChunk.trim());
+      }
+      currentChunk = part;
+    } else {
+      currentChunk += part;
+    }
+  }
+  if (currentChunk.trim()) {
+    await tryReply(currentChunk.trim(), extra);
+  }
+}
+
+// Menu: Speaking
+bot.hears('🎤 Speaking', async (ctx) => {
+  const chatId = String(ctx.chat.id);
+  const link = await getActiveLink(chatId);
+  if (!link) {
+    return ctx.reply("⚠️ Hisobingiz hali tasdiqlanmagan. Administrator tasdiqlashini kuting.");
+  }
+
+  const groupIds = link.student.groups
+    .filter((g) => g.status === 'ACTIVE')
+    .map((g) => g.groupId);
+
+  if (groupIds.length === 0) {
+    return ctx.replyWithHTML("⚠️ <b>Siz hech qaysi faol guruhga biriktirilmagansiz.</b>");
+  }
+
+  let topics = await prisma.speakingTopic.findMany({
+    where: { groupId: { in: groupIds } },
+    include: { group: true },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+  });
+
+  if (topics.length === 0) {
+    const group = await prisma.group.findFirst({
+      where: { id: { in: groupIds } },
+    });
+    if (group) {
+      const defaultTopic = await prisma.speakingTopic.create({
+        data: {
+          groupId: group.id,
+          teacherId: group.teacherId,
+          title: 'Speaking amaliyoti',
+          description: 'O‘quvchilarning og‘zaki nutq amaliyoti va ovozli topshiriqlari',
+          maxScore: 10,
+          deadline: null,
+        },
+        include: { group: true },
+      });
+      topics = [defaultTopic];
+    }
+  }
+
+  if (topics.length === 0) {
+    return ctx.replyWithHTML(
+      `🎤 <b>Speaking & IELTS Voice Lab</b>\n\n` +
+      `Hozircha guruhingiz uchun faol Speaking mavzulari mavjud emas.`
+    );
+  }
+
+  if (topics.length === 1) {
+    const topic = topics[0];
+    studentSelectedTopic.set(chatId, topic.id);
+    return ctx.replyWithHTML(
+      `🎤 <b>Speaking & IELTS Voice Lab</b>\n\n` +
+      `📚 <b>Guruh:</b> ${escapeHtml(topic.group.name)}\n` +
+      `🎯 <b>Mavzu:</b> <b>${escapeHtml(topic.title)}</b>\n` +
+      (topic.description ? `📝 <b>Tafsilotlar:</b> ${escapeHtml(topic.description)}\n` : '') +
+      `🏆 <b>Maksimal ball:</b> 10\n\n` +
+      `🎙 <b>Topshirish uchun:</b> Ushbu mavzu bo'yicha ovozli xabar (Voice message) yoki audio yuboring.\n` +
+      `AI darhol nutqingizni tahlil qiladi va Band ballingizni chiqaradi!`
+    );
+  }
+
+  const keyboard = Markup.inlineKeyboard(
+    topics.map((t) => [
+      Markup.button.callback(
+        `🎙 ${t.title.slice(0, 32)} (${t.group.name})`,
+        `spk_${t.id}`
+      ),
+    ])
+  );
+
+  return ctx.replyWithHTML(
+    `🎤 <b>Speaking & IELTS Voice Lab</b>\n\n` +
+    `Quyidagi mavzulardan birini tanlang va ovozli xabar yuboring:`,
+    keyboard
+  );
+});
+
+bot.action(/^spk_(.+)$/, async (ctx) => {
+  const topicId = ctx.match[1];
+  const chatId = String(ctx.chat?.id ?? '');
+  await ctx.answerCbQuery().catch(() => {});
+
+  const topic = await prisma.speakingTopic.findUnique({
+    where: { id: topicId },
+    include: { group: true },
+  });
+
+  if (!topic) {
+    return ctx.reply('❌ Mavzu topilmadi yoki o‘chirilgan.');
+  }
+
+  studentSelectedTopic.set(chatId, topic.id);
+
+  return ctx.replyWithHTML(
+    `✅ <b>Mavzu tanlandi:</b>\n\n` +
+    `📚 <b>Guruh:</b> ${escapeHtml(topic.group.name)}\n` +
+    `🎯 <b>Mavzu:</b> <b>${escapeHtml(topic.title)}</b>\n` +
+    (topic.description ? `📝 <b>Tafsilotlar:</b> ${escapeHtml(topic.description)}\n` : '') +
+    `🏆 <b>Maksimal ball:</b> 10\n\n` +
+    `🎙 <b>Endi ushbu mavzu bo'yicha ovozli xabar (Voice message) yuboring!</b>`
+  );
+});
+
+export async function handleVoiceOrAudio(ctx: any) {
+  const chatId = String(ctx.chat.id);
+  const link = await getActiveLink(chatId);
+  if (!link) {
+    return ctx.reply("⚠️ Hisobingiz hali tasdiqlanmagan. Administrator tasdiqlashini kuting.");
+  }
+
+  const groupIds = link.student.groups
+    .filter((g) => g.status === 'ACTIVE')
+    .map((g) => g.groupId);
+
+  let selectedTopicId = studentSelectedTopic.get(chatId);
+
+  if (!selectedTopicId) {
+    let topics = await prisma.speakingTopic.findMany({
+      where: { groupId: { in: groupIds } },
+      include: { group: true },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    if (topics.length === 0) {
+      const group = await prisma.group.findFirst({
+        where: { id: { in: groupIds } },
+      });
+      if (group) {
+        const defaultTopic = await prisma.speakingTopic.create({
+          data: {
+            groupId: group.id,
+            teacherId: group.teacherId,
+            title: 'Speaking amaliyoti',
+            description: 'O‘quvchilarning og‘zaki nutq amaliyoti va ovozli topshiriqlari',
+            maxScore: 10,
+            deadline: null,
+          },
+          include: { group: true },
+        });
+        topics = [defaultTopic];
+      }
+    }
+
+    if (topics.length === 0) {
+      return ctx.replyWithHTML(
+        "⚠️ <b>Hozircha guruhingizda faol Speaking mavzusi yo'q.</b>"
+      );
+    }
+
+    if (topics.length === 1) {
+      selectedTopicId = topics[0].id;
+      studentSelectedTopic.set(chatId, selectedTopicId);
+    } else {
+      const keyboard = Markup.inlineKeyboard(
+        topics.map((t) => [
+          Markup.button.callback(`🎙 ${t.title.slice(0, 32)} (${t.group.name})`, `spk_${t.id}`)
+        ])
+      );
+      return ctx.replyWithHTML(
+        "⚠️ <b>Iltimos, avval Speaking mavzusini tanlang:</b>",
+        keyboard
+      );
+    }
+  }
+
+  const topic = await prisma.speakingTopic.findUnique({
+    where: { id: selectedTopicId },
+    include: { group: true },
+  });
+
+  if (!topic) {
+    studentSelectedTopic.delete(chatId);
+    return ctx.replyWithHTML("❌ Tanlangan mavzu topilmadi. Qaytadan '🎤 Speaking' tugmasini bosing.");
+  }
+
+  const statusMsg = await ctx.replyWithHTML(
+    "⏳ <i>Ovozli xabaringiz qayta ishlanmoqda, iltimos kuting...</i>"
+  );
+
+  try {
+    let fileId = '';
+    let duration = 0;
+    let mimeType = 'audio/ogg';
+
+    if (ctx.message && 'voice' in ctx.message) {
+      fileId = ctx.message.voice.file_id;
+      duration = ctx.message.voice.duration || 0;
+      mimeType = ctx.message.voice.mime_type || 'audio/ogg';
+    } else if (ctx.message && 'audio' in ctx.message) {
+      fileId = ctx.message.audio.file_id;
+      duration = ctx.message.audio.duration || 0;
+      mimeType = ctx.message.audio.mime_type || 'audio/ogg';
+    }
+
+    if (!fileId) {
+      throw new Error('Audio file not found');
+    }
+
+    if (duration > 0 && duration < 2) {
+      await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+      return ctx.replyWithHTML(
+        `⚠️ <b>Ovozli xabar juda qisqa (kamida 2 soniya bo'lishi lozim).</b>\n` +
+        `Iltimos, mavzu bo'yicha to'liqroq gapirib qayta yuboring.`,
+        mainMenu
+      );
+    }
+
+    let audioBase64: string | undefined;
+    try {
+      const fileLink = await ctx.telegram.getFileLink(fileId);
+      const fileUrl = typeof fileLink === 'string' ? fileLink : fileLink.href;
+      const audioResp = await fetch(fileUrl);
+      if (audioResp.ok) {
+        const arrayBuffer = await audioResp.arrayBuffer();
+        audioBase64 = Buffer.from(arrayBuffer).toString('base64');
+      }
+    } catch (dlErr) {
+      console.warn('Could not pre-fetch voice buffer for Gemini in bot, passing fileId directly:', dlErr);
+    }
+
+    const apiUrl = process.env.API_URL || process.env.API_BASE_URL || 'http://localhost:3000/api/v1';
+    const botSecret = process.env.TELEGRAM_BOT_TOKEN || '';
+
+    let submissionResult: any = null;
+
+    try {
+      const apiRes = await fetch(`${apiUrl}/speaking/submissions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(botSecret ? { 'x-bot-token': botSecret } : {}),
+        },
+        body: JSON.stringify({
+          topicId: topic.id,
+          studentId: link.studentId,
+          audioUrl: `telegram:${fileId}`,
+          fileId,
+          durationSeconds: duration,
+          ...(audioBase64 ? { audioBase64 } : {}),
+          mimeType,
+        }),
+      });
+
+      if (apiRes.ok) {
+        const json = (await apiRes.json()) as any;
+        submissionResult = json.data;
+      } else {
+        const errText = await apiRes.text();
+        console.error('API submission failed:', apiRes.status, errText);
+      }
+    } catch (netErr) {
+      console.error('Network request to API failed, using database fallback:', netErr);
+    }
+
+    if (!submissionResult) {
+      const submission = await prisma.speakingSubmission.create({
+        data: {
+          topicId: topic.id,
+          studentId: link.studentId,
+          audioUrl: `telegram:${fileId}`,
+          durationSeconds: duration,
+          transcript: '',
+          aiFeedback: '',
+          aiScore: null,
+          status: 'PENDING_AI',
+        },
+      });
+      submissionResult = submission;
+    }
+
+    await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+
+    let resultHtml = '';
+    const cleanTranscript = (submissionResult.transcript || '').trim().replace(/^["']+|["']+$/g, '');
+    const hasFeedback = Boolean(submissionResult.aiFeedback?.trim());
+
+    if (!cleanTranscript && (submissionResult.status === 'PENDING_AI' || !hasFeedback)) {
+      resultHtml =
+        `✅ <b>Ovozli topshirig'ingiz qabul qilindi!</b>\n\n` +
+        `📚 <b>Guruh:</b> ${escapeHtml(topic.group.name)}\n` +
+        `🎯 <b>Mavzu:</b> <b>${escapeHtml(topic.title)}</b>\n\n` +
+        `🎧 <i>Ovozli xabaringiz muvaffaqiyatli qabul qilindi. O'qituvchingiz audio yozuvni tinglab, CRM tizimida baholaydi va natijasi sizga yuboriladi.</i>`;
+    } else {
+      const formattedFeedback = hasFeedback
+        ? markdownToTelegramHtml(submissionResult.aiFeedback) + '\n\n'
+        : '';
+      resultHtml =
+        `🎉 <b>Speaking topshirig'ingiz ${hasFeedback ? 'tahlil qilindi' : 'qabul qilindi'}!</b>\n\n` +
+        `📚 <b>Guruh:</b> ${escapeHtml(topic.group.name)}\n` +
+        `🎯 <b>Mavzu:</b> <b>${escapeHtml(topic.title)}</b>\n\n` +
+        (cleanTranscript
+          ? `📝 <b>Nutq transkripti:</b>\n<blockquote>"${escapeHtml(cleanTranscript)}"</blockquote>\n\n`
+          : '') +
+        (formattedFeedback ? `───────────────\n${formattedFeedback}` : '') +
+        `───────────────\n` +
+        `👨‍🏫 <i>Topshiriq o'qituvchingizga yuborildi. O'qituvchi yakuniy bahoni CRM tizimida tasdiqlaydi va sizga ball yuboriladi.</i>`;
+    }
+
+    await replyHtmlInChunks(ctx, resultHtml, mainMenu);
+  } catch (err: any) {
+    console.error('Error handling voice message:', err);
+    await ctx.telegram.deleteMessage(ctx.chat.id, statusMsg.message_id).catch(() => {});
+    await ctx.replyWithHTML(
+      `❌ <b>Ovozli xabarni tahlil qilishda xatolik yuz berdi.</b>\n` +
+      `Iltimos, qayta urinib ko'ring yoki ovozli xabarni qayta yozib yuboring.`
+    );
+  }
+}
+
+bot.on('voice', handleVoiceOrAudio);
+bot.on('audio', handleVoiceOrAudio);
 
 // Text listener for Student Code submission
 bot.on('text', async (ctx, next) => {

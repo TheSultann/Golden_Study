@@ -9,6 +9,10 @@ import {
   getLinkedGroupForChat,
   extractCleanGroupId,
   parseLessonPlan,
+  studentSelectedTopic,
+  markdownToTelegramHtml,
+  replyHtmlInChunks,
+  handleVoiceOrAudio,
 } from './index.js';
 
 describe('Telegram Bot - Uy vazifalari va Davomat', () => {
@@ -269,6 +273,378 @@ describe('Telegram Bot - Uy vazifalari va Davomat', () => {
       const onlyTopic = parseLessonPlan('Mavzu: Irregular Verbs');
       expect(onlyTopic.topic).toBe('Irregular Verbs');
       expect(onlyTopic.homeworkText).toBe('');
+    });
+  });
+
+  describe('Telegram Bot - 🎤 Speaking & IELTS Voice Lab', () => {
+    it('formats AI feedback markdown into Telegram HTML correctly', () => {
+      const markdown = `## 📊 IELTS Speaking Tahlili\n### 🎯 Mezonlar\n**Fluency:** 6.5\n*Good job*\n> "Keep it up"`;
+      const html = markdownToTelegramHtml(markdown);
+
+      expect(html).toContain('📊 <b>IELTS Speaking Tahlili</b>');
+      expect(html).toContain('📌 <b>Mezonlar</b>');
+      expect(html).toContain('<b>Fluency:</b> 6.5');
+      expect(html).toContain('<i>Good job</i>');
+      expect(html).toContain('<blockquote>&quot;Keep it up&quot;</blockquote>');
+    });
+
+    it('sends long html in chunks when exceeding Telegram limit', async () => {
+      const mockReply = vi.fn().mockResolvedValue({});
+      const ctx = { replyWithHTML: mockReply };
+
+      const shortHtml = '<b>Short message</b>';
+      await replyHtmlInChunks(ctx, shortHtml);
+      expect(mockReply).toHaveBeenCalledTimes(1);
+      expect(mockReply).toHaveBeenCalledWith(shortHtml, undefined);
+
+      mockReply.mockClear();
+      const longHtml = 'A'.repeat(3000) + '───────────────' + 'B'.repeat(2000);
+      await replyHtmlInChunks(ctx, longHtml);
+      expect(mockReply).toHaveBeenCalledTimes(2);
+    });
+
+    it('manages studentSelectedTopic map for topic selection', () => {
+      studentSelectedTopic.set('chat_1001', 'topic_xyz');
+      expect(studentSelectedTopic.get('chat_1001')).toBe('topic_xyz');
+      studentSelectedTopic.delete('chat_1001');
+      expect(studentSelectedTopic.get('chat_1001')).toBeUndefined();
+    });
+
+    it('handles voice message and processes speaking submission', async () => {
+      const mockLink = {
+        telegramChatId: 'chat_speaking_1',
+        studentId: 'student_123',
+        status: 'ACTIVE',
+        student: {
+          id: 'student_123',
+          firstName: 'Ali',
+          lastName: 'Valiyev',
+          groups: [{ status: 'ACTIVE', groupId: 'group_spk_1' }],
+        },
+      };
+
+      vi.spyOn(prisma.telegramLink, 'findFirst').mockResolvedValue(mockLink as any);
+      vi.spyOn(prisma.speakingTopic, 'findMany').mockResolvedValue([
+        {
+          id: 'topic_spk_1',
+          groupId: 'group_spk_1',
+          title: 'My Hometown',
+          description: 'Describe where you grew up',
+          maxScore: 9,
+          deadline: null,
+          group: { name: 'IELTS Evening' },
+        },
+      ] as any);
+
+      vi.spyOn(prisma.speakingTopic, 'findUnique').mockResolvedValue({
+        id: 'topic_spk_1',
+        groupId: 'group_spk_1',
+        title: 'My Hometown',
+        description: 'Describe where you grew up',
+        maxScore: 9,
+        deadline: null,
+        group: { name: 'IELTS Evening' },
+      } as any);
+
+      vi.spyOn(prisma.speakingSubmission, 'create').mockResolvedValue({
+        id: 'sub_123',
+        topicId: 'topic_spk_1',
+        studentId: 'student_123',
+        audioUrl: 'telegram:voice_file_001',
+        durationSeconds: 30,
+        transcript: 'I grew up in Samarkand.',
+        aiFeedback: '## 📊 IELTS Speaking Tahlili\nBand 7.0',
+        aiScore: 7.0,
+        status: 'EVALUATED_BY_AI',
+      } as any);
+
+      const mockDeleteMsg = vi.fn().mockResolvedValue({});
+      const mockReplyHtml = vi.fn().mockResolvedValue({});
+      const mockGetFileLink = vi.fn().mockResolvedValue({ href: 'https://example.com/audio.ogg' });
+
+      // Mock fetch for audio download
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url === 'https://example.com/audio.ogg') {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('fake-audio-bytes')),
+          });
+        }
+        return Promise.reject(new Error('Network offline'));
+      }) as any;
+
+      const ctx = {
+        chat: { id: 123456 },
+        message: {
+          voice: {
+            file_id: 'voice_file_001',
+            duration: 30,
+            mime_type: 'audio/ogg',
+          },
+        },
+        telegram: {
+          getFileLink: mockGetFileLink,
+          deleteMessage: mockDeleteMsg,
+        },
+        replyWithHTML: mockReplyHtml,
+      };
+
+      try {
+        await handleVoiceOrAudio(ctx);
+
+        expect(mockGetFileLink).toHaveBeenCalledWith('voice_file_001');
+        expect(mockReplyHtml).toHaveBeenCalled();
+        // Should have sent result
+        const calls = mockReplyHtml.mock.calls;
+        const lastCall = calls[calls.length - 1][0];
+        expect(lastCall).toContain('Speaking topshirig\'ingiz tahlil qilindi!');
+        expect(lastCall).toContain('My Hometown');
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it('warns student if audio message is too short (< 2 seconds)', async () => {
+      const mockLink = {
+        telegramChatId: 'chat_short_1',
+        studentId: 'student_123',
+        status: 'ACTIVE',
+        student: {
+          id: 'student_123',
+          firstName: 'Ali',
+          lastName: 'Valiyev',
+          groups: [{ status: 'ACTIVE', groupId: 'group_spk_1' }],
+        },
+      };
+
+      vi.spyOn(prisma.telegramLink, 'findFirst').mockResolvedValue(mockLink as any);
+      vi.spyOn(prisma.speakingTopic, 'findMany').mockResolvedValue([
+        {
+          id: 'topic_spk_1',
+          groupId: 'group_spk_1',
+          title: 'My Hometown',
+          description: 'Short',
+          maxScore: 9,
+          group: { name: 'IELTS' },
+        },
+      ] as any);
+      vi.spyOn(prisma.speakingTopic, 'findUnique').mockResolvedValue({
+        id: 'topic_spk_1',
+        groupId: 'group_spk_1',
+        title: 'My Hometown',
+        description: 'Short',
+        maxScore: 9,
+        group: { name: 'IELTS' },
+      } as any);
+
+      const mockReplyHtml = vi.fn().mockResolvedValue({});
+      const mockDeleteMsg = vi.fn().mockResolvedValue({});
+
+      const ctx = {
+        chat: { id: 777 },
+        message: {
+          voice: {
+            file_id: 'voice_short',
+            duration: 1,
+            mime_type: 'audio/ogg',
+          },
+        },
+        telegram: {
+          deleteMessage: mockDeleteMsg,
+        },
+        replyWithHTML: mockReplyHtml,
+      };
+
+      await handleVoiceOrAudio(ctx);
+      expect(mockReplyHtml).toHaveBeenCalled();
+      const lastCall = mockReplyHtml.mock.calls[mockReplyHtml.mock.calls.length - 1][0];
+      expect(lastCall).toContain('juda qisqa');
+    });
+
+    it('processes audio file via successful API submission response', async () => {
+      const mockLink = {
+        telegramChatId: 'chat_api_1',
+        studentId: 'student_456',
+        status: 'ACTIVE',
+        student: {
+          id: 'student_456',
+          firstName: 'Jasur',
+          lastName: 'Toshmatov',
+          groups: [{ status: 'ACTIVE', groupId: 'group_spk_1' }],
+        },
+      };
+
+      vi.spyOn(prisma.telegramLink, 'findFirst').mockResolvedValue(mockLink as any);
+      vi.spyOn(prisma.speakingTopic, 'findMany').mockResolvedValue([
+        {
+          id: 'topic_spk_2',
+          groupId: 'group_spk_1',
+          title: 'Technology & AI',
+          description: 'How AI affects life',
+          maxScore: 9,
+          deadline: null,
+          group: { name: 'IELTS Advanced' },
+        },
+      ] as any);
+      vi.spyOn(prisma.speakingTopic, 'findUnique').mockResolvedValue({
+        id: 'topic_spk_2',
+        groupId: 'group_spk_1',
+        title: 'Technology & AI',
+        description: 'How AI affects life',
+        maxScore: 9,
+        deadline: null,
+        group: { name: 'IELTS Advanced' },
+      } as any);
+
+      const mockDeleteMsg = vi.fn().mockResolvedValue({});
+      const mockReplyHtml = vi.fn().mockResolvedValue({});
+      const mockGetFileLink = vi.fn().mockResolvedValue('https://example.com/audio.mp3');
+
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url === 'https://example.com/audio.mp3') {
+          return Promise.resolve({
+            ok: true,
+            arrayBuffer: () => Promise.resolve(Buffer.from('mp3-bytes')),
+          });
+        }
+        if (url.includes('/speaking/submissions')) {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                success: true,
+                data: {
+                  id: 'sub_live_api',
+                  topicId: 'topic_spk_2',
+                  studentId: 'student_456',
+                  status: 'EVALUATED_BY_AI',
+                  aiScore: 8.0,
+                  transcript: 'Artificial intelligence is changing the world.',
+                  aiFeedback: '## 📊 IELTS Speaking Tahlili\n**Band:** 8.0\n*Superb vocabulary*',
+                },
+              }),
+          });
+        }
+        return Promise.reject(new Error('Unknown url'));
+      }) as any;
+
+      const ctx = {
+        chat: { id: 888 },
+        message: {
+          audio: {
+            file_id: 'audio_file_002',
+            duration: 45,
+            mime_type: 'audio/mp3',
+          },
+        },
+        telegram: {
+          getFileLink: mockGetFileLink,
+          deleteMessage: mockDeleteMsg,
+        },
+        replyWithHTML: mockReplyHtml,
+      };
+
+      try {
+        await handleVoiceOrAudio(ctx);
+
+        expect(mockGetFileLink).toHaveBeenCalledWith('audio_file_002');
+        expect(mockReplyHtml).toHaveBeenCalled();
+        const calls = mockReplyHtml.mock.calls;
+        const lastCall = calls[calls.length - 1][0];
+        expect(lastCall).toContain('Technology &amp; AI');
+        expect(lastCall).toContain('va sizga ball yuboriladi');
+        expect(lastCall).toContain('Artificial intelligence is changing the world.');
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+
+    it('successfully submits voice note with fileId even if audio buffer download fails', async () => {
+      const mockLink = {
+        telegramChatId: 'chat_resilient_1',
+        studentId: 'student_resilient_1',
+        status: 'ACTIVE',
+        student: {
+          id: 'student_resilient_1',
+          firstName: 'Sardor',
+          lastName: 'Rahimov',
+          groups: [{ status: 'ACTIVE', groupId: 'group_resilient_1' }],
+        },
+      };
+
+      vi.spyOn(prisma.telegramLink, 'findFirst').mockResolvedValue(mockLink as any);
+      vi.spyOn(prisma.speakingTopic, 'findMany').mockResolvedValue([
+        {
+          id: 'topic_res_1',
+          groupId: 'group_resilient_1',
+          title: 'Resilient Topic',
+          description: 'Desc',
+          maxScore: 9,
+          group: { name: 'IELTS Resilient' },
+        },
+      ] as any);
+      vi.spyOn(prisma.speakingTopic, 'findUnique').mockResolvedValue({
+        id: 'topic_res_1',
+        groupId: 'group_resilient_1',
+        title: 'Resilient Topic',
+        description: 'Desc',
+        maxScore: 9,
+        group: { name: 'IELTS Resilient' },
+      } as any);
+
+      const dbCreateSpy = vi.spyOn(prisma.speakingSubmission, 'create').mockResolvedValue({
+        id: 'sub_res_1',
+        topicId: 'topic_res_1',
+        studentId: 'student_resilient_1',
+        audioUrl: 'telegram:voice_resilient_001',
+        durationSeconds: 25,
+        transcript: '',
+        aiFeedback: '',
+        aiScore: null,
+        status: 'PENDING_AI',
+      } as any);
+
+      const mockDeleteMsg = vi.fn().mockResolvedValue({});
+      const mockReplyHtml = vi.fn().mockResolvedValue({});
+      const mockGetFileLink = vi.fn().mockRejectedValue(new Error('Telegram CDN temporarily down'));
+
+      const ctx = {
+        chat: { id: 888888 },
+        message: {
+          voice: {
+            file_id: 'voice_resilient_001',
+            duration: 25,
+            mime_type: 'audio/ogg',
+          },
+        },
+        telegram: {
+          getFileLink: mockGetFileLink,
+          deleteMessage: mockDeleteMsg,
+        },
+        replyWithHTML: mockReplyHtml,
+      };
+
+      await handleVoiceOrAudio(ctx);
+
+      expect(dbCreateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            audioUrl: 'telegram:voice_resilient_001',
+            status: 'PENDING_AI',
+          }),
+        }),
+      );
+      expect(mockReplyHtml).toHaveBeenCalled();
+      const lastReply = mockReplyHtml.mock.calls[mockReplyHtml.mock.calls.length - 1][0];
+      expect(lastReply).toContain('Ovozli topshirig\'ingiz qabul qilindi!');
+    });
+
+    it('does not allow italic asterisks to span across newlines', () => {
+      const markdown = `* Item one\n* Item two`;
+      const html = markdownToTelegramHtml(markdown);
+      expect(html).not.toContain('<i> Item one\n</i>');
     });
   });
 });

@@ -7,10 +7,20 @@ import { verifyAccessToken } from '../modules/auth/token.service.js';
 export function createAuthenticate(authService: AuthService): RequestHandler {
   return async (request, _response, next) => {
     try {
+      let token: string | undefined;
       const authorization = request.header('authorization');
-      const [scheme, token] = authorization?.split(' ') ?? [];
+      if (authorization) {
+        const [scheme, bearerToken] = authorization.split(' ');
+        if (scheme === 'Bearer' && bearerToken) {
+          token = bearerToken;
+        }
+      }
 
-      if (scheme !== 'Bearer' || !token) {
+      if (!token && typeof request.query.token === 'string' && request.query.token.trim().length > 0) {
+        token = request.query.token.trim();
+      }
+
+      if (!token) {
         throw unauthorized();
       }
 

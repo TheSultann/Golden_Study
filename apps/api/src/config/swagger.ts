@@ -39,6 +39,11 @@ import {
   studentPaymentCreateInputSchema,
   teacherKpiSummaryApiSchema,
   teacherPayoutInputSchema,
+  speakingTopicSchema,
+  createSpeakingTopicSchema,
+  speakingSubmissionSchema,
+  gradeSpeakingSubmissionSchema,
+  submitSpeakingSubmissionSchema,
 } from '@golden-study/contracts';
 import { z } from 'zod';
 
@@ -145,6 +150,11 @@ export const openApiDocument = {
         billingReconcileInputSchema,
       ),
       TeacherPayoutInput: z.toJSONSchema(teacherPayoutInputSchema),
+      SpeakingTopic: z.toJSONSchema(speakingTopicSchema),
+      CreateSpeakingTopicInput: z.toJSONSchema(createSpeakingTopicSchema),
+      SpeakingSubmission: z.toJSONSchema(speakingSubmissionSchema),
+      GradeSpeakingSubmissionInput: z.toJSONSchema(gradeSpeakingSubmissionSchema),
+      SubmitSpeakingSubmissionInput: z.toJSONSchema(submitSpeakingSubmissionSchema),
       ErrorResponse: {
         type: 'object',
         required: ['success', 'error'],
@@ -1014,6 +1024,170 @@ export const openApiDocument = {
         summary: 'List debtors by computed student balance',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Paginated debtors' } },
+      },
+    },
+    '/speaking/topics': {
+      get: {
+        tags: ['Speaking'],
+        summary: 'List speaking topics',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'groupId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'List of speaking topics',
+            content: jsonContent({
+              type: 'object',
+              required: ['success', 'data'],
+              properties: {
+                success: { type: 'boolean', const: true },
+                data: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/SpeakingTopic' },
+                },
+              },
+            }),
+          },
+        },
+      },
+      post: {
+        tags: ['Speaking'],
+        summary: 'Create speaking topic',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: jsonContent({
+            $ref: '#/components/schemas/CreateSpeakingTopicInput',
+          }),
+        },
+        responses: { '201': resourceResponse('SpeakingTopic') },
+      },
+    },
+    '/speaking/submissions': {
+      get: {
+        tags: ['Speaking'],
+        summary: 'List speaking submissions',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'groupId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
+            name: 'topicId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
+            name: 'studentId',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', format: 'uuid' },
+          },
+          {
+            name: 'status',
+            in: 'query',
+            required: false,
+            schema: {
+              type: 'string',
+              enum: ['PENDING_AI', 'EVALUATED_BY_AI', 'GRADED_BY_TEACHER'],
+            },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'List of speaking submissions',
+            content: jsonContent({
+              type: 'object',
+              required: ['success', 'data'],
+              properties: {
+                success: { type: 'boolean', const: true },
+                data: {
+                  type: 'array',
+                  items: { $ref: '#/components/schemas/SpeakingSubmission' },
+                },
+              },
+            }),
+          },
+        },
+      },
+      post: {
+        tags: ['Speaking'],
+        summary: 'Submit speaking recording',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: jsonContent({
+            $ref: '#/components/schemas/SubmitSpeakingSubmissionInput',
+          }),
+        },
+        responses: { '201': resourceResponse('SpeakingSubmission') },
+      },
+    },
+    '/speaking/submissions/{id}/grade': {
+      post: {
+        tags: ['Speaking'],
+        summary: 'Grade speaking submission',
+        security: [{ bearerAuth: [] }],
+        parameters: [idParameter],
+        requestBody: {
+          required: true,
+          content: jsonContent({
+            $ref: '#/components/schemas/GradeSpeakingSubmissionInput',
+          }),
+        },
+        responses: { '200': resourceResponse('SpeakingSubmission') },
+      },
+    },
+    '/speaking/submissions/{id}/audio': {
+      get: {
+        tags: ['Speaking'],
+        summary: 'Stream speaking audio recording with HTTP Range support',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          idParameter,
+          {
+            name: 'token',
+            in: 'query',
+            required: false,
+            description: 'Access token for media element streaming',
+            schema: { type: 'string' },
+          },
+          {
+            name: 'Range',
+            in: 'header',
+            required: false,
+            description: 'HTTP byte range request',
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Full audio stream',
+            content: {
+              'audio/ogg': {
+                schema: { type: 'string', format: 'binary' },
+              },
+            },
+          },
+          '206': {
+            description: 'Partial content audio stream (HTTP Range)',
+            content: {
+              'audio/ogg': {
+                schema: { type: 'string', format: 'binary' },
+              },
+            },
+          },
+        },
       },
     },
   },

@@ -186,6 +186,7 @@ model Teacher {
   groups        Group[]
   leads         Lead[]
   ledgerEntries LedgerEntry[]
+  speakingTopics SpeakingTopic[]
 
   @@index([isActive])
 }
@@ -241,6 +242,7 @@ model Group {
   payments   Payment[]
   exams      Exam[]
   lessons    GroupLesson[]
+  speakingTopics SpeakingTopic[]
 
   @@index([teacherId, status])
   @@index([courseId, status])
@@ -270,6 +272,7 @@ model Student {
   statusPeriods StudentStatusPeriod[]
   examResults   ExamResult[]
   telegramLinks TelegramLink[]
+  speakingSubmissions SpeakingSubmission[]
 
   @@index([status])
   @@index([lastName, firstName])
@@ -593,5 +596,53 @@ model Announcement {
   createdBy User @relation("AnnouncementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
   @@index([createdAt])
+}
+
+enum SpeakingSubmissionStatus {
+  PENDING_AI
+  EVALUATED_BY_AI
+  GRADED_BY_TEACHER
+}
+
+model SpeakingTopic {
+  id          String    @id @default(uuid())
+  groupId     String
+  teacherId   String
+  title       String
+  description String    @default("")
+  maxScore    Int       @default(100)
+  deadline    DateTime? @db.Date
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  group       Group                @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  teacher     Teacher              @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  submissions SpeakingSubmission[]
+
+  @@index([groupId, createdAt])
+  @@index([teacherId, createdAt])
+}
+
+model SpeakingSubmission {
+  id              String                   @id @default(uuid())
+  topicId         String
+  studentId       String
+  audioUrl        String
+  durationSeconds Int                      @default(0)
+  transcript      String                   @default("")
+  aiFeedback      String                   @default("")
+  aiScore         Float?
+  teacherScore    Float?
+  teacherComment  String?
+  status          SpeakingSubmissionStatus @default(PENDING_AI)
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  topic   SpeakingTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  student Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+
+  @@index([topicId, createdAt])
+  @@index([studentId, createdAt])
+  @@index([status])
 }
 

@@ -154,9 +154,14 @@ export function DateInput({
     return isoToDisplayDate(init)
   })
 
+  const lastNotifiedIsoRef = useRef(controlledValue ?? '')
+
   useEffect(() => {
     if (isControlled && controlledValue !== undefined) {
-      setTextValue(isoToDisplayDate(controlledValue))
+      if (controlledValue !== lastNotifiedIsoRef.current) {
+        lastNotifiedIsoRef.current = controlledValue
+        setTextValue(isoToDisplayDate(controlledValue))
+      }
     }
   }, [controlledValue, isControlled])
 
@@ -210,21 +215,25 @@ export function DateInput({
     const digits = rawVal.replace(/\D/g, '').slice(0, 8)
     const formatted = formatMask(digits)
 
-    if (!isControlled) {
-      setTextValue(formatted)
-    }
+    setTextValue(formatted)
 
     if (digits.length === 8) {
       const day = digits.slice(0, 2)
       const month = digits.slice(2, 4)
       const year = digits.slice(4, 8)
-      const newIso = `${year}-${month}-${day}`
-      onChange?.(newIso)
-      setViewYear(Number(year))
-      setViewMonth(Number(month) - 1)
-    } else {
-      onChange?.('')
+      const dayNum = parseInt(day, 10)
+      const monthNum = parseInt(month, 10)
+      if (monthNum >= 1 && monthNum <= 12 && dayNum >= 1 && dayNum <= 31) {
+        const newIso = `${year}-${month}-${day}`
+        lastNotifiedIsoRef.current = newIso
+        onChange?.(newIso)
+        setViewYear(Number(year))
+        setViewMonth(Number(month) - 1)
+        return
+      }
     }
+    lastNotifiedIsoRef.current = ''
+    onChange?.('')
   }
 
   function togglePicker() {
@@ -266,9 +275,8 @@ export function DateInput({
 
   function handleSelectDate(iso: string) {
     const display = isoToDisplayDate(iso)
-    if (!isControlled) {
-      setTextValue(display)
-    }
+    setTextValue(display)
+    lastNotifiedIsoRef.current = iso
     onChange?.(iso)
     setIsOpen(false)
   }

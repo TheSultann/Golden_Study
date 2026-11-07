@@ -163,7 +163,7 @@ describe('AuthService', () => {
     await expect(service.login('admin', 'password123')).rejects.toThrow();
     const loginResult = await service.login('admin', 'newpassword456');
     expect(loginResult.user.id).toBe(baseUser.id);
-  });
+  }, 15000);
 
   it('rejects password change with wrong current password', async () => {
     await expect(

@@ -46,6 +46,10 @@ describe('OpenAPI document', () => {
     '/teachers/{id}/payouts/{payoutId}/reverse',
     '/finance/summary',
     '/finance/debtors',
+    '/speaking/topics',
+    '/speaking/submissions',
+    '/speaking/submissions/{id}/grade',
+    '/speaking/submissions/{id}/audio',
   ])('documents %s', (path) => {
     expect(openApiDocument.paths).toHaveProperty(path);
   });
@@ -57,6 +61,11 @@ describe('OpenAPI document', () => {
     'TeacherKpiSummary',
     'FinanceSummary',
     'Debtor',
+    'SpeakingTopic',
+    'CreateSpeakingTopicInput',
+    'SpeakingSubmission',
+    'GradeSpeakingSubmissionInput',
+    'SubmitSpeakingSubmissionInput',
   ])('defines %s schema', (schema) => {
     expect(openApiDocument.components.schemas).toHaveProperty(schema);
   });

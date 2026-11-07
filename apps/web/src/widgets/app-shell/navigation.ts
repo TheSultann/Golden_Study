@@ -1,6 +1,6 @@
 import {
   BarChart3, BookOpen, CalendarCheck, CalendarDays, ClipboardCheck, GraduationCap,
-  LayoutDashboard, Megaphone, Send, Settings, Trophy, TrendingUp, UserRoundSearch,
+  LayoutDashboard, Megaphone, Mic, Send, Settings, Trophy, TrendingUp, UserRoundSearch,
   UsersRound, WalletCards,
 } from 'lucide-react'
 
@@ -19,6 +19,7 @@ export const navigationItems = [
   { label: 'Moliya', path: '/finance', icon: WalletCards, roles: ['superadmin', 'admin'] },
   { label: 'Xodimlar', path: '/staff', icon: UsersRound, roles: ['superadmin'] },
   { label: 'Imtihonlar', path: '/exams', icon: ClipboardCheck, roles: ['superadmin', 'admin', 'teacher'] },
+  { label: 'Speaking', path: '/speaking', icon: Mic, roles: ['superadmin', 'admin', 'teacher'] },
   { label: 'Maoshim', path: '/my-salary', icon: WalletCards, roles: ['teacher'] },
   { label: 'E’lonlar', path: '/announcements', icon: Megaphone, roles: ['superadmin', 'admin'] },
   { label: 'Telegram Bot', path: '/telegram-bot', icon: Send, roles: ['superadmin', 'admin'] },

@@ -22,3 +22,4 @@ process.env.BCRYPT_COST = '12';
 process.env.SEED_SUPER_ADMIN_PASSWORD = 'super-admin-test-password';
 process.env.SEED_ADMIN_PASSWORD = 'admin-test-password';
 process.env.SEED_TEACHER_PASSWORD = 'teacher-test-password';
+process.env.GEMINI_API_KEY = '';

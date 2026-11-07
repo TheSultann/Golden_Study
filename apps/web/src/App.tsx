@@ -23,6 +23,7 @@ import { TeacherAttendancePage } from './pages/TeacherAttendancePage'
 import { TeacherRatingPage } from './pages/TeacherRatingPage'
 import { TeacherExamsPage } from './pages/TeacherExamsPage'
 import { TeacherSalaryPage } from './pages/TeacherSalaryPage'
+import { SpeakingPage } from './pages/SpeakingPage'
 import { getSession } from './features/auth/auth.service'
 import { ProtectedRoute } from './routes/ProtectedRoute'
 import { RoleRoute } from './routes/RoleRoute'
@@ -55,6 +56,7 @@ function App() {
           {/* Shared for superadmin, admin and teacher */}
           <Route element={<RoleRoute allowed={['superadmin', 'admin', 'teacher']} />}>
             <Route path="/students" element={<StudentsPage />} />
+            <Route path="/speaking" element={<SpeakingPage />} />
           </Route>
 
           {/* Shared for superadmin and admin */}

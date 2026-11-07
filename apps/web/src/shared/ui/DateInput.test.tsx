@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { DateInput, displayToIsoDate, isoToDisplayDate } from './DateInput'
 
@@ -62,5 +63,51 @@ describe('DateInput component', () => {
     const now = new Date()
     const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     expect(handleChange).toHaveBeenCalledWith(todayIso)
+  })
+
+  it('allows typing into controlled DateInput component and updates display', async () => {
+    const user = userEvent.setup()
+    let controlled = ''
+    const handleChange = vi.fn((iso: string) => {
+      controlled = iso
+    })
+
+    const { rerender } = render(
+      <DateInput value={controlled} onChange={handleChange} aria-label="Sana" />
+    )
+
+    const input = screen.getByLabelText('Sana') as HTMLInputElement
+    await user.type(input, '25112026')
+
+    expect(handleChange).toHaveBeenCalledWith('2026-11-25')
+    rerender(<DateInput value={controlled} onChange={handleChange} aria-label="Sana" />)
+    expect(input.value).toBe('25.11.2026')
+  })
+
+  it('keeps in-progress typing intact in a real useState controlled wrapper without wiping', async () => {
+    const user = userEvent.setup()
+    function ControlledHost() {
+      const [dateVal, setDateVal] = useState('')
+      return (
+        <div>
+          <DateInput value={dateVal} onChange={setDateVal} aria-label="Sana" />
+          <span data-testid="selected-iso">{dateVal}</span>
+        </div>
+      )
+    }
+
+    render(<ControlledHost />)
+    const input = screen.getByLabelText('Sana') as HTMLInputElement
+    const isoDisplay = screen.getByTestId('selected-iso')
+
+    // Type 2 digits
+    await user.type(input, '12')
+    expect(input.value).toBe('12')
+    expect(isoDisplay.textContent).toBe('')
+
+    // Type remaining digits to complete 12.05.2026
+    await user.type(input, '052026')
+    expect(input.value).toBe('12.05.2026')
+    expect(isoDisplay.textContent).toBe('2026-05-12')
   })
 })

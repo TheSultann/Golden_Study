@@ -63,6 +63,9 @@ import { TeacherPanelService } from './modules/teachers/teacher-panel.service.js
 import { createTeacherPanelRouter } from './modules/teachers/teacher-panel.routes.js';
 import { TelegramService } from './modules/telegram/telegram.service.js';
 import { createTelegramRouter } from './modules/telegram/telegram.routes.js';
+import { SpeakingService } from './modules/speaking/speaking.service.js';
+import { createSpeakingRouter } from './modules/speaking/speaking.routes.js';
+import { GeminiSpeakingService } from './modules/speaking/gemini-speaking.service.js';
 import {
   createNotificationQueue,
   startNotificationWorker,
@@ -73,7 +76,11 @@ export function createApp(): Express {
 
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   const allowedOrigins = new Set([
     env.FRONTEND_URL,
     'http://localhost:5173',
@@ -94,7 +101,7 @@ export function createApp(): Express {
       credentials: true,
     }),
   );
-  app.use(express.json({ limit: '1mb' }));
+  app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
   app.use(pinoHttp({ logger }));
 
@@ -211,6 +218,13 @@ export function createApp(): Express {
   const telegramRouter = createTelegramRouter(authService, telegramService);
   app.use('/api/v1/telegram-bot', telegramRouter);
   app.use('/api/v1/telegram', telegramRouter);
+  app.use(
+    '/api/v1/speaking',
+    createSpeakingRouter(
+      authService,
+      new SpeakingService(prisma, new GeminiSpeakingService()),
+    ),
+  );
 
 
   app.use(notFoundMiddleware);
