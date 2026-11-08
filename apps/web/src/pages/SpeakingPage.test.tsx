@@ -68,6 +68,15 @@ const mockSubmitRecording = vi.fn(async (input) => ({
   createdAt: new Date().toISOString(),
 }))
 
+const mockGradeStudent = vi.fn(async (input: any) => ({
+  ...mockSubmissions[0]!,
+  id: 'sub-graded-student',
+  studentId: input.studentId,
+  teacherScore: input.teacherScore,
+  teacherComment: input.teacherComment,
+  status: 'GRADED_BY_TEACHER' as const,
+}))
+
 const mockListSubmissions = vi.fn(async () => mockSubmissions)
 
 vi.mock('../features/speaking/speaking.dependencies', () => ({
@@ -76,6 +85,7 @@ vi.mock('../features/speaking/speaking.dependencies', () => ({
     createTopic: vi.fn(),
     listSubmissions: () => mockListSubmissions(),
     gradeSubmission: (...args: unknown[]) => (mockGradeSubmission as (...a: unknown[]) => unknown)(...args),
+    gradeStudent: (...args: unknown[]) => (mockGradeStudent as (...a: unknown[]) => unknown)(...args),
     submitRecording: (...args: unknown[]) => (mockSubmitRecording as (...a: unknown[]) => unknown)(...args),
   },
 }))
@@ -647,5 +657,186 @@ describe('SpeakingPage', () => {
     expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
     expect(await screen.findByText('Hozircha guruhlar mavjud emas.')).toBeInTheDocument()
     expect(screen.getByText('Topshiriqlarni ko‘rish uchun avval guruh tanlang yoki yarating.')).toBeInTheDocument()
+  })
+
+  it('renders unsubmitted students in a compact row format instead of large cards with repeated text', async () => {
+    const { groupRepository } = await import('../features/groups/group.dependencies')
+    vi.mocked(groupRepository.listStudents).mockResolvedValueOnce([
+      { id: 'st-1', firstName: 'Bobur', lastName: 'Karimov', code: 'SPK101', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+      { id: 'st-2', firstName: 'Dilnoza', lastName: 'Aliyeva', code: 'SPK201', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+      { id: 'st-3', firstName: 'Javohir', lastName: 'Toshtemirov', code: 'SPK202', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+    ])
+
+    renderComponent()
+
+    expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
+
+    // 1 submission for Bobur Karimov, 2 unsubmitted students (Dilnoza, Javohir)
+    expect(await screen.findByText('Audio topshirmagan o‘quvchilar')).toBeInTheDocument()
+    expect(screen.getByText('(2)')).toBeInTheDocument()
+
+    // The repetitive warning text must NOT be rendered repeatedly
+    expect(screen.queryByText(/Audio topshirilmagan\. O‘quvchi sinfda/)).not.toBeInTheDocument()
+
+    // Unsubmitted rows exist with compact class and contents
+    const unsubmittedRows = document.querySelectorAll('.speaking-unsubmitted-row')
+    expect(unsubmittedRows.length).toBe(2)
+
+    // Check Dilnoza row
+    const dilnozaRow = unsubmittedRows[0]!
+    expect(within(dilnozaRow as HTMLElement).getByText('Dilnoza Aliyeva')).toBeInTheDocument()
+    expect(within(dilnozaRow as HTMLElement).getByText('#SPK201')).toBeInTheDocument()
+    expect(within(dilnozaRow as HTMLElement).getByText('Topshirmagan')).toBeInTheDocument()
+    expect(within(dilnozaRow as HTMLElement).getByRole('button', { name: /Dilnoza Aliyeva progressini ko‘rish/ })).toBeInTheDocument()
+    expect(within(dilnozaRow as HTMLElement).getByRole('button', { name: /Dilnoza Aliyeva nutqini baholash/ })).toBeInTheDocument()
+
+    // Check Javohir row
+    const javohirRow = unsubmittedRows[1]!
+    expect(within(javohirRow as HTMLElement).getByText('Javohir Toshtemirov')).toBeInTheDocument()
+    expect(within(javohirRow as HTMLElement).getByText('#SPK202')).toBeInTheDocument()
+  })
+
+  it('opens teacher grading modal from unsubmitted student row and submits direct grade', async () => {
+    const { groupRepository } = await import('../features/groups/group.dependencies')
+    vi.mocked(groupRepository.listStudents).mockResolvedValueOnce([
+      { id: 'st-1', firstName: 'Bobur', lastName: 'Karimov', code: 'SPK101', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+      { id: 'st-2', firstName: 'Dilnoza', lastName: 'Aliyeva', code: 'SPK201', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+    ])
+
+    renderComponent()
+
+    expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
+
+    // Click "Baholash" on Dilnoza's row
+    const gradeBtn = await screen.findByRole('button', { name: /Dilnoza Aliyeva nutqini baholash/ })
+    fireEvent.click(gradeBtn)
+
+    // Modal opens for Dilnoza
+    expect(await screen.findByText('O‘quvchi nutqini baholash')).toBeInTheDocument()
+    expect(screen.getByText('Dilnoza Aliyeva (#SPK201)')).toBeInTheDocument()
+
+    // Enter score 9.0 and comment
+    const scoreInput = screen.getByLabelText(/O‘qituvchi bali/)
+    fireEvent.change(scoreInput, { target: { value: '9' } })
+
+    const commentInput = screen.getByLabelText(/O‘qituvchi izohi/)
+    fireEvent.change(commentInput, { target: { value: 'Sinfdagi faol nutq uchun' } })
+
+    const submitBtn = screen.getByRole('button', { name: /Bahoni tasdiqlash/ })
+    fireEvent.submit(submitBtn.closest('form')!)
+
+    await vi.waitFor(() => {
+      expect(mockGradeStudent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          studentId: 'st-2',
+          groupId: 'g-1',
+          teacherScore: 9,
+          teacherComment: 'Sinfdagi faol nutq uchun',
+        }),
+      )
+    })
+  })
+
+  it('opens Student Speaking Progress modal from unsubmitted student row Progress button', async () => {
+    const { groupRepository } = await import('../features/groups/group.dependencies')
+    vi.mocked(groupRepository.listStudents).mockResolvedValueOnce([
+      { id: 'st-1', firstName: 'Bobur', lastName: 'Karimov', code: 'SPK101', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+      { id: 'st-2', firstName: 'Dilnoza', lastName: 'Aliyeva', code: 'SPK201', status: 'active', birthDate: '', phone: '', parentName: '', parentPhone: '', address: '', balance: 0, groups: ['g-1'] },
+    ])
+
+    renderComponent()
+
+    expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
+
+    const progressBtn = await screen.findByRole('button', { name: /Dilnoza Aliyeva progressini ko‘rish/ })
+    fireEvent.click(progressBtn)
+
+    const modal = await screen.findByRole('dialog')
+    expect(within(modal).getByText('Dilnoza Aliyeva — Speaking progressi')).toBeInTheDocument()
+    expect(within(modal).getByText('#SPK201')).toBeInTheDocument()
+    expect(within(modal).getByText('0 ta audio')).toBeInTheDocument()
+  })
+
+  it('renders clean compact unsubmitted table when entire group of 16 students has 0 audio submissions', async () => {
+    const { groupRepository } = await import('../features/groups/group.dependencies')
+    // 16 students enrolled
+    const sixteenStudents = Array.from({ length: 16 }, (_, i) => ({
+      id: `st-cohort-${i + 1}`,
+      firstName: `Talaba_${i + 1}`,
+      lastName: `Familiya_${i + 1}`,
+      code: `SPK${100 + i + 1}`,
+      status: 'active' as const,
+      birthDate: '',
+      phone: '',
+      parentName: '',
+      parentPhone: '',
+      address: '',
+      balance: 0,
+      groups: ['g-1'],
+    }))
+
+    vi.mocked(groupRepository.listStudents).mockResolvedValueOnce(sixteenStudents)
+    // 0 submissions in API
+    mockListSubmissions.mockResolvedValueOnce([])
+
+    renderComponent()
+
+    expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
+
+    // Header says Audio topshirmagan o‘quvchilar (16)
+    const unsubmittedHeader = await screen.findByText('Audio topshirmagan o‘quvchilar')
+    expect(unsubmittedHeader).toBeInTheDocument()
+    expect(within(unsubmittedHeader.closest('.speaking-unsubmitted-header')!).getByText('(16)')).toBeInTheDocument()
+
+    // Exactly 16 compact rows rendered
+    const rows = document.querySelectorAll('.speaking-unsubmitted-row')
+    expect(rows.length).toBe(16)
+
+    // No giant cards or repetitive paragraph text
+    expect(document.querySelectorAll('.speaking-submission-card').length).toBe(0)
+    expect(screen.queryByText(/Audio topshirilmagan\. O‘quvchi sinfda/)).not.toBeInTheDocument()
+
+    // Check first and last student inside unsubmitted table
+    const unsubmittedTable = document.querySelector('.speaking-unsubmitted-table')!
+    expect(unsubmittedTable).toBeInTheDocument()
+    expect(within(unsubmittedTable as HTMLElement).getByText('Talaba_1 Familiya_1')).toBeInTheDocument()
+    expect(within(unsubmittedTable as HTMLElement).getByText('#SPK101')).toBeInTheDocument()
+    expect(within(unsubmittedTable as HTMLElement).getByText('Talaba_16 Familiya_16')).toBeInTheDocument()
+    expect(within(unsubmittedTable as HTMLElement).getByText('#SPK116')).toBeInTheDocument()
+  })
+
+  it('safely normalizes student codes with existing leading hash and provides name tooltip', async () => {
+    const { groupRepository } = await import('../features/groups/group.dependencies')
+    vi.mocked(groupRepository.listStudents).mockResolvedValueOnce([
+      {
+        id: 'st-hashed',
+        firstName: 'Muzaffar',
+        lastName: 'Xolmatov',
+        code: '#SPK777', // code already has leading hash
+        status: 'active' as const,
+        birthDate: '',
+        phone: '',
+        parentName: '',
+        parentPhone: '',
+        address: '',
+        balance: 0,
+        groups: ['g-1'],
+      },
+    ])
+    mockListSubmissions.mockResolvedValueOnce([])
+
+    renderComponent()
+
+    expect(await screen.findByText('Speaking & IELTS Voice Lab')).toBeInTheDocument()
+
+    // Both leaderboard and unsubmitted row should display single #SPK777, never ##SPK777
+    const matches = await screen.findAllByText('#SPK777')
+    expect(matches.length).toBe(2)
+    expect(screen.queryByText('##SPK777')).not.toBeInTheDocument()
+
+    // Student name in unsubmitted row has title tooltip attribute
+    const unsubmittedTable = document.querySelector('.speaking-unsubmitted-table')!
+    const nameEl = within(unsubmittedTable as HTMLElement).getByText('Muzaffar Xolmatov')
+    expect(nameEl).toHaveAttribute('title', 'Muzaffar Xolmatov')
   })
 })

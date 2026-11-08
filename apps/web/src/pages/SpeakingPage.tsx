@@ -142,9 +142,10 @@ export function SpeakingPage() {
     for (const st of groupStudents) {
       if (st.status === 'graduate') continue
       const fullName = `${st.firstName} ${st.lastName}`.trim()
+      const rawCode = (st.code || st.id).trim()
       studentMap.set(st.id, {
         studentName: fullName,
-        studentCode: st.code || st.id,
+        studentCode: rawCode.replace(/^#/, ''),
         submissions: [],
       })
     }
@@ -157,7 +158,7 @@ export function SpeakingPage() {
       } else {
         studentMap.set(sub.studentId, {
           studentName: sub.studentName,
-          studentCode: sub.studentCode,
+          studentCode: (sub.studentCode || '').trim().replace(/^#/, ''),
           submissions: [sub],
         })
       }
@@ -480,7 +481,7 @@ export function SpeakingPage() {
 
         {/* Right Column: Speaking Submissions Stream */}
         <section className="speaking-panel" aria-label="Topshiriqlar tahlili">
-          <div>
+          <div className="speaking-review-column">
             {/* Header with Group Info & Score Scale */}
             <div className="speaking-review-header">
               <div className="speaking-review-top">
@@ -600,21 +601,46 @@ export function SpeakingPage() {
                     />
                   ))}
 
-                  {statusFilter === 'ALL' &&
-                    filteredUnsubmittedEntries.map((entry) => (
-                      <UnsubmittedStudentCard
-                        key={`unsub-${entry.studentId}`}
-                        entry={entry}
-                        onGrade={() =>
-                          setGradingTarget({
-                            studentId: entry.studentId,
-                            studentName: entry.studentName,
-                            studentCode: entry.studentCode,
-                          })
-                        }
-                        onViewProgress={() => setViewingStudentId(entry.studentId)}
-                      />
-                    ))}
+                  {statusFilter === 'ALL' && filteredUnsubmittedEntries.length > 0 && (
+                    <section
+                      className="speaking-unsubmitted-section"
+                      aria-label="Audio topshirmagan o‘quvchilar"
+                    >
+                      <div className="speaking-unsubmitted-header">
+                        <div className="speaking-unsubmitted-header-title">
+                          <MicOff size={14} className="speaking-unsubmitted-header-icon" aria-hidden="true" />
+                          <span>Audio topshirmagan o‘quvchilar</span>
+                          <span className="speaking-unsubmitted-header-count">
+                            ({filteredUnsubmittedEntries.length})
+                          </span>
+                        </div>
+                        <span className="speaking-unsubmitted-header-hint">
+                          O‘quvchi sinfda og‘zaki javob bergan bo‘lsa, «Baholash» orqali to‘g‘ridan-to‘g‘ri baholang
+                        </span>
+                      </div>
+
+                      <div
+                        className="speaking-unsubmitted-table"
+                        role="table"
+                        aria-label="Audio topshirmagan o‘quvchilar ro‘yxati"
+                      >
+                        {filteredUnsubmittedEntries.map((entry) => (
+                          <UnsubmittedStudentRow
+                            key={`unsub-${entry.studentId}`}
+                            entry={entry}
+                            onGrade={() =>
+                              setGradingTarget({
+                                studentId: entry.studentId,
+                                studentName: entry.studentName,
+                                studentCode: entry.studentCode,
+                              })
+                            }
+                            onViewProgress={() => setViewingStudentId(entry.studentId)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
             </div>
@@ -751,7 +777,7 @@ function SubmissionCard({
       <div className="speaking-sub-header">
         <div className="speaking-student-info">
           <strong className="speaking-student-name">{submission.studentName}</strong>
-          <span className="speaking-student-code">#{submission.studentCode}</span>
+          <span className="speaking-student-code">#{submission.studentCode.replace(/^#/, '')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {statusBadge}
@@ -1145,7 +1171,7 @@ function SpeakingStudentProgressModal({
   )
 }
 
-function UnsubmittedStudentCard({
+export function UnsubmittedStudentRow({
   entry,
   onGrade,
   onViewProgress,
@@ -1155,54 +1181,42 @@ function UnsubmittedStudentCard({
   onViewProgress: () => void
 }) {
   return (
-    <article className="speaking-submission-card speaking-unsubmitted-card" tabIndex={-1}>
-      <div className="speaking-sub-header">
-        <div className="speaking-student-info">
-          <strong className="speaking-student-name">{entry.studentName}</strong>
-          <span className="speaking-student-code">#{entry.studentCode}</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <span className="speaking-status-badge speaking-status-unsubmitted">
-            <AlertCircle size={12} /> Topshirmagan
-          </span>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={onViewProgress}
-            style={{ height: '30px', padding: '0 9px', fontSize: '11px', gap: '4px' }}
-            aria-label={`${entry.studentName} progressini ko‘rish`}
-          >
-            <TrendingUp size={13} style={{ color: 'var(--gold)' }} />
-            <span>Progress</span>
-          </button>
-          <button
-            type="button"
-            className="secondary-button speaking-grade-btn-highlight"
-            onClick={onGrade}
-            style={{ height: '30px', padding: '0 11px', fontSize: '12px', gap: '5px' }}
-          >
-            <GraduationCap size={14} style={{ color: 'var(--gold)' }} />
-            <span>Baholash</span>
-          </button>
-        </div>
+    <div className="speaking-unsubmitted-row" role="row">
+      <div className="speaking-unsubmitted-left" role="cell">
+        <span className="speaking-student-code">#{entry.studentCode.replace(/^#/, '')}</span>
+        <strong className="speaking-unsubmitted-name" title={entry.studentName}>
+          {entry.studentName}
+        </strong>
+        <span className="speaking-status-badge speaking-status-unsubmitted">
+          <AlertCircle size={12} aria-hidden="true" /> Topshirmagan
+        </span>
       </div>
 
-      <div className="speaking-unsubmitted-box">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ color: '#d97706', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <MicOff size={18} />
-          </span>
-          <div style={{ fontSize: '12.5px', color: 'var(--text)', lineHeight: 1.45 }}>
-            <strong style={{ color: '#b45309' }}>Audio topshirilmagan.</strong>{' '}
-            <span style={{ color: 'var(--muted)' }}>
-              O‘quvchi sinfda og‘zaki javob bergan bo‘lsa, «Baholash» tugmasi orqali to‘g‘ridan-to‘g‘ri baholashingiz mumkin.
-            </span>
-          </div>
-        </div>
+      <div className="speaking-unsubmitted-actions" role="cell">
+        <button
+          type="button"
+          className="secondary-button speaking-row-btn"
+          onClick={onViewProgress}
+          aria-label={`${entry.studentName} progressini ko‘rish`}
+        >
+          <TrendingUp size={12} style={{ color: 'var(--gold)' }} aria-hidden="true" />
+          <span>Progress</span>
+        </button>
+        <button
+          type="button"
+          className="secondary-button speaking-grade-btn-highlight speaking-row-btn"
+          onClick={onGrade}
+          aria-label={`${entry.studentName} nutqini baholash`}
+        >
+          <GraduationCap size={13} style={{ color: 'var(--gold)' }} aria-hidden="true" />
+          <span>Baholash</span>
+        </button>
       </div>
-    </article>
+    </div>
   )
 }
+
+export const UnsubmittedStudentCard = UnsubmittedStudentRow
 
 function GradeSubmissionModal({
   target,
