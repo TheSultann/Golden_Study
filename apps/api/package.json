@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "backfill:speaking": "tsx scripts/backfill-speaking.ts"
   },
   "dependencies": {
     "@golden-study/contracts": "workspace:*",

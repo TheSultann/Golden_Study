@@ -128,7 +128,7 @@ describe('SpeakingService AI Evaluation & Idempotency', () => {
       transcript: 'New transcript',
       aiScore: 6.5,
       aiFeedback: 'New feedback',
-      modelUsed: 'gemini-3.8-flash',
+      modelUsed: 'gemini-3.6-flash',
     });
 
     const mockPrisma = {

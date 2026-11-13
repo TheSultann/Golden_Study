@@ -14,6 +14,18 @@ describe('GeminiSpeakingService', () => {
   });
 
   // Base behavior & parsing
+  it('initializes with default ultra-fast speaking models chain', () => {
+    const service = new GeminiSpeakingService('test-key');
+    expect(service.candidateModels).toEqual([
+      'gemini-3.6-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite',
+      'gemini-3.5-flash',
+      'whisper-large-v3',
+    ]);
+  });
+
   it('returns null when API key is not configured for manual teacher review', async () => {
     const service = new GeminiSpeakingService(undefined);
     const result = await service.evaluate({
@@ -69,9 +81,9 @@ I hope this evaluation helps!`;
   });
 
   // Scenario 1: Primary model successfully processes request
-  it('Scenario 1: Primary model (gemini-3.8-flash) successfully processes request', async () => {
+  it('Scenario 1: Primary model (gemini-3.6-flash) successfully processes request', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
@@ -79,7 +91,7 @@ I hope this evaluation helps!`;
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
       calls.push(urlStr);
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response(
           JSON.stringify({
             candidates: [
@@ -111,21 +123,21 @@ I hope this evaluation helps!`;
     });
 
     expect(result).not.toBeNull();
-    expect(result?.modelUsed).toBe('gemini-3.8-flash');
+    expect(result?.modelUsed).toBe('gemini-3.6-flash');
     expect(result?.aiScore).toBe(7.0);
     expect(result?.transcript).toBe('Student response transcribed');
     expect(calls.length).toBe(1);
-    expect(calls[0]).toContain('gemini-3.8-flash');
+    expect(calls[0]).toContain('gemini-3.6-flash');
 
     const stats = service.getCircuitBreakerStats();
-    expect(stats['gemini-3.8-flash']?.state).toBe('CLOSED');
-    expect(stats['gemini-3.8-flash']?.successfulRequests).toBe(1);
+    expect(stats['gemini-3.6-flash']?.state).toBe('CLOSED');
+    expect(stats['gemini-3.6-flash']?.successfulRequests).toBe(1);
   });
 
   // Scenario 2: Primary model returns 429 — automatically falls back to secondary model
-  it('Scenario 2: Primary model returns 429 — falls back to secondary model (gemini-3.6-flash)', async () => {
+  it('Scenario 2: Primary model returns 429 — falls back to secondary model (gemini-3.5-flash-lite)', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
@@ -133,7 +145,7 @@ I hope this evaluation helps!`;
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
       calls.push(urlStr);
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response(
           JSON.stringify({
             error: {
@@ -145,7 +157,7 @@ I hope this evaluation helps!`;
           { status: 429, headers: { 'Content-Type': 'application/json' } },
         );
       }
-      if (urlStr.includes('gemini-3.6-flash')) {
+      if (urlStr.includes('gemini-3.5-flash-lite')) {
         return new Response(
           JSON.stringify({
             candidates: [
@@ -177,30 +189,30 @@ I hope this evaluation helps!`;
     });
 
     expect(result).not.toBeNull();
-    expect(result?.modelUsed).toBe('gemini-3.6-flash');
+    expect(result?.modelUsed).toBe('gemini-3.5-flash-lite');
     expect(result?.aiScore).toBe(6.5);
     expect(calls.length).toBe(2);
 
     const stats = service.getCircuitBreakerStats();
-    expect(stats['gemini-3.8-flash']?.state).toBe('OPEN');
-    expect(stats['gemini-3.8-flash']?.consecutiveFailures).toBe(1);
-    expect(stats['gemini-3.6-flash']?.state).toBe('CLOSED');
-    expect(stats['gemini-3.6-flash']?.successfulRequests).toBe(1);
+    expect(stats['gemini-3.6-flash']?.state).toBe('OPEN');
+    expect(stats['gemini-3.6-flash']?.consecutiveFailures).toBe(1);
+    expect(stats['gemini-3.5-flash-lite']?.state).toBe('CLOSED');
+    expect(stats['gemini-3.5-flash-lite']?.successfulRequests).toBe(1);
   });
 
   // Scenario 3: Primary model returns 503 — triggers failover
   it('Scenario 3: Primary model returns 503 Service Unavailable — triggers failover', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response('Backend temporarily unavailable', { status: 503 });
       }
-      if (urlStr.includes('gemini-3.6-flash')) {
+      if (urlStr.includes('gemini-3.5-flash-lite')) {
         return new Response(
           JSON.stringify({
             candidates: [
@@ -209,7 +221,7 @@ I hope this evaluation helps!`;
                   parts: [
                     {
                       text: JSON.stringify({
-                        transcript: 'Recovered via 3.6 flash',
+                        transcript: 'Recovered via 3.5 flash lite',
                         aiScore: 8.0,
                         aiFeedback: 'Excellent',
                       }),
@@ -232,14 +244,14 @@ I hope this evaluation helps!`;
     });
 
     expect(result).not.toBeNull();
-    expect(result?.modelUsed).toBe('gemini-3.6-flash');
+    expect(result?.modelUsed).toBe('gemini-3.5-flash-lite');
     expect(result?.aiScore).toBe(8.0);
   });
 
   // Scenario 4: All models unavailable — returns controlled null without crashing
   it('Scenario 4: All models unavailable — returns controlled null', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
@@ -255,55 +267,55 @@ I hope this evaluation helps!`;
 
     expect(result).toBeNull();
     const stats = service.getCircuitBreakerStats();
-    expect(stats['gemini-3.8-flash']?.state).toBe('OPEN');
     expect(stats['gemini-3.6-flash']?.state).toBe('OPEN');
+    expect(stats['gemini-3.5-flash-lite']?.state).toBe('OPEN');
   });
 
   // Scenario 5: After cooldown, only one trial probe is allowed in HALF_OPEN
   it('Scenario 5: After cooldown, only ONE probe is permitted; other concurrent requests skip to fallback', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { baseCooldownMs: 1000, jitter: false },
     });
 
-    const cb38 = service.getCircuitBreaker('gemini-3.8-flash')!;
+    const cb36 = service.getCircuitBreaker('gemini-3.6-flash')!;
     const now = Date.now();
 
-    // Trip circuit breaker on 3.8
-    cb38.recordFailure(
+    // Trip circuit breaker on 3.6
+    cb36.recordFailure(
       { isRetriable: true, errorType: 'RATE_LIMIT', message: '429' },
       false,
       now - 2000, // Happened 2s ago, so 1s cooldown has already expired!
     );
-    expect(cb38.getStats().state).toBe('OPEN');
+    expect(cb36.getStats().state).toBe('OPEN');
 
     // First check acquires probe lock -> transitions to HALF_OPEN
-    const probeCheck = cb38.canExecute(now);
+    const probeCheck = cb36.canExecute(now);
     expect(probeCheck.allowed).toBe(true);
     expect(probeCheck.isProbe).toBe(true);
-    expect(cb38.getStats().state).toBe('HALF_OPEN');
+    expect(cb36.getStats().state).toBe('HALF_OPEN');
 
     // Concurrent check while probe is in progress -> rejected, must fallback
-    const concurrentCheck = cb38.canExecute(now);
+    const concurrentCheck = cb36.canExecute(now);
     expect(concurrentCheck.allowed).toBe(false);
     expect(concurrentCheck.reason).toContain('trial probe already in progress');
 
     // Probe succeeds -> restored to CLOSED
-    cb38.recordSuccess(true);
-    expect(cb38.getStats().state).toBe('CLOSED');
-    expect(cb38.canExecute(now).allowed).toBe(true);
+    cb36.recordSuccess(true);
+    expect(cb36.getStats().state).toBe('CLOSED');
+    expect(cb36.canExecute(now).allowed).toBe(true);
   });
 
   // Scenario 6: Daily quota (RPD) applies long cooldown instead of 60s
   it('Scenario 6: Daily quota (RPD) applies cooldown until UTC midnight instead of 60s', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { dailyQuotaCooldownMs: 6 * 3600 * 1000, jitter: false },
     });
 
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response(
           JSON.stringify({
             error: {
@@ -336,7 +348,7 @@ I hope this evaluation helps!`;
     });
 
     const stats = service.getCircuitBreakerStats();
-    const cbStats = stats['gemini-3.8-flash']!;
+    const cbStats = stats['gemini-3.6-flash']!;
     expect(cbStats.state).toBe('OPEN');
     expect(cbStats.lastQuotaType).toBe('RPD');
 
@@ -348,7 +360,7 @@ I hope this evaluation helps!`;
   // Scenario 7: 400 and 401 errors do NOT cause model switching and do NOT trip circuit breaker
   it('Scenario 7: 400 Bad Request does not switch model and does not trip circuit breaker', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
     });
 
     const calledUrls: string[] = [];
@@ -375,16 +387,16 @@ I hope this evaluation helps!`;
     expect(result).toBeNull();
     // Only primary model was called — did NOT failover!
     expect(calledUrls.length).toBe(1);
-    expect(calledUrls[0]).toContain('gemini-3.8-flash');
+    expect(calledUrls[0]).toContain('gemini-3.6-flash');
 
     // Circuit breaker remains CLOSED because 400 is client error
     const stats = service.getCircuitBreakerStats();
-    expect(stats['gemini-3.8-flash']?.state).toBe('CLOSED');
+    expect(stats['gemini-3.6-flash']?.state).toBe('CLOSED');
   });
 
   it('Scenario 7b: 401 Unauthorized does not switch model and halts immediately', async () => {
     const service = new GeminiSpeakingService('invalid-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
     });
 
     const calledUrls: string[] = [];
@@ -410,19 +422,19 @@ I hope this evaluation helps!`;
 
     expect(result).toBeNull();
     expect(calledUrls.length).toBe(1);
-    expect(service.getCircuitBreakerStats()['gemini-3.8-flash']?.state).toBe('CLOSED');
+    expect(service.getCircuitBreakerStats()['gemini-3.6-flash']?.state).toBe('CLOSED');
   });
 
   // Scenario 8: Malformed JSON output is rejected and triggers failover
   it('Scenario 8: Model returning malformed JSON output is rejected and triggers failover', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response(
           JSON.stringify({
             candidates: [
@@ -465,14 +477,14 @@ I hope this evaluation helps!`;
     });
 
     expect(result).not.toBeNull();
-    expect(result?.modelUsed).toBe('gemini-3.6-flash');
+    expect(result?.modelUsed).toBe('gemini-3.5-flash-lite');
     expect(result?.transcript).toBe('Recovered after invalid JSON');
   });
 
   // Scenario 9: Idempotency & non-redundant evaluation
   it('Scenario 9: Single model evaluation does not make redundant calls after success', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
     });
 
     let callsCount = 0;
@@ -514,13 +526,13 @@ I hope this evaluation helps!`;
   // Scenario 10: Parallel concurrent requests correctly use fallback when primary circuit is OPEN
   it('Scenario 10: Concurrent requests cleanly route to healthy fallback when primary model is OPEN', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { baseCooldownMs: 60_000, jitter: false },
     });
 
-    // Manually trip gemini-3.8-flash
+    // Manually trip gemini-3.6-flash
     service
-      .getCircuitBreaker('gemini-3.8-flash')!
+      .getCircuitBreaker('gemini-3.6-flash')!
       .recordFailure(
         { isRetriable: true, errorType: 'RATE_LIMIT', message: '429' },
         false,
@@ -530,8 +542,8 @@ I hope this evaluation helps!`;
     const calledModels: string[] = [];
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
-      if (urlStr.includes('gemini-3.6-flash')) {
-        calledModels.push('gemini-3.6-flash');
+      if (urlStr.includes('gemini-3.5-flash-lite')) {
+        calledModels.push('gemini-3.5-flash-lite');
         return new Response(
           JSON.stringify({
             candidates: [
@@ -571,10 +583,10 @@ I hope this evaluation helps!`;
     expect(results.length).toBe(5);
     for (const res of results) {
       expect(res).not.toBeNull();
-      expect(res?.modelUsed).toBe('gemini-3.6-flash');
+      expect(res?.modelUsed).toBe('gemini-3.5-flash-lite');
     }
-    // All 5 requests routed directly to gemini-3.6-flash without stalling
-    expect(calledModels.filter((m) => m === 'gemini-3.6-flash').length).toBe(5);
+    // All 5 requests routed directly to gemini-3.5-flash-lite without stalling
+    expect(calledModels.filter((m) => m === 'gemini-3.5-flash-lite').length).toBe(5);
   });
 
   // Edge Case A: parseGeminiJson rejects missing or null aiScore without fabricating 6.5
@@ -603,13 +615,13 @@ I hope this evaluation helps!`;
   // Edge Case B: Model returning missing score triggers failover to fallback model
   it('Edge Case: Model returning JSON without aiScore triggers failover to secondary model', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { jitter: false },
     });
 
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         // Model 1 returns valid JSON but with NO aiScore
         return new Response(
           JSON.stringify({
@@ -653,22 +665,22 @@ I hope this evaluation helps!`;
     });
 
     expect(result).not.toBeNull();
-    expect(result?.modelUsed).toBe('gemini-3.6-flash');
+    expect(result?.modelUsed).toBe('gemini-3.5-flash-lite');
     expect(result?.aiScore).toBe(7.5);
   });
 
   // Edge Case C: 400 Bad Request during probe in HALF_OPEN releases probe lock
   it('Edge Case: 400 Bad Request during probe in HALF_OPEN releases probe lock without permanent deadlock', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       circuitBreakerConfig: { baseCooldownMs: 1000, jitter: false },
     });
 
-    const cb38 = service.getCircuitBreaker('gemini-3.8-flash')!;
+    const cb36 = service.getCircuitBreaker('gemini-3.6-flash')!;
     const now = Date.now();
 
     // Trip circuit breaker 2 seconds ago
-    cb38.recordFailure(
+    cb36.recordFailure(
       { isRetriable: true, errorType: 'RATE_LIMIT', message: '429' },
       false,
       now - 2000,
@@ -693,10 +705,10 @@ I hope this evaluation helps!`;
     expect(probeRes).toBeNull();
 
     // Verify probe lock was released and NOT left permanently active!
-    expect(cb38.getStats().isProbing).toBe(false);
+    expect(cb36.getStats().isProbing).toBe(false);
 
     // Next request is NOT deadlocked and is allowed to probe
-    const nextCheck = cb38.canExecute(Date.now());
+    const nextCheck = cb36.canExecute(Date.now());
     expect(nextCheck.allowed).toBe(true);
     expect(nextCheck.isProbe).toBe(true);
   });
@@ -704,7 +716,7 @@ I hope this evaluation helps!`;
   // Edge Case D: Overall timeout budget is strictly respected
   it('Edge Case: Overall request timeout budget terminates model chain without indefinite hangs', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'gemini-3.6-flash'],
+      models: ['gemini-3.6-flash', 'gemini-3.5-flash-lite'],
       timeoutMs: 100, // 100ms total timeout
       perModelTimeoutMs: 200,
     });
@@ -731,7 +743,7 @@ I hope this evaluation helps!`;
   // Edge Case E: Request uses x-goog-api-key header and does not expose key in query parameters
   it('Edge Case: Request uses x-goog-api-key header and does not put apiKey in URL query parameters', async () => {
     const service = new GeminiSpeakingService('SUPER_SECRET_KEY', {
-      models: ['gemini-3.8-flash'],
+      models: ['gemini-3.6-flash'],
     });
 
     let sentUrl = '';
@@ -768,7 +780,7 @@ I hope this evaluation helps!`;
   // Edge Case F: Audio data could not be retrieved -> returns null without calling Gemini
   it('Edge Case: Returns null when audio cannot be retrieved from audioUrl without calling AI models', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash'],
+      models: ['gemini-3.6-flash'],
     });
 
     let geminiCalled = false;
@@ -793,7 +805,7 @@ I hope this evaluation helps!`;
 
   it('Scenario 9: Falls back to whisper-large-v3 when previous models exhaust quota', async () => {
     const service = new GeminiSpeakingService('test-key', {
-      models: ['gemini-3.8-flash', 'whisper-large-v3'],
+      models: ['gemini-3.6-flash', 'whisper-large-v3'],
       circuitBreakerConfig: { jitter: false },
     });
 
@@ -801,7 +813,7 @@ I hope this evaluation helps!`;
     globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url.toString();
       calls.push(urlStr);
-      if (urlStr.includes('gemini-3.8-flash')) {
+      if (urlStr.includes('gemini-3.6-flash')) {
         return new Response(
           JSON.stringify({
             error: {
@@ -836,7 +848,7 @@ I hope this evaluation helps!`;
     expect(res?.aiScore).toBe(6.0);
     expect(res?.aiFeedback).toBe('');
     expect(calls.length).toBe(2);
-    expect(calls[0]).toContain('gemini-3.8-flash');
+    expect(calls[0]).toContain('gemini-3.6-flash');
     expect(calls[1]).toContain('groq.com');
   });
 

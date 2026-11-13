@@ -4,7 +4,7 @@ import { ModelCircuitBreaker } from './circuit-breaker.js';
 
 describe('ModelCircuitBreaker', () => {
   it('starts in CLOSED state and allows requests', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash');
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash');
     const check = cb.canExecute();
     expect(check.allowed).toBe(true);
     expect(check.isProbe).toBe(false);
@@ -17,7 +17,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('transitions to OPEN on retriable failure with exponential backoff', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       backoffMultiplier: 2,
       maxCooldownMs: 480_000,
@@ -74,7 +74,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('respects explicit retryAfterMs from Google API when provided', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', { jitter: false });
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', { jitter: false });
     const now = 1_000_000;
 
     cb.recordFailure(
@@ -92,7 +92,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('applies daily quota cooldown until UTC midnight', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       dailyQuotaCooldownMs: 6 * 3600 * 1000,
       jitter: false,
     });
@@ -116,7 +116,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('blocks requests while cooldown is active', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       jitter: false,
     });
@@ -136,7 +136,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('allows only ONE trial probe in HALF_OPEN after cooldown expires', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       jitter: false,
     });
@@ -164,7 +164,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('restores CLOSED state when probe succeeds', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       jitter: false,
     });
@@ -192,7 +192,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('re-opens circuit with increased cooldown when probe fails', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       backoffMultiplier: 2,
       jitter: false,
@@ -221,7 +221,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('releases probe lock with releaseProbe without deadlocking HALF_OPEN state', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       jitter: false,
     });
@@ -248,7 +248,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('recordNonRetriable releases probe lock and preserves circuit breaker state', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       baseCooldownMs: 60_000,
       jitter: false,
     });
@@ -280,7 +280,7 @@ describe('ModelCircuitBreaker', () => {
   });
 
   it('calculates RPD cooldown correctly when 1 hour remains before UTC midnight (not 6 hours)', () => {
-    const cb = new ModelCircuitBreaker('gemini-3.8-flash', {
+    const cb = new ModelCircuitBreaker('gemini-3.6-flash', {
       dailyQuotaCooldownMs: 6 * 3600 * 1000,
       jitter: false,
     });

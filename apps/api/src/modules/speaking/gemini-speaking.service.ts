@@ -34,18 +34,23 @@ export interface GeminiSpeakingServiceOptions {
 
 /**
  * Verified production chain:
- * 1. gemini-3.8-flash (primary)
- * 2. gemini-3.6-flash (first fallback)
+ * 1. gemini-3.6-flash (primary, ultra-fast)
+ * 2. gemini-3.5-flash-lite (fast fallback)
+ * 3. gemini-flash-lite-latest (fast fallback)
+ * 4. gemini-3.1-flash-lite (fast fallback)
+ * 5. gemini-3.5-flash (multimodal fallback)
+ * 6. whisper-large-v3 (Groq audio transcription fallback)
+ * Note on slow models: gemini-3.8-flash and gemini-3.7-flash removed because they hang or exceed 30s on audio input modality.
  * Note on gemma-4-31b-it: Excluded from audio evaluation production chain because
  * Google Generative AI API explicitly rejects audio input modality with HTTP 400
  * ("Audio input modality is not enabled for this model").
  */
 export const DEFAULT_SPEAKING_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.7-flash',
   'gemini-3.6-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
-  'gemini-3.5-transcribe',
   'whisper-large-v3',
 ] as const;
 
@@ -64,8 +69,8 @@ export class GeminiSpeakingService {
     this.models = options?.models && options.models.length > 0
       ? options.models
       : DEFAULT_SPEAKING_MODELS;
-    this.timeoutMs = options?.timeoutMs ?? 25_000;
-    this.perModelTimeoutMs = options?.perModelTimeoutMs ?? Math.min(10_000, this.timeoutMs);
+    this.timeoutMs = options?.timeoutMs ?? 45_000;
+    this.perModelTimeoutMs = options?.perModelTimeoutMs ?? Math.min(15_000, this.timeoutMs);
 
     for (const model of this.models) {
       this.circuitBreakers.set(
@@ -159,6 +164,7 @@ export class GeminiSpeakingService {
               const fileInfo = (await getFileRes.json()) as {
                 ok: boolean;
                 result?: { file_path?: string };
+                description?: string;
               };
               if (fileInfo.ok && fileInfo.result?.file_path) {
                 const fetched = await fetch(
@@ -169,12 +175,30 @@ export class GeminiSpeakingService {
                   const arrayBuffer = await fetched.arrayBuffer();
                   audioBase64 = Buffer.from(arrayBuffer).toString('base64');
                   mimeType = 'audio/ogg';
+                } else {
+                  logger.warn(
+                    { status: fetched.status, file_path: fileInfo.result.file_path },
+                    'GeminiSpeakingService: Failed to download audio binary from Telegram',
+                  );
                 }
+              } else {
+                logger.warn(
+                  { description: fileInfo.description, fileId },
+                  'GeminiSpeakingService: Telegram getFile returned ok=false',
+                );
               }
+            } else {
+              logger.warn(
+                { status: getFileRes.status, fileId },
+                'GeminiSpeakingService: Telegram getFile HTTP request failed',
+              );
             }
           }
-        } catch {
-          // Handled below if audioBase64 is missing
+        } catch (fetchErr) {
+          logger.warn(
+            { err: fetchErr, audioUrl: input.audioUrl },
+            'GeminiSpeakingService: Telegram audio fetch threw exception',
+          );
         }
       }
 
