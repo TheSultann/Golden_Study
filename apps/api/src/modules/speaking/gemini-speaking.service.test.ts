@@ -17,6 +17,7 @@ describe('GeminiSpeakingService', () => {
   it('initializes with default ultra-fast speaking models chain', () => {
     const service = new GeminiSpeakingService('test-key');
     expect(service.candidateModels).toEqual([
+      'gemini-3.8-flash',
       'gemini-3.6-flash',
       'gemini-3.5-flash-lite',
       'gemini-flash-lite-latest',

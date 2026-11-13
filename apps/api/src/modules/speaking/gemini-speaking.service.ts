@@ -33,19 +33,17 @@ export interface GeminiSpeakingServiceOptions {
 }
 
 /**
- * Verified production chain:
- * 1. gemini-3.6-flash (primary, ultra-fast)
- * 2. gemini-3.5-flash-lite (fast fallback)
- * 3. gemini-flash-lite-latest (fast fallback)
- * 4. gemini-3.1-flash-lite (fast fallback)
- * 5. gemini-3.5-flash (multimodal fallback)
- * 6. whisper-large-v3 (Groq audio transcription fallback)
- * Note on slow models: gemini-3.8-flash and gemini-3.7-flash removed because they hang or exceed 30s on audio input modality.
- * Note on gemma-4-31b-it: Excluded from audio evaluation production chain because
- * Google Generative AI API explicitly rejects audio input modality with HTTP 400
- * ("Audio input modality is not enabled for this model").
+ * Verified production chain with Smart Flagship Probe:
+ * 1. gemini-3.8-flash (flagship reasoning with fast 7s probe timeout & circuit breaker protection)
+ * 2. gemini-3.6-flash (full-size high-accuracy workhorse, 3.2s)
+ * 3. gemini-3.5-flash-lite (ultra-fast lite fallback, 1.4s)
+ * 4. gemini-flash-lite-latest (stable auto-updating lite fallback, 1.4s)
+ * 5. gemini-3.1-flash-lite (fast fallback, 1.6s)
+ * 6. gemini-3.5-flash (multimodal fallback)
+ * 7. whisper-large-v3 (Groq audio transcription fallback)
  */
 export const DEFAULT_SPEAKING_MODELS = [
+  'gemini-3.8-flash',
   'gemini-3.6-flash',
   'gemini-3.5-flash-lite',
   'gemini-flash-lite-latest',
@@ -274,7 +272,9 @@ Format your output strictly as a JSON object matching this schema:
         let probeCompleted = false;
         const startTime = Date.now();
         try {
-          const attemptTimeoutMs = Math.min(this.perModelTimeoutMs, remainingOverallMs);
+          // Smart timeout: gemini-3.8-flash has a fast 7s budget to avoid blocking queue during Google peak load spikes
+          const modelTimeoutLimit = model === 'gemini-3.8-flash' ? 7_000 : this.perModelTimeoutMs;
+          const attemptTimeoutMs = Math.min(modelTimeoutLimit, remainingOverallMs);
           const isWhisper = model.includes('whisper');
           const isTranscribeOnly = model.includes('transcribe');
           const groqKey = env.GROQ_API_KEY;
