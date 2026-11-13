@@ -182,4 +182,72 @@ describe('backfillSpeakingSubmissions', () => {
       },
     });
   });
+
+  it('supports includeMissingFeedback option to enrich submissions that have transcripts but empty feedback', async () => {
+    const mockPrisma = {
+      speakingSubmission: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'sub-has-feedback',
+            audioUrl: 'telegram:file1',
+            transcript: 'Already transcribed speech',
+            aiFeedback: 'Already has feedback',
+            aiScore: 7.0,
+            status: 'EVALUATED_BY_AI',
+            topic: { title: 'Topic 1' },
+            student: { firstName: 'Munisa', lastName: 'Baxtiyorova', studentCode: 'ST105' },
+          },
+          {
+            id: 'sub-whisper-only',
+            audioUrl: 'telegram:file2',
+            transcript: 'Verbatim transcript from Whisper without feedback',
+            aiFeedback: '',
+            aiScore: 6.0,
+            status: 'GRADED_BY_TEACHER',
+            teacherScore: 8.0,
+            topic: { title: 'Topic 2' },
+            student: { firstName: 'Diana', lastName: 'Xujaniyazova', studentCode: 'ST113' },
+          },
+        ]),
+        update: vi.fn().mockResolvedValue({}),
+      },
+    };
+
+    const mockGemini = {
+      evaluate: vi.fn().mockResolvedValue({
+        transcript: 'Enhanced transcript from Gemini',
+        aiScore: 7.5,
+        aiFeedback: 'Detailed feedback from Gemini',
+        modelUsed: 'gemini-3.6-flash',
+      }),
+    };
+
+    // Without includeMissingFeedback -> ignores sub-whisper-only because it has transcript
+    const resultWithout = await backfillSpeakingSubmissions(
+      mockPrisma as unknown as PrismaClient,
+      mockGemini as unknown as GeminiSpeakingService,
+      () => {},
+      { includeMissingFeedback: false },
+    );
+    expect(resultWithout.processed).toBe(0);
+
+    // With includeMissingFeedback -> processes sub-whisper-only
+    const resultWith = await backfillSpeakingSubmissions(
+      mockPrisma as unknown as PrismaClient,
+      mockGemini as unknown as GeminiSpeakingService,
+      () => {},
+      { includeMissingFeedback: true },
+    );
+    expect(resultWith.processed).toBe(1);
+    expect(resultWith.success).toBe(1);
+    expect(mockPrisma.speakingSubmission.update).toHaveBeenCalledWith({
+      where: { id: 'sub-whisper-only' },
+      data: {
+        transcript: 'Enhanced transcript from Gemini',
+        aiFeedback: 'Detailed feedback from Gemini',
+        aiScore: 7.5,
+        status: 'GRADED_BY_TEACHER', // preserves teacher-graded status
+      },
+    });
+  });
 });

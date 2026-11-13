@@ -8,10 +8,15 @@ export interface BackfillSpeakingResult {
   failed: number;
 }
 
+export interface BackfillSpeakingOptions {
+  includeMissingFeedback?: boolean;
+}
+
 export async function backfillSpeakingSubmissions(
   prisma: PrismaClient,
   geminiService: GeminiSpeakingService,
   log: (msg: string) => void = console.log,
+  options?: BackfillSpeakingOptions,
 ): Promise<BackfillSpeakingResult> {
   log('[backfill-speaking] Searching for speaking submissions with Telegram audio and missing transcript...');
 
@@ -26,14 +31,19 @@ export async function backfillSpeakingSubmissions(
     orderBy: { createdAt: 'asc' },
   });
 
-  const pending = submissions.filter(
-    (s) => !s.transcript || s.transcript.trim() === '',
-  );
+  const pending = submissions.filter((s) => {
+    const missingTranscript = !s.transcript || s.transcript.trim() === '';
+    if (missingTranscript) return true;
+    if (options?.includeMissingFeedback) {
+      return !s.aiFeedback || s.aiFeedback.trim() === '';
+    }
+    return false;
+  });
 
   log(`[backfill-speaking] Found ${pending.length} submissions needing AI transcript/feedback (out of ${submissions.length} total Telegram submissions).`);
 
   if (pending.length === 0) {
-    log('[backfill-speaking] All Telegram speaking submissions already have transcripts. Nothing to do.');
+    log('[backfill-speaking] All Telegram speaking submissions already meet criteria. Nothing to do.');
     return {
       total: submissions.length,
       processed: 0,
@@ -70,9 +80,9 @@ export async function backfillSpeakingSubmissions(
       await prisma.speakingSubmission.update({
         where: { id: sub.id },
         data: {
-          transcript: evaluation.transcript,
-          aiFeedback: evaluation.aiFeedback,
-          aiScore: evaluation.aiScore,
+          transcript: evaluation.transcript || sub.transcript,
+          aiFeedback: evaluation.aiFeedback || sub.aiFeedback,
+          aiScore: evaluation.aiScore ?? sub.aiScore,
           status: nextStatus,
         },
       });
@@ -99,9 +109,15 @@ export async function backfillSpeakingSubmissions(
 async function main() {
   const prisma = new PrismaClient();
   const geminiService = new GeminiSpeakingService();
+  const includeMissingFeedback = process.argv.includes('--missing-feedback');
 
   try {
-    const result = await backfillSpeakingSubmissions(prisma, geminiService, console.log);
+    const result = await backfillSpeakingSubmissions(
+      prisma,
+      geminiService,
+      console.log,
+      { includeMissingFeedback },
+    );
     console.log('[backfill-speaking] Result:', result);
   } finally {
     await prisma.$disconnect();
